@@ -197,6 +197,35 @@ int g_svDedicateServerUpdateReate = 100;
 
 ENGINE_API xr_list<LOADING_EVENT> g_loading_events;
 
+// rs_fps_limit: wait until the next frame is due. Sleep while more than a couple of
+// milliseconds are left, then yield. A frame later than one period starts the schedule
+// again instead of running the next frames without a wait to catch up.
+static void LimitFrameRate() {
+    static LARGE_INTEGER freq = { 0 };
+    static LARGE_INTEGER next = { 0 };
+
+    const u32 fps = FpsLimitRate(psFpsLimit);
+    if (!fps) {
+        next.QuadPart = 0;
+        return;
+    }
+    if (!freq.QuadPart)
+        QueryPerformanceFrequency(&freq);
+
+    LARGE_INTEGER now;
+    QueryPerformanceCounter(&now);
+    const s64 period = freq.QuadPart / fps;
+    if (!next.QuadPart || now.QuadPart - next.QuadPart > period ||
+        next.QuadPart - now.QuadPart > period)
+        next.QuadPart = now.QuadPart;
+    while (now.QuadPart < next.QuadPart) {
+        const s64 left_ms = (next.QuadPart - now.QuadPart) * 1000 / freq.QuadPart;
+        Sleep(left_ms >= 2 ? u32(left_ms - 1) : 0);
+        QueryPerformanceCounter(&now);
+    }
+    next.QuadPart += period;
+}
+
 void CRenderDevice::on_idle() {
     if (!b_is_Ready) {
         Sleep(100);
@@ -278,6 +307,8 @@ void CRenderDevice::on_idle() {
         Device.seqParallel.clear();
         seqFrameMT.Process(rp_Frame);
     }
+
+    LimitFrameRate();
 
     if (!b_is_Active)
         Sleep(1);

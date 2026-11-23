@@ -62,17 +62,19 @@ if (-not (Test-Path $ltx)) {
     $user = Join-Path $appdata 'user.ltx'
     if (-not (Test-Path $user)) { throw "No ${user}: start the game once (or copy a user.ltx there) first." }
     $lines = Get-Content $user | ForEach-Object {
-        if ($_ -match '^rs_fullscreen ') { }   # set below
-        elseif ($_ -match '^vid_mode ') { 'vid_mode 1280x720' }
+        if ($_ -match '^vid_mode ') { 'vid_mode 1280x720' }
         else { $_ }
     }
-    $lines = @($lines) + 'rs_fullscreen off'
     Set-Content -Path $ltx -Value $lines -Encoding ascii
     Write-Host "Created $ltx (windowed, 1280x720)"
 }
 
-# A loaded level starts at once instead of waiting for a key on the load screen
-$lines = @(Get-Content $ltx | Where-Object { $_ -notmatch '^keypress_on_start ' }) + 'keypress_on_start 0'
+# Every run starts the same way, whatever the last scenario left in the file: in a window
+# (rs_screenmode; rs_fullscreen is the old switch), without the frame rate limit (frame
+# times are measured without it), and a loaded level starts at once instead of waiting
+# for a key on the load screen
+$lines = @(Get-Content $ltx | Where-Object { $_ -notmatch '^(keypress_on_start|rs_fullscreen|rs_screenmode|rs_fps_limit) ' }) +
+    'keypress_on_start 0' + 'rs_screenmode screenmode_windowed' + 'rs_fps_limit off'
 Set-Content -Path $ltx -Value $lines -Encoding ascii
 
 # Another renderer: a temporary copy of the settings with that renderer

@@ -60,6 +60,36 @@ ENGINE_API extern u32 psCurrentVidMode[];
 ENGINE_API extern u32 psCurrentBPP;
 ENGINE_API extern Flags32 psDeviceFlags;
 
+// psScreenMode (rs_screenmode); rsFullscreen is set only in smFullscreen
+enum {
+    smFullscreen = 0, // exclusive fullscreen
+    smWindowed = 1,   // window with a frame
+    smBorderless = 2, // window without a frame over the whole display
+};
+ENGINE_API extern u32 psScreenMode;
+// A borderless window is selected (and exclusive fullscreen is off)
+ENGINE_API bool ScreenModeBorderless();
+// The largest or the smallest (by area) of the video modes in vid_mode_token;
+// false before the renderer has filled the list (at device creation)
+ENGINE_API bool FindVidMode(bool bLargest, u32& dwWidth, u32& dwHeight);
+
+// psFpsLimit (rs_fps_limit): the frame rate cap, kept as the choice rather than
+// the number so that the refresh rate based ones follow the display
+enum {
+    flOff = 0, // no cap
+    fl30 = 1,
+    fl60 = 2,
+    flHalfRefresh = 3,   // half of the display refresh rate
+    flRefresh = 4,       // the display refresh rate
+    flDoubleRefresh = 5, // twice the display refresh rate
+};
+ENGINE_API extern u32 psFpsLimit;
+// The refresh rate of the display the game window is on, read at device creation and reset
+ENGINE_API void UpdateDisplayRefreshRate(HWND hWnd);
+ENGINE_API u32 DisplayRefreshRate();
+// The frame rate of a psFpsLimit choice (fl*), 0 for no cap
+ENGINE_API u32 FpsLimitRate(u32 limit);
+
 // game path definition
 #define _game_data_ "$game_data$"
 #define _game_textures_ "$game_textures$"

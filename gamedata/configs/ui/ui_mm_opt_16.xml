@@ -132,13 +132,30 @@
             <options_item entry="rs_c_brightness" group="mm_opt_video" depend="runtime"/>
         </track_brightness>
 
-        <cap_fullscreen x="12" y="183" width="108" height="24">
-            <text r="170" g="170" b="170" font="letterica16" align="r" vert_align="c">ui_mm_fullscreen</text>
-        </cap_fullscreen>
-        <check_fullscreen x="129" y="180" width="35" stretch="1" height="29">
-	        <texture>ui_inGame2_checkbox</texture>
-            <options_item entry="rs_fullscreen" group="mm_opt_video" depend="vid"/>
-        </check_fullscreen>
+        <!-- rs_screenmode replaces the full screen check box; rs_fps_limit is under it -->
+        <cap_screenmode x="12" y="183" width="108" height="24">
+            <text r="170" g="170" b="170" font="letterica16" align="r" vert_align="c">ui_mm_screen_mode</text>
+        </cap_screenmode>
+        <list_screenmode x="140" y="185" width="188" height="20" list_length="3" always_show_scroll="0">
+            <options_item entry="rs_screenmode" group="mm_opt_video" depend="vid"/>
+            <list_font r="170" g="170" b="170" font="letterica16"/>
+            <text_color>
+	            <e r="170" g="170" b="170"/>
+	            <d r="70" g="70" b="70"/>
+            </text_color>
+        </list_screenmode>
+
+        <cap_fps_limit x="12" y="213" width="108" height="24">
+            <text r="170" g="170" b="170" font="letterica16" align="r" vert_align="c">ui_mm_fps_limit</text>
+        </cap_fps_limit>
+        <list_fps_limit x="140" y="215" width="188" height="20" list_length="6" always_show_scroll="0">
+            <options_item entry="rs_fps_limit" group="mm_opt_video"/>
+            <list_font r="170" g="170" b="170" font="letterica16"/>
+            <text_color>
+	            <e r="170" g="170" b="170"/>
+	            <d r="70" g="70" b="70"/>
+            </text_color>
+        </list_fps_limit>
 
 
         <btn_advanced x="270" y="322" width="86" height="24" stretch="1">

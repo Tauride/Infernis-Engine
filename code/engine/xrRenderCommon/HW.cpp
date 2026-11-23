@@ -133,6 +133,12 @@ void CHW::DestroyDevice() {
 void CHW::selectResolution(u32& dwWidth, u32& dwHeight, BOOL bWindowed) {
     fill_vid_mode_list(this);
     if (bWindowed) {
+        // A borderless window always covers the display: its largest mode
+        u32 w, h;
+        if (ScreenModeBorderless() && FindVidMode(true, w, h)) {
+            psCurrentVidMode[0] = w;
+            psCurrentVidMode[1] = h;
+        }
         dwWidth = psCurrentVidMode[0];
         dwHeight = psCurrentVidMode[1];
     } else {
@@ -385,7 +391,20 @@ void CHW::updateWindowProps(HWND m_hWnd) {
 #endif
 
     u32 dwWindowStyle = 0;
-    if (bWindowed) {
+    if (bWindowed && ScreenModeBorderless()) {
+        if (m_move_window) {
+            // No frame, over the whole display the window is on (selectResolution gave the
+            // back buffer the display's largest mode)
+            SetWindowLong(m_hWnd, GWL_STYLE, dwWindowStyle = (WS_POPUP | WS_VISIBLE));
+
+            MONITORINFO mi;
+            mi.cbSize = sizeof(mi);
+            GetMonitorInfo(MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTOPRIMARY), &mi);
+            const RECT& R = mi.rcMonitor;
+            SetWindowPos(m_hWnd, HWND_NOTOPMOST, R.left, R.top, R.right - R.left, R.bottom - R.top,
+                         SWP_SHOWWINDOW | SWP_NOCOPYBITS | SWP_FRAMECHANGED);
+        }
+    } else if (bWindowed) {
         if (m_move_window) {
             if (strstr(Core.Params, "-no_dialog_header"))
                 SetWindowLong(m_hWnd, GWL_STYLE, dwWindowStyle = (WS_BORDER | WS_VISIBLE));
@@ -408,6 +427,11 @@ void CHW::updateWindowProps(HWND m_hWnd) {
             };
 
             AdjustWindowRect(&m_rcWindowBounds, dwWindowStyle, FALSE);
+
+            // The frame grows the rect up and to the left: at 0,0 the caption would be off
+            // the screen, so put the whole window inside it
+            if (!bCenter)
+                OffsetRect(&m_rcWindowBounds, -m_rcWindowBounds.left, -m_rcWindowBounds.top);
 
             SetWindowPos(m_hWnd, HWND_NOTOPMOST, m_rcWindowBounds.left, m_rcWindowBounds.top,
                          (m_rcWindowBounds.right - m_rcWindowBounds.left),

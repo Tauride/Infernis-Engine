@@ -3,6 +3,7 @@
 
 #include "ui/UIStatic.h"
 #include "ui/UIBtnHint.h"
+#include "../xrEngine/xr_autotest.h"
 
 #define C_DEFAULT D3DCOLOR_XRGB(0xff, 0xff, 0xff)
 
@@ -102,6 +103,10 @@ Fvector2 CUICursor::GetCursorPositionDelta() {
 void CUICursor::UpdateCursorPosition(int _dx, int _dy) {
     Fvector2 p;
     vPrevPos = vPos;
+    if (Autotest::ui_cursor(p)) { // the autotest's virtual cursor, not the real mouse
+        vPos = p;
+        return;
+    }
     if (m_b_use_win_cursor) {
         POINT pti;
         BOOL r = GetCursorPos(&pti);
@@ -122,6 +127,10 @@ void CUICursor::UpdateCursorPosition(int _dx, int _dy) {
 
 void CUICursor::SetUICursorPosition(Fvector2 pos) {
     vPos = pos;
+    if (Autotest::active()) {
+        Autotest::set_ui_cursor(pos);
+        return;
+    }
     POINT p;
     p.x = iFloor(vPos.x / (UI_BASE_WIDTH / (float)Device.dwWidth));
     p.y = iFloor(vPos.y / (UI_BASE_HEIGHT / (float)Device.dwHeight));

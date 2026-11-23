@@ -329,3 +329,179 @@ void dxRenderDeviceRender::OnAssetsChanged() {
     Resources->m_textures_description.UnLoad();
     Resources->m_textures_description.Load();
 }
+
+//-----------------------------------------------------------------------------
+// SaveBackBufferPNG: the frame as rendered so far, as an opaque PNG (autotest screenshots)
+//-----------------------------------------------------------------------------
+#if defined(USE_DX10) || defined(USE_DX11)
+
+#ifdef USE_DX11
+#include <D3DX11tex.h>
+#else
+#include <D3DX10tex.h>
+#endif
+
+namespace {
+bool has_alpha_byte(DXGI_FORMAT format) {
+    switch (format) {
+    case DXGI_FORMAT_R8G8B8A8_TYPELESS:
+    case DXGI_FORMAT_R8G8B8A8_UNORM:
+    case DXGI_FORMAT_R8G8B8A8_UNORM_SRGB:
+    case DXGI_FORMAT_B8G8R8A8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8A8_UNORM:
+    case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
+        return true;
+    default:
+        return false;
+    }
+}
+
+// The back buffer's alpha is whatever the last pass left there: make the picture opaque
+void make_opaque(void* data, u32 pitch, u32 width, u32 height) {
+    for (u32 y = 0; y < height; ++y) {
+        u8* row = (u8*)data + size_t(y) * pitch;
+        for (u32 x = 0; x < width; ++x)
+            row[x * 4 + 3] = 0xff;
+    }
+}
+} // namespace
+
+LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
+    if (!HW.pBaseRT)
+        return "no back buffer";
+
+    ID3DResource* resource = nullptr;
+    HW.pBaseRT->GetResource(&resource);
+    if (!resource)
+        return "the back buffer has no resource";
+
+    ID3DTexture2D* source = nullptr;
+    HRESULT hr = resource->QueryInterface(__uuidof(ID3DTexture2D), (void**)&source);
+    _RELEASE(resource);
+    if (FAILED(hr) || !source)
+        return "the back buffer is not a 2D texture";
+
+    D3D_TEXTURE2D_DESC desc;
+    source->GetDesc(&desc);
+
+    LPCSTR error = nullptr;
+    ID3DTexture2D* resolved = nullptr;
+    ID3DTexture2D* staging = nullptr;
+
+    if (desc.SampleDesc.Count > 1) { // a multisampled back buffer cannot be copied or mapped
+        D3D_TEXTURE2D_DESC rd = desc;
+        rd.SampleDesc.Count = 1;
+        rd.SampleDesc.Quality = 0;
+        rd.Usage = D3D_USAGE_DEFAULT;
+        rd.BindFlags = 0;
+        rd.CPUAccessFlags = 0;
+        rd.MiscFlags = 0;
+        if (FAILED(HW.pDevice->CreateTexture2D(&rd, nullptr, &resolved)))
+            error = "cannot create the resolve texture";
+        else
+            HW.pContext->ResolveSubresource(resolved, 0, source, 0, desc.Format);
+    }
+
+    if (!error) {
+        D3D_TEXTURE2D_DESC sd = desc;
+        sd.MipLevels = 1;
+        sd.ArraySize = 1;
+        sd.SampleDesc.Count = 1;
+        sd.SampleDesc.Quality = 0;
+        sd.BindFlags = 0;
+        sd.MiscFlags = 0;
+#ifdef USE_DX11
+        sd.Usage = D3D11_USAGE_STAGING;
+        sd.CPUAccessFlags = D3D11_CPU_ACCESS_READ | D3D11_CPU_ACCESS_WRITE;
+#else
+        sd.Usage = D3D10_USAGE_STAGING;
+        sd.CPUAccessFlags = D3D10_CPU_ACCESS_READ | D3D10_CPU_ACCESS_WRITE;
+#endif
+        if (FAILED(HW.pDevice->CreateTexture2D(&sd, nullptr, &staging)))
+            error = "cannot create the staging texture";
+    }
+
+    if (!error) {
+        HW.pContext->CopySubresourceRegion(staging, 0, 0, 0, 0, resolved ? resolved : source, 0,
+                                           nullptr);
+        if (has_alpha_byte(desc.Format)) {
+#ifdef USE_DX11
+            D3D11_MAPPED_SUBRESOURCE mapped;
+            if (SUCCEEDED(HW.pContext->Map(staging, 0, D3D11_MAP_READ_WRITE, 0, &mapped))) {
+                make_opaque(mapped.pData, mapped.RowPitch, desc.Width, desc.Height);
+                HW.pContext->Unmap(staging, 0);
+            } else
+                error = "cannot map the staging texture";
+#else
+            D3D10_MAPPED_TEXTURE2D mapped;
+            if (SUCCEEDED(staging->Map(0, D3D10_MAP_READ_WRITE, 0, &mapped))) {
+                make_opaque(mapped.pData, mapped.RowPitch, desc.Width, desc.Height);
+                staging->Unmap(0);
+            } else
+                error = "cannot map the staging texture";
+#endif
+        }
+    }
+
+    if (!error) {
+#ifdef USE_DX11
+        hr = D3DX11SaveTextureToFileA(HW.pContext, staging, D3DX11_IFF_PNG, path);
+#else
+        hr = D3DX10SaveTextureToFileA(staging, D3DX10_IFF_PNG, path);
+#endif
+        if (FAILED(hr))
+            error = "cannot save the texture to the file";
+    }
+
+    _RELEASE(staging);
+    _RELEASE(resolved);
+    _RELEASE(source);
+    return error;
+}
+
+#else // USE_DX10 || USE_DX11
+
+LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
+    IDirect3DSurface9* rt = HW.pBaseRT;
+    if (!rt)
+        return "no back buffer";
+    D3DSURFACE_DESC desc;
+    if (FAILED(rt->GetDesc(&desc)))
+        return "GetDesc failed";
+
+    IDirect3DSurface9* src = rt;
+    IDirect3DSurface9* resolved = nullptr;
+    IDirect3DSurface9* sys = nullptr;
+    LPCSTR error = nullptr;
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
+        if (FAILED(HW.pDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format,
+                                                  D3DMULTISAMPLE_NONE, 0, FALSE, &resolved,
+                                                  nullptr)) ||
+            FAILED(HW.pDevice->StretchRect(rt, nullptr, resolved, nullptr, D3DTEXF_NONE)))
+            error = "cannot resolve the multisampled back buffer";
+        src = resolved;
+    }
+    if (!error && FAILED(HW.pDevice->CreateOffscreenPlainSurface(
+                      desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &sys, nullptr)))
+        error = "CreateOffscreenPlainSurface failed";
+    if (!error && FAILED(HW.pDevice->GetRenderTargetData(src, sys)))
+        error = "GetRenderTargetData failed";
+    if (!error && (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)) {
+        D3DLOCKED_RECT locked;
+        if (SUCCEEDED(sys->LockRect(&locked, nullptr, 0))) { // the alpha is not the picture's
+            for (u32 y = 0; y < desc.Height; ++y) {
+                u8* row = (u8*)locked.pBits + size_t(y) * locked.Pitch;
+                for (u32 x = 0; x < desc.Width; ++x)
+                    row[x * 4 + 3] = 0xff;
+            }
+            sys->UnlockRect();
+        }
+    }
+    if (!error && FAILED(D3DXSaveSurfaceToFileA(path, D3DXIFF_PNG, sys, nullptr, nullptr)))
+        error = "D3DXSaveSurfaceToFile failed";
+    _RELEASE(sys);
+    _RELEASE(resolved);
+    return error;
+}
+
+#endif // USE_DX10 || USE_DX11

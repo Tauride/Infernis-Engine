@@ -103,6 +103,7 @@ protected:
 
 public:
     CUILines* TextItemControl();
+    bool HasTextItemControl() const { return m_pTextControl != nullptr; } // TextItemControl() creates one
     shared_str m_stat_hint_text;
 
     DECLARE_SCRIPT_REGISTER_FUNCTION

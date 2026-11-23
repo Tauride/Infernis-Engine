@@ -42,6 +42,7 @@ public:
     // dialogs
     void OnExternalHideIndicators();
     CUIDialogWnd* TopInputReceiver();
+    const xr_vector<dlgItem>& DialogsToRender() const { return m_dialogsToRender; }
     void AddDialogToRender(CUIWindow* pDialog);
     void RemoveDialogToRender(CUIWindow* pDialog);
     virtual void OnFrame();

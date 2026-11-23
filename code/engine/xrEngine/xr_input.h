@@ -81,6 +81,13 @@ public:
 
     IInputReceiver* CurrentIR();
 
+    // Events from the autotest ui_* steps, sent to the current receiver as if they came
+    // from the devices (the button and key states follow them)
+    void inject_mouse_move(int dx, int dy);
+    void inject_mouse_button(int btn, bool down);
+    void inject_mouse_wheel(int direction);
+    void inject_key(int dik, bool down);
+
 public:
     void exclusive_mode(const bool& exclusive);
     IC bool get_exclusive_mode();

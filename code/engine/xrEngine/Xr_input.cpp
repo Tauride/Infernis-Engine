@@ -519,6 +519,38 @@ void CInput::iRelease(IInputReceiver* p) {
     }
 }
 
+void CInput::inject_mouse_move(int dx, int dy) {
+    if (!cbStack.empty())
+        cbStack.back()->IR_OnMouseMove(dx, dy);
+}
+
+void CInput::inject_mouse_button(int btn, bool down) {
+    if (btn < 0 || btn >= COUNT_MOUSE_BUTTONS || cbStack.empty())
+        return;
+    mouseState[btn] = down ? TRUE : FALSE;
+    if (down)
+        cbStack.back()->IR_OnMousePress(btn);
+    else
+        cbStack.back()->IR_OnMouseRelease(btn);
+}
+
+void CInput::inject_mouse_wheel(int direction) {
+    if (!cbStack.empty())
+        cbStack.back()->IR_OnMouseWheel(direction);
+}
+
+void CInput::inject_key(int dik, bool down) {
+    if (dik < 0 || cbStack.empty())
+        return;
+    // mouse4..8 (0xED+103..) have no key state, as in MouseUpdate
+    if (dik < COUNT_KB_BUTTONS)
+        KBState[dik] = down ? TRUE : FALSE;
+    if (down)
+        cbStack.back()->IR_OnKeyboardPress(dik);
+    else
+        cbStack.back()->IR_OnKeyboardRelease(dik);
+}
+
 void CInput::OnAppActivate(void) {
     if (CurrentIR())
         CurrentIR()->IR_OnActivate();

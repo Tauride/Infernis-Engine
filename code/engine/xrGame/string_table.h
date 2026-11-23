@@ -46,6 +46,11 @@ public:
 
     static void ReparseKeyBindings();
 
+    // For the autotest: the translation of an id without recording it as missing (NULL if
+    // none), and the first id whose translation is this text (NULL if none)
+    static STRING_VALUE Lookup(const STRING_ID& str_id);
+    static STRING_ID FindId(const STRING_VALUE& value);
+
 private:
     void Init();
     void LoadLanguage(LPCSTR language, bool is_fallback);

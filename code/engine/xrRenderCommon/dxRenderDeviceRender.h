@@ -69,6 +69,7 @@ public:
     virtual void ClearTarget();
     virtual void SetCacheXform(Fmatrix& mView, Fmatrix& mProject);
     virtual void OnAssetsChanged();
+    virtual LPCSTR SaveBackBufferPNG(LPCSTR path);
 
 public:
     CResourceManager* Resources;

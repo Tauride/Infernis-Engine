@@ -2,10 +2,14 @@
 
 typedef void crashhandler();
 typedef void on_dialog(bool before);
+// Unattended mode: called once, right before the process terminates on a fatal error.
+// reason - the assertion text or the exception description; dump_path - the minidump ("" if none).
+typedef void on_unattended_crash(const char* reason, const char* dump_path);
 
 class XRCORE_API xrDebug {
     crashhandler* handler = nullptr;
     on_dialog* m_on_dialog = nullptr;
+    on_unattended_crash* m_on_unattended_crash = nullptr;
 
 public:
     void _initialize();
@@ -16,6 +20,13 @@ public:
 
     on_dialog* get_on_dialog() const { return m_on_dialog; }
     void set_on_dialog(on_dialog* on_dialog) { m_on_dialog = on_dialog; }
+
+    // Unattended mode (-unattended, implied by -autotest): fatal errors never show a dialog.
+    // They log, write a minidump to $logs$, call the on_unattended_crash callback and
+    // terminate the process with exit code 3.
+    static bool unattended();
+    on_unattended_crash* get_on_unattended_crash() const { return m_on_unattended_crash; }
+    void set_on_unattended_crash(on_unattended_crash* cb) { m_on_unattended_crash = cb; }
 
     const char* error2string(const DWORD code) const;
 

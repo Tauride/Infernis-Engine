@@ -514,6 +514,22 @@ STRING_VALUE CStringTable::ParseLine(LPCSTR str, LPCSTR skey, bool bFirst) {
     return STRING_VALUE(res.c_str());
 }
 
+STRING_VALUE CStringTable::Lookup(const STRING_ID& str_id) {
+    if (!pData)
+        return NULL;
+    auto it = pData->m_StringTable.find(str_id);
+    return it == pData->m_StringTable.end() ? STRING_VALUE(NULL) : it->second;
+}
+
+STRING_ID CStringTable::FindId(const STRING_VALUE& value) {
+    if (!pData || !value.size())
+        return NULL;
+    for (const auto& item : pData->m_StringTable)
+        if (item.second == value) // shared_str: equal texts share one pointer
+            return item.first;
+    return NULL;
+}
+
 STRING_VALUE CStringTable::translate(const STRING_ID& str_id) const {
     VERIFY(pData);
 

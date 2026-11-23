@@ -16,6 +16,7 @@ static size_t flushedLineCount = 0;
 
 xr_vector<std::string>* LogFile = nullptr;
 static LogCallback LogCB = nullptr;
+static LogCallback LogObserver = nullptr;
 
 static bool OpenLogWriter() {
     const BOOL previousNoLog = no_log;
@@ -72,6 +73,8 @@ void AddOne(const char* split) {
     // exec CallBack
     if (LogExecCB && LogCB)
         LogCB(split);
+    if (LogObserver)
+        LogObserver(split);
 
     FlushLogLocked();
 }
@@ -175,7 +178,14 @@ LogCallback SetLogCB(LogCallback cb) {
     return (result);
 }
 
+void SetLogObserver(LogCallback cb) {
+    std::lock_guard<decltype(logCS)> lock(logCS);
+    LogObserver = cb;
+}
+
 LPCSTR log_name() { return (log_file_name); }
+
+LPCSTR log_path() { return (logFName); }
 
 void InitLog() {
     std::lock_guard<decltype(logCS)> lock(logCS);

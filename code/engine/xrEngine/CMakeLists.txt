@@ -277,9 +277,11 @@ set(GENERAL _d3d_extensions.h
             mp_logging.h
             stdafx.h
             x_ray.h
+            xr_autotest.h
             defines.cpp
             stdafx.cpp
-            x_ray.cpp)
+            x_ray.cpp
+            xr_autotest.cpp)
 
 set(EDITOR_ENVIRONMENT_SUNS_MANAGER editor_environment_suns_manager.hpp
                                     editor_environment_suns_manager.cpp)

@@ -300,7 +300,7 @@ void CUIItemInfo::InitItem(CUICellItem* pCellItem, CInventoryItem* pCompareItem,
     }
     if (UIItemImage) {
         // Загружаем картинку
-        UIItemImage->SetShader(InventoryUtilities::GetEquipmentIconsShader());
+        InventoryUtilities::SetItemIconShader(*UIItemImage, pInvItem->object().cNameSect().c_str());
 
         Irect item_grid_rect = pInvItem->GetInvGridRect();
         Frect texture_rect;

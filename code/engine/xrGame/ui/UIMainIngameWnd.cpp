@@ -526,6 +526,12 @@ void CUIMainIngameWnd::UpdatePickUpItem() {
 
     shared_str sect_name = m_pPickUpItem->object().cNameSect();
 
+    // the icon sheet changes with the item only: this runs every frame
+    if (m_pickup_icon_section != sect_name) {
+        m_pickup_icon_section = sect_name;
+        SetItemIconShader(*UIPickUpItemIcon, sect_name.c_str());
+    }
+
     // properties used by inventory menu
     int m_iGridWidth = pSettings->r_u32(sect_name, "inv_grid_width");
     int m_iGridHeight = pSettings->r_u32(sect_name, "inv_grid_height");

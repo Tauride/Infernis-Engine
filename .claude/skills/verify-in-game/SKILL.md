@@ -30,7 +30,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `device_lost.cfg` | a lost device and reset in the menu, during a level start and in the level; run per renderer | ~17 s |
 | `start_option.cfg` | `-start` on the command line goes straight into a new game (needs `-ExtraArgs`) | ~10 s |
 | `soc_cordon.cfg` | SoC port: the converted Cordon boots with the actor and the scenery in the spawn, the actor walks in the village and stands on the ground at four places (needs the SoC addon pack) | ~50 s |
-| `soc_cordon_scenery.cfg` | SoC port: the 276 scenery objects of Cordon (props, lamps, ladders, breakables, crows) are in the simulation, come online near the actor, and a wooden crate breaks (needs the SoC addon pack) | ~25 s |
+| `soc_cordon_scenery.cfg` | SoC port: the 221 props of Cordon (props, lamps, ladders, breakables) are in the simulation, come online near the actor, a wooden crate breaks, and the crow spawner makes crows within its limit (needs the SoC addon pack) | ~25 s |
 | `soc_cordon_hazards.cfg` | SoC port: the 184 hazards of Cordon (anomalies, mines, fires, explosive barrels) are in the simulation and online; the invulnerable actor stands in each kind, walks onto a mine and shoots the barrels (needs the SoC addon pack and `-ExtraArgs "-dev_mode"`) | ~55 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |

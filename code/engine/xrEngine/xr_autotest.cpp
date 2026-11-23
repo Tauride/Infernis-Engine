@@ -147,6 +147,18 @@ namespace
 		std::string	arg;		// the rest
 	};
 
+	// What the person at the keyboard recorded in an ask_pose step
+	struct SPose
+	{
+		std::string	label;
+		Fvector		actor;		// the actor's place
+		Fvector		camera;		// where the camera was
+		float		yaw, pitch;	// the camera's angles, radians
+	};
+
+	const int	key_record		= DIK_F7;	// ask_pose: record the pose
+	const int	key_skip		= DIK_F8;	// ask_pose: go on without one
+
 	struct SPerf
 	{
 		std::string	label;
@@ -247,9 +259,15 @@ namespace
 		double						hover_s;		// the pause between moving onto a window and pressing
 		std::vector<std::string>	ui_dumps;
 
+		// ask_pose
+		std::vector<SPose>			poses;
+		std::string					prompt;			// shown while a step waits for the person at the keyboard
+		bool						keys_released;	// the step's keys were seen up since it started
+		volatile LONG				human_wait;		// a step waits for a person: the time limit does not run
+
 		CAutotest() : timeout_s(900), status(stRunning), phase(phStartup), step(0), t_start(now_s()), t_step(0), t_shutdown(0),
 			step_started(false), frames(0), last_frame_seen(0), last_frame_time(now_s()), registered(false), finished(0), wait_frames_left(0),
-			screenshot_pending(false), screenshot_overlays(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1)
+			screenshot_pending(false), screenshot_overlays(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1), keys_released(false), human_wait(0)
 		{
 			InitializeCriticalSection	(&cs);
 			InitializeCriticalSection	(&log_cs);
@@ -286,6 +304,19 @@ namespace
 			out		+= "]";
 			xr_sprintf(b,",\n  \"ui_cursor\": [%.0f, %.0f]",g_cursor.x,g_cursor.y);	out += b;
 
+			out		+= ",\n  \"poses\": [";
+			for (size_t i=0; i<poses.size(); ++i) {
+				const SPose& P = poses[i];
+				out	+= i ? ",\n    {" : "\n    {";
+				out	+= "\"label\": ";	json_str(out,P.label);
+				xr_sprintf(b,", \"actor\": [%.2f, %.2f, %.2f], \"camera\": [%.2f, %.2f, %.2f], \"yaw\": %.3f, \"pitch\": %.3f, \"step\": ",
+					P.actor.x,P.actor.y,P.actor.z,P.camera.x,P.camera.y,P.camera.z,P.yaw,P.pitch);
+				out	+= b;
+				json_str(out,pose_step(P));
+				out	+= "}";
+			}
+			out		+= poses.empty() ? "]" : "\n  ]";
+
 			out		+= ",\n  \"perf\": [";
 			for (size_t i=0; i<perf.size(); ++i) {
 				const SPerf& P = perf[i];
@@ -309,6 +340,14 @@ namespace
 			out		+= log_lines.size()>from ? "\n  ]" : "]";
 			LeaveCriticalSection	(&log_cs);
 			out		+= "\n}\n";
+		}
+
+		// The scenario line that puts the actor and his camera back into a recorded pose
+		static std::string	pose_step	(const SPose& P)
+		{
+			char	b[160];
+			xr_sprintf(b,"pose %.2f %.2f %.2f %.3f %.3f",P.actor.x,P.actor.y,P.actor.z,P.yaw,P.pitch);
+			return	b;
 		}
 
 		// Write to a temporary file and move it over the result, so readers never see half a file
@@ -368,7 +407,7 @@ namespace
 			static const char* names[] = { "wait_frames", "wait_seconds", "wait_level", "wait_log", "expect_log", "fail_on_log",
 				"screenshot", "screenshot_overlay", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "debug_device_lost", "load_save",
 				"ui_move", "ui_click", "ui_rclick", "ui_dblclick", "ui_drag", "ui_down", "ui_up", "ui_wheel", "ui_key", "ui_key_down",
-				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", "lua", "lua_expect", 0 };
+				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", "lua", "lua_expect", "ask_pose", "pose", 0 };
 			for (int i=0; names[i]; ++i)	if (c==names[i])	return true;
 			return false;
 		}
@@ -391,6 +430,10 @@ namespace
 				else if (S.cmd=="perf_begin" && S.arg.empty())				xr_sprintf(err,"perf_begin needs a label");
 				else if ((S.cmd=="lua" || S.cmd=="lua_expect") && (S.arg.empty() || !g_ui))
 																			xr_sprintf(err,S.arg.empty() ? "%s needs Lua code" : "%s: the game DLL has no autotest support",S.cmd.c_str());
+				else if (S.cmd=="ask_pose" && (S.arg.empty() || !g_ui))
+																			xr_sprintf(err,S.arg.empty() ? "ask_pose needs a label" : "ask_pose: the game DLL has no autotest support");
+				else if (S.cmd=="pose" && (!parse_pose(S.arg,NULL) || !g_ui))
+																			xr_sprintf(err,g_ui ? "pose needs <x> <y> <z> <yaw> <pitch>" : "pose: the game DLL has no autotest support");
 				else if (S.cmd.compare(0,3,"ui_")==0 && !validate_ui(S,err,sizeof(err)))	{}
 				else if (S.cmd=="debug_device_lost" && !S.arg.empty() && atoi(S.arg.c_str())<=0)
 																			xr_sprintf(err,"debug_device_lost takes a frame count");
@@ -405,6 +448,60 @@ namespace
 				}
 			}
 			return true;
+		}
+
+		// pose <x> <y> <z> <yaw> <pitch>
+		static bool	parse_pose		(const std::string& a, SPose* P)
+		{
+			float	v[5];
+			char	rest;
+			if (sscanf_s(a.c_str(),"%f %f %f %f %f %c",&v[0],&v[1],&v[2],&v[3],&v[4],&rest,1)!=5)	return false;
+			if (P)	{ P->actor.set(v[0],v[1],v[2]); P->yaw = v[3]; P->pitch = v[4]; }
+			return	true;
+		}
+
+		// ask_pose <label> [<what to look at>]: hands the game to the person at the keyboard.
+		// They walk and aim, then press the record key; the actor's place and the camera's
+		// angles go to the log and the result as a ready pose step. The skip key goes on
+		// without one. The time spent here does not count towards the time limit.
+		bool	run_ask_pose	(const SStep& S, double waited)
+		{
+			size_t		sp		= S.arg.find_first_of(" \t");
+			std::string	label	= sp==std::string::npos ? S.arg : S.arg.substr(0,sp);
+			std::string	what	= sp==std::string::npos ? label : trim(S.arg.substr(sp));
+			if (!step_started) {
+				step_started	= true;
+				keys_released	= false;
+				prompt			= what;
+				InterlockedExchange	(&human_wait,1);
+				Msg				("* [autotest] ask_pose %s: waiting for the person at the keyboard (F7 records, F8 skips)",label.c_str());
+				return			false;
+			}
+			bool	record	= pInput && pInput->iGetAsyncKeyState(key_record);
+			bool	skip	= pInput && pInput->iGetAsyncKeyState(key_skip);
+			if (!keys_released) {	// a key still held from the step before does not count
+				keys_released	= !record && !skip;
+				return			false;
+			}
+			if (!record && !skip)	return false;
+
+			prompt.clear	();
+			t_start			+= waited;
+			InterlockedExchange	(&human_wait,0);
+			if (!record) {
+				Msg			("* [autotest] ask_pose %s: skipped",label.c_str());
+				return		true;
+			}
+			SPose	P;
+			P.label		= label;
+			P.camera	= Device.vCameraPosition;
+			if (!g_ui->get_pose(P.actor,P.yaw,P.pitch)) {
+				finish_scenario	(stFailed,"ask_pose: there is no actor");
+				return			false;
+			}
+			poses.push_back	(P);
+			Msg				("* [autotest] ask_pose %s: %s (camera at %.2f %.2f %.2f)",label.c_str(),pose_step(P).c_str(),P.camera.x,P.camera.y,P.camera.z);
+			return			true;
 		}
 
 		static bool	mouse_button	(const std::string& a, int& btn)
@@ -828,6 +925,17 @@ namespace
 				}
 				return true;
 			}
+			if (S.cmd=="ask_pose")
+				return run_ask_pose(S,waited);
+			if (S.cmd=="pose") {	// the actor and his camera as an ask_pose step recorded them
+				SPose	P;
+				parse_pose	(S.arg,&P);
+				if (!g_ui->set_pose(P.actor,P.yaw,P.pitch)) {
+					finish_scenario	(stFailed,"pose: there is no actor");
+					return			false;
+				}
+				return true;
+			}
 			if (S.cmd.compare(0,3,"ui_")==0)
 				return run_ui_step(S,waited);
 			if (S.cmd=="debug_device_lost") {	// no frames for a while, then a device reset
@@ -1089,7 +1197,7 @@ namespace
 
 			const char*	why	= NULL;
 			char		b[256];
-			if (t-T->t_start > T->timeout_s) {
+			if (!T->human_wait && t-T->t_start > T->timeout_s) {
 				xr_sprintf(b,"timeout: the test did not finish in %.0f s (-autotest_timeout)",T->timeout_s);	why = b;
 			} else if (T->phase==phShutdown && t-T->t_shutdown > shutdown_seconds) {
 				xr_sprintf(b,"hang: the shutdown did not finish in %.0f s",shutdown_seconds);	why = b;
@@ -1154,6 +1262,17 @@ bool Autotest::ui_cursor(Fvector2& pos)
 void Autotest::set_ui_cursor(const Fvector2& pos)
 {
 	g_cursor	= pos;
+}
+
+bool Autotest::prompt(LPSTR text, u32 text_size)
+{
+	CAutotest*	T	= g_test;
+	if (!T || !T->human_wait)	return false;
+	EnterCriticalSection	(&T->cs);
+	bool		shown	= !T->prompt.empty();
+	strncpy_s	(text,text_size,T->prompt.c_str(),_TRUNCATE);
+	LeaveCriticalSection	(&T->cs);
+	return		shown;
 }
 
 void Autotest::OnFrameEnd()

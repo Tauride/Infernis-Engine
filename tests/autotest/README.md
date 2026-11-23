@@ -51,6 +51,8 @@ runs one frame later so the engine can process it.
 | `lua <code>` | run the rest of the line as a chunk of Lua in the game's script engine (globals stay for later steps, until a game is started or loaded: that restarts the script engine); fails with the Lua error. A returned value is written to the log as `* [autotest] lua: <value>` |
 | `lua_expect <expression>` | fail unless the Lua expression is true (not `nil` or `false`); its value goes to the log and into the failure reason |
 | `fail <text>` | fail with this reason |
+| `pose <x> <y> <z> <yaw> <pitch>` | put the actor at a place and turn his camera (angles in radians, as the camera keeps them); the line is written by `ask_pose` |
+| `ask_pose <label> [<what to look at>]` | wait for a person at the keyboard to walk, aim the camera and press F7; records the pose (see below). F8 goes on without one |
 | `debug_crash assert\|access_violation` | crash on purpose (tests the crash path) |
 | `debug_device_lost [<n>]` | the device is lost for n frames (default 30): no frames are drawn, then the device is reset, as Direct3D 9 does it for real; waits until it is restored |
 | `quit` | pass, and quit the game |
@@ -61,6 +63,32 @@ it logs `! ALife simulator has not been started yet`. Use `load_save`.
 A new game needs no save: `start server(all/single/alife/new) client(localhost)`, then
 `wait_level`, is what the main menu's "New game" does (see `new_game.cfg`). The `-start`
 command line option does the same without the main menu (see `start_option.cfg`).
+
+### Viewpoints from a person: `ask_pose` and `pose`
+
+A good viewpoint for a screenshot is hard to work out from coordinates and easy to find
+by looking. A capture scenario puts the actor roughly in place and asks:
+
+```
+lua db.actor:set_actor_position(vector():set(342.0, 19.1, 240.0))
+ask_pose bm16 the sawn-off shotgun on the wagon roof
+```
+
+The game shows the text at the top of the screen and waits, however long it takes (the
+wait does not count towards `-autotest_timeout`; give `run.ps1` a generous `-Timeout`
+all the same, it has a last-resort limit of its own). Click into the game window, walk
+and aim as in the game, then press **F7**. The step writes the actor's place and the
+camera's angles to the log and to `poses` in the result, as the line to paste into the
+real scenario:
+
+```
+* [autotest] ask_pose bm16: pose 341.52 19.34 241.10 -1.931 0.412 (camera at 341.52 20.97 241.10)
+```
+
+`pose` puts the actor and the camera back there; follow it with a short wait before a
+`screenshot`, so nearby objects are online and the actor has settled. **F8** skips a
+question. A scenario with `ask_pose` needs a person, so keep those steps in capture
+scenarios of their own, not in the scenarios that run unattended.
 
 ### UI: mouse and keyboard
 
@@ -150,7 +178,8 @@ Fields: `status`, `exit_code`, `phase` (`startup`, `scenario`, `shutdown`,
 `done`), `reason`, `step`/`steps_total`/`step_line`/`step_text` (the current or
 failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 `dump`, `peak_working_set_mb`, `peak_commit_mb`, `screenshots`, `ui_dumps`,
-`ui_cursor` (the virtual cursor, UI coordinates), `perf`,
+`ui_cursor` (the virtual cursor, UI coordinates), `poses` (what `ask_pose` recorded:
+`label`, `actor`, `camera`, `yaw`, `pitch` and the `pose` line as `step`), `perf`,
 `log_errors` (lines starting with `!`; a plain start already logs about 8),
 `log_error_samples` (the first 30), `log_tail` (the last 30 lines).
 
@@ -186,6 +215,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `soc_cordon_hazards.cfg` | SoC port: the hazards of the converted Cordon, with the actor invulnerable (`g_god`). All 184 hazard objects of the `soc` spawn are in the simulation (counted by section); a springboard, a whirligig, an electro and a radiation field come online and the actor stands in each; he walks onto a mine; a fire is a burning CoP campfire; he shoots the explosive barrels and one is gone. He must end unhurt. Pictures at each place (~55 s). Run with `-ExtraArgs "-dev_mode"` (`g_god` is a developer command). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
 | `soc_cordon_crates.cfg` | SoC port: the loot crates of the converted Cordon. The 54 crates are in the simulation with the other destroyable props (120 in all); the 11 crates of the newbie village are online; a hit breaks each and the items lying in the world are counted before and after: the fixed lists exactly (an artefact each from two crates, vodka, energy drinks, cans, anti-rad, the merc suit), bandages and medkits within what the one rolling crate can add, and nothing a Cordon crate cannot hold. A crate with "9x18, 20" in its fixed list gives SoC's 400 rounds as 8 boxes of this game's size. A picture of a broken crate (~26 s). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
 | `soc_cordon_outfits.cfg` | SoC port: the three SoC outfits the addon pack recreates (`bandit_outfit`, `killer_outfit`, `soldier_outfit`). They have sections and names; given to the actor they show in the inventory with their icons; a double click puts each on (the inventory closes for the change of clothes) and the actor gets its body model; the actor is seen from outside in the merc suit; two are dropped and are objects in the world. Pictures of the inventory and the actor (~50 s). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
+| `pose.cfg` | the `pose` step: the actor is put at two places with two camera directions and the camera looks where the step said, also a few seconds later (~17 s). `ask_pose` needs a person and has no scenario here | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |
 | `selftest_timeout.cfg` | the watchdog: run with `-Timeout 20`, expect exit code 4 | nothing |

@@ -27,6 +27,8 @@
 #include "ui_base.h"
 #include "ai_space.h"
 #include "script_engine.h"
+#include "Actor.h"
+#include "../xrEngine/CameraBase.h"
 #include <typeinfo>
 
 extern _keyboard	keyboards[];
@@ -318,6 +320,27 @@ namespace
 			strncpy_s		(text,text_size,s ? s : "unknown Lua error",_TRUNCATE);
 			lua_pop			(L,1);
 			return			ok;
+		}
+
+		virtual bool	get_pose		(Fvector& position, float& yaw, float& pitch)
+		{
+			CActor*		A	= g_pGameLevel ? Actor() : NULL;
+			if (!A)		return false;
+			position	= A->Position();
+			yaw			= A->cam_Active()->yaw;
+			pitch		= A->cam_Active()->pitch;
+			return		true;
+		}
+
+		virtual bool	set_pose		(const Fvector& position, float yaw, float pitch)
+		{
+			CActor*		A	= g_pGameLevel ? Actor() : NULL;
+			if (!A)		return false;
+			Fmatrix		F	= A->XFORM();
+			F.c			= position;
+			A->ForceTransform		(F);
+			A->cam_Active()->Set	(yaw,pitch,0);
+			return		true;
 		}
 	};
 

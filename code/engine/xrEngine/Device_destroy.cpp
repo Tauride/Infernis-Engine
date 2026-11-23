@@ -66,6 +66,7 @@ void CRenderDevice::Reset(bool precache) {
     }
 
     m_pRender->Reset(m_hWnd, dwWidth, dwHeight, fWidth_2, fHeight_2);
+    UpdateDisplayRefreshRate(m_hWnd);
 
     if (g_pGamePersistent) {
         //.		g_pGamePersistent->Environment().OnDeviceCreate();

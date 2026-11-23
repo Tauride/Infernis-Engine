@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<string_table>
+    <string id="ui_mm_screen_mode"><text>Screen mode</text></string>
+    <string id="screenmode_fullscreen"><text>Full screen</text></string>
+    <string id="screenmode_windowed"><text>Windowed</text></string>
+    <string id="screenmode_borderless"><text>Borderless window</text></string>
+    <string id="ui_mm_fps_limit"><text>FPS limit</text></string>
+    <string id="fps_limit_unlimited"><text>Unlimited</text></string>
+</string_table>

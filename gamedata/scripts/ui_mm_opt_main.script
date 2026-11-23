@@ -118,6 +118,28 @@ function options_dialog:SetCurrentValues()
 	opt:SaveBackupValues("key_binding")
 
 	self:UpdateDependControls()
+	self:UpdateScreenModeControls()
+end
+
+-- A borderless window always has the size of the display: the engine picks it, so the
+-- resolution list is locked while that mode is selected (1 = smWindowed, 2 = smBorderless)
+function options_dialog:UpdateScreenModeControls()
+	if self.combo_screenmode and self.combo_resolution then
+		self.combo_resolution:Enable(self.combo_screenmode:CurrentID() ~= 2)
+	end
+end
+
+-- Leaving a borderless window for a framed one, the engine picks the smallest
+-- resolution unless one is chosen here: show that one instead of the display's size
+function options_dialog:OnScreenModeChanged()
+	if self.combo_screenmode and self.combo_resolution and
+		get_console():get_string("rs_screenmode") == "screenmode_borderless" then
+		self.combo_resolution:SetCurrentOptValue()
+		if self.combo_screenmode:CurrentID() == 1 then
+			self.combo_resolution:SetText(self.combo_resolution:GetTextOf(0))
+		end
+	end
+	self:UpdateScreenModeControls()
 end
 
 function options_dialog:UpdateDependControls()
@@ -152,6 +174,7 @@ function options_dialog:InitCallBacks()
 	self:AddCallback("btn_default_graphic",	ui_events.BUTTON_CLICKED,	self.OnBtnDefGraph,			self)
 	self:AddCallback("btn_default_sound",	ui_events.BUTTON_CLICKED,	self.OnBtnDefSound,			self)
 	self:AddCallback("combo_preset",		ui_events.LIST_ITEM_SELECT,	self.OnPresetChanged,		self)
+	self:AddCallback("combo_screenmode",	ui_events.LIST_ITEM_SELECT,	self.OnScreenModeChanged,	self)
 	self:AddCallback("btn_simply_graphic",	ui_events.BUTTON_CLICKED,	self.OnSimplyGraphic,		self)
 	self:AddCallback("btn_keyb_default",	ui_events.BUTTON_CLICKED,	self.OnBtnKeybDefault,		self)
 	self:AddCallback("btn_check_updates",	ui_events.BUTTON_CLICKED,	self.OnBtnCheckUpdates,		self)

@@ -311,6 +311,167 @@ public:
         }
     }
 };
+//-----------------------------------------------------------------------
+// rs_screenmode: fullscreen, windowed or borderless window. The device reads
+// rsFullscreen for the exclusive mode and psScreenMode for the window style.
+// Switching to a window picks the resolution (vid_mode): the smallest mode for
+// a framed window, the size of the display for a borderless one (the device keeps
+// that one). Before the device exists the mode list is empty and vid_mode stays as set.
+static xr_token vid_screen_mode_token[] = { { "screenmode_fullscreen", smFullscreen },
+                                            { "screenmode_windowed", smWindowed },
+                                            { "screenmode_borderless", smBorderless },
+                                            { 0, 0 } };
+
+class CCC_ScreenMode : public CCC_Token {
+    typedef CCC_Token inherited;
+
+public:
+    CCC_ScreenMode(LPCSTR N) : inherited(N, &psScreenMode, vid_screen_mode_token){};
+
+    virtual void Execute(LPCSTR args) {
+        const u32 prev = psScreenMode;
+        inherited::Execute(args);
+        psDeviceFlags.set(rsFullscreen, psScreenMode == smFullscreen);
+
+        u32 w = 0, h = 0;
+        if (psScreenMode != prev && psScreenMode != smFullscreen && vid_mode_token &&
+            (psScreenMode == smBorderless ? BorderlessResolution(Device.m_hWnd, w, h)
+                                          : FindVidMode(false, w, h))) {
+            psCurrentVidMode[0] = w;
+            psCurrentVidMode[1] = h;
+        }
+    }
+};
+
+// rs_fullscreen: the old switch, kept for configs and the command line.
+// rs_screenmode holds the setting, so this one is not saved.
+class CCC_Fullscreen : public CCC_Mask {
+    typedef CCC_Mask inherited;
+
+public:
+    CCC_Fullscreen(LPCSTR N) : inherited(N, &psDeviceFlags, rsFullscreen){};
+
+    virtual void Execute(LPCSTR args) {
+        inherited::Execute(args);
+        if (GetValue())
+            psScreenMode = smFullscreen;
+        else if (psScreenMode == smFullscreen)
+            psScreenMode = smWindowed;
+    }
+    virtual void Save(IWriter* F){};
+};
+//-----------------------------------------------------------------------
+// rs_fps_limit: the frame rate cap. The options list shows the frame rates of
+// the choices in psFpsLimit order (fl*), sorted, without repeats: a choice whose
+// rate an earlier one already has is left out (at 60 Hz half the refresh rate
+// is 30 and the refresh rate is 60). The setting is saved as the choice, so the
+// refresh rate based ones follow the display; the list names (numbers) work too.
+static xr_token fps_limit_keywords[] = { { "off", flOff },
+                                         { "30", fl30 },
+                                         { "60", fl60 },
+                                         { "half_refresh", flHalfRefresh },
+                                         { "refresh", flRefresh },
+                                         { "double_refresh", flDoubleRefresh },
+                                         { "unlimited", flOff },
+                                         { "fps_limit_unlimited", flOff },
+                                         { 0, 0 } };
+
+class CCC_FpsLimit : public CCC_Token {
+    typedef CCC_Token inherited;
+
+    xr_token m_list[flDoubleRefresh + 2];
+    string16 m_names[flDoubleRefresh + 1];
+
+    // The list for the current refresh rate; the token id is the choice
+    void BuildList() {
+        u32 count = 0;
+        for (u32 limit = fl30; limit <= flDoubleRefresh; limit++) {
+            const u32 fps = FpsLimitRate(limit);
+            if (!fps)
+                continue;
+            u32 pos = 0;
+            bool repeated = false;
+            for (; pos < count; pos++) {
+                const u32 other = FpsLimitRate(m_list[pos].id);
+                if (other == fps) {
+                    repeated = true;
+                    break;
+                }
+                if (other > fps)
+                    break;
+            }
+            if (repeated)
+                continue;
+            for (u32 i = count; i > pos; i--)
+                m_list[i] = m_list[i - 1];
+            m_list[pos].id = limit;
+            count++;
+        }
+        for (u32 i = 0; i < count; i++) {
+            xr_sprintf(m_names[i], "%u", FpsLimitRate(m_list[i].id));
+            m_list[i].name = m_names[i];
+        }
+        m_list[count].name = "fps_limit_unlimited"; // translated in the options
+        m_list[count].id = flOff;
+        m_list[count + 1].name = 0;
+        m_list[count + 1].id = 0;
+    }
+
+public:
+    CCC_FpsLimit(LPCSTR N) : inherited(N, &psFpsLimit, NULL) { BuildList(); };
+
+    virtual void Execute(LPCSTR args) {
+        for (xr_token* tok = fps_limit_keywords; tok->name; tok++)
+            if (0 == stricmp(tok->name, args)) {
+                psFpsLimit = tok->id;
+                return;
+            }
+
+        u32 fps = 0;
+        if (1 == sscanf(args, "%u", &fps)) {
+            BuildList();
+            for (xr_token* tok = m_list; tok->name; tok++)
+                if (tok->id != flOff && FpsLimitRate(tok->id) == fps) {
+                    psFpsLimit = tok->id;
+                    return;
+                }
+        }
+        InvalidSyntax();
+    }
+    // The list entry with the frame rate of the choice
+    virtual void Status(TStatus& S) {
+        BuildList();
+        const u32 fps = FpsLimitRate(psFpsLimit);
+        for (xr_token* tok = m_list; tok->name; tok++)
+            if (FpsLimitRate(tok->id) == fps) {
+                xr_strcpy(S, tok->name);
+                return;
+            }
+        xr_strcpy(S, "?");
+    }
+    virtual void Save(IWriter* F) {
+        LPCSTR name = "refresh";
+        for (xr_token* tok = fps_limit_keywords; tok->name; tok++)
+            if (tok->id == (int)psFpsLimit) {
+                name = tok->name;
+                break;
+            }
+        F->w_printf("%s %s\r\n", cName, name);
+    }
+    virtual void Info(TInfo& I) {
+        xr_strcpy(I, sizeof(I),
+                  "off/30/60/half_refresh/refresh/double_refresh, or a frame rate from the list");
+    }
+    virtual xr_token* GetToken() {
+        BuildList();
+        return m_list;
+    }
+    virtual void fill_tips(vecTips& tips, u32 mode) {
+        for (xr_token* tok = fps_limit_keywords; tok->name; tok++)
+            tips.push_back(tok->name);
+    }
+};
+//-----------------------------------------------------------------------
 class CCC_VidMode : public CCC_Token {
     u32 _dummy;
 
@@ -657,7 +818,9 @@ void CCC_Register() {
     CMD3(CCC_Mask, "rs_v_sync", &psDeviceFlags, rsVSync);
     //	CMD3(CCC_Mask,		"rs_disable_objects_as_crows",&psDeviceFlags,	rsDisableObjectsAsCrows
     //);
-    CMD3(CCC_Mask, "rs_fullscreen", &psDeviceFlags, rsFullscreen);
+    CMD1(CCC_Fullscreen, "rs_fullscreen");
+    CMD1(CCC_ScreenMode, "rs_screenmode");
+    CMD1(CCC_FpsLimit, "rs_fps_limit");
     CMD3(CCC_Mask, "rs_refresh_60hz", &psDeviceFlags, rsRefresh60hz);
     CMD3(CCC_Mask, "rs_stats", &psDeviceFlags, rsStatistic);
     CMD4(CCC_Float, "rs_vis_distance", &psVisDistance, 0.4f, 1.5f);

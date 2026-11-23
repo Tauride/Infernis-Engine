@@ -189,6 +189,7 @@ PROTECT_API void CRenderDevice::Create() {
                       editor() ? false :
 #endif // #ifdef INGAME_EDITOR
                                true);
+    UpdateDisplayRefreshRate(m_hWnd);
 
     string_path fname;
     FS.update_path(fname, "$game_data$", "shaders.xr");

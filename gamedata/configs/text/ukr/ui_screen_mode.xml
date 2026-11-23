@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<string_table>
+    <string id="ui_mm_screen_mode"><text>Режим екрана</text></string>
+    <string id="screenmode_fullscreen"><text>Повний екран</text></string>
+    <string id="screenmode_windowed"><text>У вікні</text></string>
+    <string id="screenmode_borderless"><text>Вікно без рамки</text></string>
+    <string id="ui_mm_fps_limit"><text>Обмеження FPS</text></string>
+    <string id="fps_limit_unlimited"><text>Без обмеження</text></string>
+</string_table>

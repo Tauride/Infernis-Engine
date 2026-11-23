@@ -241,7 +241,9 @@ void CRender::ScreenshotImpl(ScreenshotMode mode, LPCSTR name, CMemoryWriter* me
 void CRender::ScreenshotImpl(ScreenshotMode mode, LPCSTR name, CMemoryWriter* memory_writer) {
     if (!Device.b_is_Ready)
         return;
-    if ((psDeviceFlags.test(rsFullscreen)) == 0) {
+    // The front buffer of a window is the whole desktop; a borderless window covers it
+    // with a back buffer of the display's size
+    if ((psDeviceFlags.test(rsFullscreen)) == 0 && !ScreenModeBorderless()) {
         if (name && FS.exist(name))
             FS.file_delete(0, name);
 

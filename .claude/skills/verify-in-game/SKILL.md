@@ -23,6 +23,8 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `menu.cfg` | the engine starts, renders the main menu, shuts down | ~8 s |
 | `new_game.cfg` | a new game starts, the first level comes up, screenshot, 20 s idle perf | ~35 s |
 | `ui_options.cfg` | the UI steps on the menus: options opened with the mouse, dropdown, tab, cancel, Escape | ~6 s |
+| `screen_mode.cfg` | `rs_screenmode` in the options: borderless locks the resolution, accept resets the device; covers the whole display for a few seconds | ~15 s |
+| `fps_limit.cfg` | `rs_fps_limit` in the options: the list, picking an entry; main menu fps at each limit | ~25 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 

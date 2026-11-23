@@ -4049,27 +4049,15 @@ set_source_files_properties(../xrServerEntities/script_storage.cpp PROPERTIES CO
 set_source_files_properties(../xrServerEntities/script_thread.cpp PROPERTIES COMPILE_FLAGS "/Yupch_script.h /Fp\"${SCRIPT_PCH_FILE}\"")
 set_source_files_properties(../xrServerEntities/xrServer_Objects_Alife_Smartcovers.cpp PROPERTIES COMPILE_FLAGS "/Yupch_script.h /Fp\"${SCRIPT_PCH_FILE}\"")
 
+# The monster and stalker *_script.cpp files are compiled as ordinary sources, not through
+# script_unity_builds.cpp (their includes are commented out there). Do not mark them
+# HEADER_FILE_ONLY: CMake versions that match the lower-case path against the mixed-case
+# source list would then drop them and xrGame fails to link (unresolved script_register).
 set_source_files_properties(action_base_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(action_planner_action_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(action_planner_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(actor_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(ActorEffector_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/bloodsucker/bloodsucker_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/boar/boar_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/burer/burer_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/cat/cat_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/chimera/chimera_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/controller/controller_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/dog/dog_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/flesh/flesh_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/fracture/fracture_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/poltergeist/poltergeist_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/pseudodog/pseudodog_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/pseudogigant/pseudogigant_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/snork/snork_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/tushkano/tushkano_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/monsters/zombie/zombie_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
-set_source_files_properties(ai/stalker/ai_stalker_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(ai/trader/ai_trader_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(ai_crow_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)
 set_source_files_properties(alife_human_brain_script.cpp PROPERTIES HEADER_FILE_ONLY TRUE)

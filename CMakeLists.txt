@@ -50,6 +50,14 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE "/LTCG /OPT:REF /INCREMENTAL:NO")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASEAVX "/LTCG /OPT:REF /INCREMENTAL:NO")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASEAVX2 "/LTCG /OPT:REF /INCREMENTAL:NO")
 
+# CMake only predefines per-config linker flags for its built-in configurations;
+# without these the first configure fails with "required internal CMake variable not set".
+foreach(AVX_CONFIG RELEASEAVX RELEASEAVX2)
+    set(CMAKE_SHARED_LINKER_FLAGS_${AVX_CONFIG} "/LTCG /OPT:REF /INCREMENTAL:NO")
+    set(CMAKE_MODULE_LINKER_FLAGS_${AVX_CONFIG} "/LTCG /OPT:REF /INCREMENTAL:NO")
+    set(CMAKE_STATIC_LINKER_FLAGS_${AVX_CONFIG} "/LTCG")
+endforeach()
+
 # Apply flags dynamically depending on config
 string(TOUPPER "${CMAKE_BUILD_TYPE}" UPPER_BUILD_TYPE)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_${UPPER_BUILD_TYPE}}")

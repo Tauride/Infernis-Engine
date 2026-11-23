@@ -48,7 +48,7 @@ runs one frame later so the engine can process it.
 | `screenshot_overlay <name>` | the same, taken at the end of the frame: with the debug overlays (the FPS overlay), the UI cursor and the engine statistics |
 | `perf_begin <label>` / `perf_end` | frame-time statistics between the two (avg, p50/p95/p99, max, fps) |
 | `log <text>` | write `* [autotest] text` to the log |
-| `lua <code>` | run the rest of the line as a chunk of Lua in the game's script engine (globals stay for later steps); fails with the Lua error. A returned value is written to the log as `* [autotest] lua: <value>` |
+| `lua <code>` | run the rest of the line as a chunk of Lua in the game's script engine (globals stay for later steps, until a game is started or loaded: that restarts the script engine); fails with the Lua error. A returned value is written to the log as `* [autotest] lua: <value>` |
 | `lua_expect <expression>` | fail unless the Lua expression is true (not `nil` or `false`); its value goes to the log and into the failure reason |
 | `fail <text>` | fail with this reason |
 | `debug_crash assert\|access_violation` | crash on purpose (tests the crash path) |
@@ -163,7 +163,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 - The window keeps rendering and the game does not pause without the focus.
 - `run.ps1` passes `-ltx autotest.ltx -nointro -i`: its own settings file
   (created from `user.ltx` at 1280x720, so the user's settings stay as they are; every
-  run sets `rs_screenmode screenmode_windowed`, `rs_fps_limit off` and
+  run sets `rs_screenmode screenmode_windowed`, `rs_fps_limit off`, `rs_show_fps off` and
   `keypress_on_start 0` in it), no intro videos, no captured input.
 - Only one game can run at a time; a running game also locks `bin\x64`, so
   builds fail while it runs.

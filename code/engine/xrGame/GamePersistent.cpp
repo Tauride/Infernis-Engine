@@ -394,7 +394,11 @@ void CGamePersistent::start_logo_intro() {
             m_intro->Start("intro_logo");
             Msg("intro_start intro_logo");
             Console->Hide();
-        } else {
+        } else if (0 == xr_strlen(m_game_params.m_game_or_spawn) && NULL == g_pGameLevel &&
+                   !Engine.Event.Peek("KERNEL:start")) {
+            // No intro (-nointro): straight to the main menu. Not when a game is being
+            // started from the command line (-start, -load): the menu would stay open
+            // over the level while it loads, and the game crashes.
             Console->Execute("main_menu on");
         }
     }

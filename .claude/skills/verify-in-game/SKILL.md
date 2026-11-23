@@ -27,6 +27,8 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `resolution_aspect.cfg` | a resolution change between 16:9 and 4:3 in the options: the menu is rebuilt, the confirm box comes back, Yes keeps and No restores | ~12 s |
 | `fps_limit.cfg` | `rs_fps_limit` in the options: the list, picking an entry; main menu fps at each limit | ~25 s |
 | `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`) with `screenshot_overlay`: on, after a device reset, off | ~16 s |
+| `device_lost.cfg` | a lost device and reset in the menu, during a level start and in the level; run per renderer | ~17 s |
+| `start_option.cfg` | `-start` on the command line goes straight into a new game (needs `-ExtraArgs`) | ~10 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 
@@ -53,7 +55,6 @@ the game folder: `status`, `reason`, `step_line`/`step_text` (where it stopped),
 Add one under `tests/autotest/` when the existing scenarios don't exercise the change.
 
 - A new game: `start server(all/single/alife/new) client(localhost)` then `wait_level`.
-  Never pass `-start` on the command line: the game crashes while the level starts.
 - A save: `load_save <name>` then `wait_level`. Saves used by tests are named
   `autotest_*`. Never use or change the user's own saves.
 - Console commands work as steps. The runner checks that every command exists before it

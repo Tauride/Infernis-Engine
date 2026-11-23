@@ -55,7 +55,15 @@ if (FAILED(_hr))
     }
     */
 
-    switch (m_pRender->GetDeviceState()) {
+    IRenderDeviceRender::DeviceState state = m_pRender->GetDeviceState();
+    if (m_simulate_device_lost && state == IRenderDeviceRender::dsOK) {
+        // Autotest: behave as Direct3D 9 does when the device is lost. No frames while it
+        // is away, then a reset when it can be restored.
+        state = (--m_simulate_device_lost) ? IRenderDeviceRender::dsLost
+                                           : IRenderDeviceRender::dsNeedReset;
+    }
+
+    switch (state) {
     case IRenderDeviceRender::dsOK:
         break;
 
@@ -183,7 +191,10 @@ void CRenderDevice::PreCache(u32 amount, bool b_draw_loadscreen, bool b_wait_use
         amount = 0;
     // Msg			("* PCACHE: start for %d...",amount);
     dwPrecacheFrame = dwPrecacheTotal = amount;
-    if (amount && !precache_light && g_pGameLevel && g_loading_events.empty()) {
+    // Only for a loaded level: a device reset while one is starting comes here before the
+    // level has its spatial database, and the light would be registered in nothing
+    if (amount && !precache_light && g_pGameLevel && g_pGameLevel->bReady &&
+        g_loading_events.empty()) {
         precache_light = ::Render->light_create();
         precache_light->set_shadow(false);
         precache_light->set_position(vCameraPosition);

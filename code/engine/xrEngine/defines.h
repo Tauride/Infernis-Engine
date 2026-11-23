@@ -72,6 +72,12 @@ ENGINE_API bool ScreenModeBorderless();
 // The largest or the smallest (by area) of the video modes in vid_mode_token;
 // false before the renderer has filled the list (at device creation)
 ENGINE_API bool FindVidMode(bool bLargest, u32& dwWidth, u32& dwHeight);
+// The rectangle of the display the window is on, which a borderless window covers;
+// false if there is no window or the display cannot be read
+ENGINE_API bool BorderlessWindowRect(HWND hWnd, RECT& rect);
+// The resolution of a borderless window: the size of that display, or the largest
+// video mode if it cannot be read
+ENGINE_API bool BorderlessResolution(HWND hWnd, u32& dwWidth, u32& dwHeight);
 
 // psFpsLimit (rs_fps_limit): the frame rate cap, kept as the choice rather than
 // the number so that the refresh rate based ones follow the display

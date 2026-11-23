@@ -315,8 +315,8 @@ public:
 // rs_screenmode: fullscreen, windowed or borderless window. The device reads
 // rsFullscreen for the exclusive mode and psScreenMode for the window style.
 // Switching to a window picks the resolution (vid_mode): the smallest mode for
-// a framed window, the largest for a borderless one (the device keeps that one).
-// Before the device exists the mode list is empty and vid_mode stays as set.
+// a framed window, the size of the display for a borderless one (the device keeps
+// that one). Before the device exists the mode list is empty and vid_mode stays as set.
 static xr_token vid_screen_mode_token[] = { { "screenmode_fullscreen", smFullscreen },
                                             { "screenmode_windowed", smWindowed },
                                             { "screenmode_borderless", smBorderless },
@@ -333,9 +333,10 @@ public:
         inherited::Execute(args);
         psDeviceFlags.set(rsFullscreen, psScreenMode == smFullscreen);
 
-        u32 w, h;
-        if (psScreenMode != prev && psScreenMode != smFullscreen &&
-            FindVidMode(psScreenMode == smBorderless, w, h)) {
+        u32 w = 0, h = 0;
+        if (psScreenMode != prev && psScreenMode != smFullscreen && vid_mode_token &&
+            (psScreenMode == smBorderless ? BorderlessResolution(Device.m_hWnd, w, h)
+                                          : FindVidMode(false, w, h))) {
             psCurrentVidMode[0] = w;
             psCurrentVidMode[1] = h;
         }

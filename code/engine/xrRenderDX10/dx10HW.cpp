@@ -224,9 +224,9 @@ D3DFORMAT CHW::selectDepthStencil(D3DFORMAT fTarget) { return D3DFMT_D24S8; }
 void CHW::selectResolution(u32& dwWidth, u32& dwHeight, BOOL bWindowed) {
     fill_vid_mode_list(this);
     if (bWindowed) {
-        // A borderless window always covers the display: its largest mode
-        u32 w, h;
-        if (ScreenModeBorderless() && FindVidMode(true, w, h)) {
+        // A borderless window always covers the display it is on: that display's size
+        u32 w = 0, h = 0;
+        if (ScreenModeBorderless() && BorderlessResolution(Device.m_hWnd, w, h)) {
             psCurrentVidMode[0] = w;
             psCurrentVidMode[1] = h;
         }
@@ -306,13 +306,12 @@ void CHW::updateWindowProps(HWND m_hWnd) {
     if (bWindowed && ScreenModeBorderless()) {
         if (m_move_window) {
             // No frame, over the whole display the window is on (selectResolution gave the
-            // back buffer the display's largest mode)
+            // back buffer that display's size)
             SetWindowLong(m_hWnd, GWL_STYLE, dwWindowStyle = (WS_POPUP | WS_VISIBLE));
 
-            MONITORINFO mi;
-            mi.cbSize = sizeof(mi);
-            GetMonitorInfo(MonitorFromWindow(m_hWnd, MONITOR_DEFAULTTOPRIMARY), &mi);
-            const RECT& R = mi.rcMonitor;
+            RECT R;
+            if (!BorderlessWindowRect(m_hWnd, R))
+                SetRect(&R, 0, 0, psCurrentVidMode[0], psCurrentVidMode[1]);
             SetWindowPos(m_hWnd, HWND_NOTOPMOST, R.left, R.top, R.right - R.left, R.bottom - R.top,
                          SWP_SHOWWINDOW | SWP_NOCOPYBITS | SWP_FRAMECHANGED);
         }

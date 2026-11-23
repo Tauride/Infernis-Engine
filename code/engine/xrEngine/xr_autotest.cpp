@@ -364,7 +364,7 @@ namespace
 		bool	is_directive	(const std::string& c)
 		{
 			static const char* names[] = { "wait_frames", "wait_seconds", "wait_level", "wait_log", "expect_log", "fail_on_log",
-				"screenshot", "screenshot_overlay", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "load_save",
+				"screenshot", "screenshot_overlay", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "debug_device_lost", "load_save",
 				"ui_move", "ui_click", "ui_rclick", "ui_dblclick", "ui_drag", "ui_down", "ui_up", "ui_wheel", "ui_key", "ui_key_down",
 				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", 0 };
 			for (int i=0; names[i]; ++i)	if (c==names[i])	return true;
@@ -388,6 +388,8 @@ namespace
 																			xr_sprintf(err,"load_save needs a save name (no spaces, parentheses or slashes)");
 				else if (S.cmd=="perf_begin" && S.arg.empty())				xr_sprintf(err,"perf_begin needs a label");
 				else if (S.cmd.compare(0,3,"ui_")==0 && !validate_ui(S,err,sizeof(err)))	{}
+				else if (S.cmd=="debug_device_lost" && !S.arg.empty() && atoi(S.arg.c_str())<=0)
+																			xr_sprintf(err,"debug_device_lost takes a frame count");
 				else if (S.cmd=="debug_crash" && S.arg!="assert" && S.arg!="access_violation")
 																			xr_sprintf(err,"debug_crash needs 'assert' or 'access_violation'");
 				else if (!is_directive(S.cmd) && Console->Commands.find(S.cmd.c_str())==Console->Commands.end())
@@ -808,6 +810,17 @@ namespace
 			}
 			if (S.cmd.compare(0,3,"ui_")==0)
 				return run_ui_step(S,waited);
+			if (S.cmd=="debug_device_lost") {	// no frames for a while, then a device reset
+				if (!step_started) {
+					step_started	= true;
+					Device.m_simulate_device_lost	= S.arg.empty() ? 30 : u32(atoi(S.arg.c_str()));
+					Msg				("* [autotest] the device is lost for %u frames",Device.m_simulate_device_lost);
+					return			false;
+				}
+				if (Device.m_simulate_device_lost==0)	return true;	// restored
+				if (waited > 30.0)	finish_scenario(stFailed,"debug_device_lost: the device was not restored within 30 s");
+				return false;
+			}
 			if (S.cmd=="debug_crash") {	// tests the crash path itself
 				Msg		("* [autotest] debug_crash %s",S.arg.c_str());
 				FlushLog();

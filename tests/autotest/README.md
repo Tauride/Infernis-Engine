@@ -50,15 +50,15 @@ runs one frame later so the engine can process it.
 | `log <text>` | write `* [autotest] text` to the log |
 | `fail <text>` | fail with this reason |
 | `debug_crash assert\|access_violation` | crash on purpose (tests the crash path) |
+| `debug_device_lost [<n>]` | the device is lost for n frames (default 30): no frames are drawn, then the device is reset, as Direct3D 9 does it for real; waits until it is restored |
 | `quit` | pass, and quit the game |
 
 Note: the `load` console command only works in a running game; from the menu
 it logs `! ALife simulator has not been started yet`. Use `load_save`.
 
 A new game needs no save: `start server(all/single/alife/new) client(localhost)`, then
-`wait_level`, is what the main menu's "New game" does (see `new_game.cfg`). Do not pass
-`-start` on the command line instead: the main menu is still active then and the game
-crashes while the level starts.
+`wait_level`, is what the main menu's "New game" does (see `new_game.cfg`). The `-start`
+command line option does the same without the main menu (see `start_option.cfg`).
 
 ### UI: mouse and keyboard
 
@@ -177,6 +177,8 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `resolution_aspect.cfg` | accepting a resolution with another aspect ratio (16:9 to 4:3 and back): the main menu is rebuilt, the options come back with the "keep these settings?" box; Yes keeps the resolution, No restores the old one (~12 s) | nothing |
 | `fps_limit.cfg` | the frame rate limit dropdown in the video options: the list (30, 60, half/full/twice the refresh rate without repeats, Unlimited), picking 30 with the mouse; main menu perf at 30, 60, the refresh rate and unlimited (~25 s) | nothing |
 | `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`): pictures with it, after a device reset, with it turned off, and a plain screenshot without it; the limit steps 60, 30, 60 for the graph (~16 s). The overlay is off by default; the scenario turns it on and leaves it off | nothing |
+| `device_lost.cfg` | a lost device and the reset after it, three times: in the main menu, while a level starts, in the level; with the FPS overlay on. Run with `-Renderer r1`, `r2`, `r3`, `r4` (~17 s) | nothing |
+| `start_option.cfg` | the `-start` command line option goes straight into a new game; run with `-ExtraArgs "-start server(all/single/alife/new) client(localhost)"` (~10 s) | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |
 | `selftest_timeout.cfg` | the watchdog: run with `-Timeout 20`, expect exit code 4 | nothing |

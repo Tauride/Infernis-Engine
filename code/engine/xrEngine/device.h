@@ -248,6 +248,10 @@ public:
     void Destroy(void);
     void Reset(bool precache = true);
 
+    // Frames left of a simulated lost device (autotest's debug_device_lost): Begin()
+    // fails for all but the last of them, which resets the device. 0 normally.
+    u32 m_simulate_device_lost = 0;
+
     void Initialize(void);
     void ShutDown(void);
 

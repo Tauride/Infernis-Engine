@@ -130,7 +130,8 @@ void CRenderDevice::End(void) {
             {
                 WINDOWINFO wi;
                 GetWindowInfo(m_hWnd, &wi);
-                if (wi.dwWindowStatus != WS_ACTIVECAPTION)
+                // not in autotest mode: it runs in the background and never pauses
+                if (wi.dwWindowStatus != WS_ACTIVECAPTION && !Autotest::active())
                     Pause(TRUE, TRUE, TRUE, "application start");
             }
         }

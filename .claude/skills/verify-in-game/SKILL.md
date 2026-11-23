@@ -31,6 +31,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `start_option.cfg` | `-start` on the command line goes straight into a new game (needs `-ExtraArgs`) | ~10 s |
 | `soc_cordon.cfg` | SoC port: the converted Cordon boots with the actor and the scenery in the spawn, the actor walks in the village and stands on the ground at four places (needs the SoC addon pack) | ~50 s |
 | `soc_cordon_scenery.cfg` | SoC port: the 276 scenery objects of Cordon (props, lamps, ladders, breakables, crows) are in the simulation, come online near the actor, and a wooden crate breaks (needs the SoC addon pack) | ~25 s |
+| `soc_cordon_hazards.cfg` | SoC port: the 184 hazards of Cordon (anomalies, mines, fires, explosive barrels) are in the simulation and online; the invulnerable actor stands in each kind, walks onto a mine and shoots the barrels (needs the SoC addon pack and `-ExtraArgs "-dev_mode"`) | ~55 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 
@@ -49,6 +50,9 @@ the game folder: `status`, `reason`, `step_line`/`step_text` (where it stopped),
 - **Frame times:** they vary from run to run. Compare against a run of the same scenario
   on the build before the change, not against a remembered number.
 - **Log errors:** a plain start already logs about 8 `!` lines. Look for new ones.
+- **Hangs and timeouts (exit code 4):** the engine log ends with the stack of every thread,
+  main thread first. Read it before guessing: a hang is often the main thread waiting for
+  a worker.
 - **Crashes (exit code 3):** the reason and the minidump path are in the result; the
   stack trace is in the engine log.
 

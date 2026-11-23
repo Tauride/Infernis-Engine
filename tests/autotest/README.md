@@ -26,7 +26,7 @@ The harness was ported from the X-Ray 1.0 (Shadow of Chornobyl) engine fork.
 | 1 | `failed` | a check failed (`wait_level`, `wait_log`, `expect_log`, `fail_on_log`, `fail`, `screenshot`), or the game quit before the scenario finished |
 | 2 | `error` | the scenario cannot be used: missing file, unknown command, bad arguments |
 | 3 | `crashed` | R_ASSERT/FATAL/unhandled exception; minidump in `userdata\logs` |
-| 4 | `timeout` | over `-autotest_timeout`, no frame for 180 s, or a shutdown over 60 s; `autotest_result_hang.mdmp` |
+| 4 | `timeout` | over `-autotest_timeout`, no frame for 180 s, or a shutdown over 60 s; the stack of every thread goes to the engine log (main thread first), and `autotest_result_hang.mdmp` |
 
 ## Scenario files
 
@@ -183,6 +183,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `start_option.cfg` | the `-start` command line option goes straight into a new game; run with `-ExtraArgs "-start server(all/single/alife/new) client(localhost)"` (~10 s) | nothing |
 | `soc_cordon.cfg` | SoC port: a new game on the converted Cordon (`l01_escape`) with the actor and the scenery in the spawn. The level comes up in Sidorovich's bunker; the actor is put in the village, walks from Wolf's post towards a point Wolf watches (checked: closer by 5 m, still on the ground), then at the bridge, the north and the south end. FPS overlay on, limit 288, pictures with the overlay (~50 s). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
 | `soc_cordon_scenery.cfg` | SoC port: the scenery of the converted Cordon. All 276 scenery objects of the `soc` spawn are in the simulation (counted by section); the props in Sidorovich's bunker, the camp fire light, a ladder and a lamp in the village and a level breakable come online; a hit breaks a wooden crate into parts. Pictures at each place (~25 s). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
+| `soc_cordon_hazards.cfg` | SoC port: the hazards of the converted Cordon, with the actor invulnerable (`g_god`). All 184 hazard objects of the `soc` spawn are in the simulation (counted by section); a springboard, a whirligig, an electro and a radiation field come online and the actor stands in each; he walks onto a mine; a fire is a burning CoP campfire; he shoots the explosive barrels and one is gone. He must end unhurt. Pictures at each place (~55 s). Run with `-ExtraArgs "-dev_mode"` (`g_god` is a developer command). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |
 | `selftest_timeout.cfg` | the watchdog: run with `-Timeout 20`, expect exit code 4 | nothing |

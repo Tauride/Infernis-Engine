@@ -35,10 +35,15 @@ Follow the stages in order. Do not skip a stage, and do not merge before the cod
 ## 4. Code review
 
 - Review the pull request diff with the `code-review` skill before any merge.
+- Give the review the full pull request URL (`https://github.com/Tauride/Infernis-Engine/pull/<n>`), or read the
+  diff with `gh pr diff <n> --repo Tauride/Infernis-Engine`. A bare `gh pr diff <n>` in this checkout returns the
+  upstream repository's pull request with that number. Check that the diff is the one you opened before reviewing.
 - Fix the findings on the same branch and push, or report the ones deliberately left open and why.
 - Review again after substantial fixes.
 
 ## 5. Merge
 
 - Merge only after the review stage is complete and the user has approved the merge.
-- Merge into `soc-infernis/main`, then update the local `soc-infernis/main`.
+- Merge with `gh pr merge <n> --repo Tauride/Infernis-Engine`, then update the local `soc-infernis/main`.
+
+Every `gh pr` command in this checkout takes `--repo Tauride/Infernis-Engine`.

@@ -264,10 +264,11 @@ namespace
 		std::string					prompt;			// shown while a step waits for the person at the keyboard
 		bool						keys_released;	// the step's keys were seen up since it started
 		volatile LONG				human_wait;		// a step waits for a person: the time limit does not run
+		double						human_s;		// the time such steps have waited; not counted towards the time limit
 
 		CAutotest() : timeout_s(900), status(stRunning), phase(phStartup), step(0), t_start(now_s()), t_step(0), t_shutdown(0),
 			step_started(false), frames(0), last_frame_seen(0), last_frame_time(now_s()), registered(false), finished(0), wait_frames_left(0),
-			screenshot_pending(false), screenshot_overlays(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1), keys_released(false), human_wait(0)
+			screenshot_pending(false), screenshot_overlays(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1), keys_released(false), human_wait(0), human_s(0)
 		{
 			InitializeCriticalSection	(&cs);
 			InitializeCriticalSection	(&log_cs);
@@ -456,8 +457,19 @@ namespace
 			float	v[5];
 			char	rest;
 			if (sscanf_s(a.c_str(),"%f %f %f %f %f %c",&v[0],&v[1],&v[2],&v[3],&v[4],&rest,1)!=5)	return false;
+			for (int i=0; i<5; ++i)	if (!_finite(v[i]))	return false;	// sscanf reads "nan" and "inf" too
 			if (P)	{ P->actor.set(v[0],v[1],v[2]); P->yaw = v[3]; P->pitch = v[4]; }
 			return	true;
+		}
+
+		// A step stops waiting for the person at the keyboard: by their key, or because the
+		// scenario or the game ended under it
+		void	end_human_wait	()
+		{
+			if (!human_wait)	return;
+			prompt.clear	();
+			human_s			+= now_s()-t_step;
+			InterlockedExchange	(&human_wait,0);
 		}
 
 		// ask_pose <label> [<what to look at>]: hands the game to the person at the keyboard.
@@ -469,7 +481,12 @@ namespace
 			size_t		sp		= S.arg.find_first_of(" \t");
 			std::string	label	= sp==std::string::npos ? S.arg : S.arg.substr(0,sp);
 			std::string	what	= sp==std::string::npos ? label : trim(S.arg.substr(sp));
+			SPose	P;
 			if (!step_started) {
+				if (!g_ui->get_pose(P.actor,P.yaw,P.pitch)) {	// before the person spends time on it
+					finish_scenario	(stFailed,"ask_pose: there is no actor");
+					return			false;
+				}
 				step_started	= true;
 				keys_released	= false;
 				prompt			= what;
@@ -485,14 +502,11 @@ namespace
 			}
 			if (!record && !skip)	return false;
 
-			prompt.clear	();
-			t_start			+= waited;
-			InterlockedExchange	(&human_wait,0);
+			end_human_wait	();
 			if (!record) {
 				Msg			("* [autotest] ask_pose %s: skipped",label.c_str());
 				return		true;
 			}
-			SPose	P;
 			P.label		= label;
 			P.camera	= Device.vCameraPosition;
 			if (!g_ui->get_pose(P.actor,P.yaw,P.pitch)) {
@@ -764,6 +778,7 @@ namespace
 		{
 			status		= s;
 			reason		= why;
+			end_human_wait	();
 			if (perf_on)	perf_end();
 			Msg			("%s [autotest] %s%s%s",s==stPassed ? "*" : "!",status_name(s),why.empty() ? "" : ": ",why.c_str());
 			phase		= phShutdown;
@@ -1197,7 +1212,7 @@ namespace
 
 			const char*	why	= NULL;
 			char		b[256];
-			if (!T->human_wait && t-T->t_start > T->timeout_s) {
+			if (!T->human_wait && t-T->t_start-T->human_s > T->timeout_s) {
 				xr_sprintf(b,"timeout: the test did not finish in %.0f s (-autotest_timeout)",T->timeout_s);	why = b;
 			} else if (T->phase==phShutdown && t-T->t_shutdown > shutdown_seconds) {
 				xr_sprintf(b,"hang: the shutdown did not finish in %.0f s",shutdown_seconds);	why = b;
@@ -1368,6 +1383,7 @@ void Autotest::Stop()
 		Device.seqRender.Remove	(T);
 		T->registered			= false;
 	}
+	T->end_human_wait	();
 	if (T->phase!=phShutdown) {	// the game quit before the scenario did
 		T->phase		= phShutdown;
 		T->t_shutdown	= now_s();

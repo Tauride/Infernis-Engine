@@ -74,10 +74,11 @@ lua db.actor:set_actor_position(vector():set(342.0, 19.1, 240.0))
 ask_pose bm16 the sawn-off shotgun on the wagon roof
 ```
 
-The game shows the text at the top of the screen and waits, however long it takes (the
-wait does not count towards `-autotest_timeout`; give `run.ps1` a generous `-Timeout`
-all the same, it has a last-resort limit of its own). Click into the game window, walk
-and aim as in the game, then press **F7**. The step writes the actor's place and the
+The game shows the text at the top of the screen and waits, however long it takes: the
+wait does not count towards `-autotest_timeout`. `run.ps1` is less patient: it kills the
+game `-Timeout` + 120 seconds after the start whatever the game is doing, 17 minutes by
+default, so start a capture run with a long one (`-Timeout 3600`). Click into the game
+window, walk and aim as in the game, then press **F7**. The step writes the actor's place and the
 camera's angles to the log and to `poses` in the result, as the line to paste into the
 real scenario:
 

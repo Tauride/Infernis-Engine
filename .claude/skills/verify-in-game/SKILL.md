@@ -34,6 +34,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `soc_cordon_hazards.cfg` | SoC port: the 184 hazards of Cordon (anomalies, mines, fires, explosive barrels) are in the simulation and online; the invulnerable actor stands in each kind, walks onto a mine and shoots the barrels (needs the SoC addon pack and `-ExtraArgs "-dev_mode"`) | ~55 s |
 | `soc_cordon_crates.cfg` | SoC port: the 54 loot crates of Cordon are in the simulation; the 11 in the village break and drop their fixed contents and rolled items, and a crate of pistol rounds gives SoC's number of rounds (needs the SoC addon pack) | ~26 s |
 | `soc_cordon_outfits.cfg` | SoC port: the three SoC outfits the addon pack recreates show in the inventory with their icons, are put on with a double click and give the actor their body models (needs the SoC addon pack) | ~50 s |
+| `pose.cfg` | the `pose` step puts the actor and the camera where it says | ~17 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 
@@ -72,6 +73,11 @@ Add one under `tests/autotest/` when the existing scenarios don't exercise the c
 - `wait_log <s> <text>` / `expect_log` / `fail_on_log` turn log output into checks.
 - `perf_begin <label>` ... `perf_end` around the part to measure.
 - End with `quit`.
+- **A viewpoint for a screenshot:** don't guess where to stand. Write a capture scenario
+  that puts the actor roughly there and has `ask_pose <label> <what to look at>`; tell the
+  user to walk, aim and press F7 in the game window; take the `pose ...` lines from
+  `poses` in the result and use them in the real scenario (README, "Viewpoints from a
+  person"). Run it with a long `-Timeout`.
 
 ## Driving the UI
 

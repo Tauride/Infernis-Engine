@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "xr_imgui.h"
+#include "xr_autotest.h"
 #include "../xrRender/RenderDeviceRender.h"
 
 // Off unless the config turns it on (rs_show_fps on)
@@ -188,6 +189,32 @@ namespace
 	}
 }
 
+namespace
+{
+	// An autotest step that waits for the person at the keyboard (ask_pose): what it wants,
+	// in the middle of the top edge
+	void DrawAutotestPrompt(LPCSTR text)
+	{
+		const ImGuiViewport*	vp	= ImGui::GetMainViewport();
+
+		ImGui::SetNextWindowPos		(ImVec2(vp->WorkPos.x + vp->WorkSize.x * 0.5f, vp->WorkPos.y + 10.f), ImGuiCond_Always, ImVec2(0.5f, 0.f));
+		ImGui::SetNextWindowBgAlpha	(0.6f);
+
+		const ImGuiWindowFlags flags =
+			ImGuiWindowFlags_NoDecoration		| ImGuiWindowFlags_NoInputs		|
+			ImGuiWindowFlags_NoNav				| ImGuiWindowFlags_NoMove		|
+			ImGuiWindowFlags_AlwaysAutoResize	| ImGuiWindowFlags_NoSavedSettings	|
+			ImGuiWindowFlags_NoFocusOnAppearing;
+
+		if (ImGui::Begin("##xr_autotest_prompt", NULL, flags))
+		{
+			ImGui::TextColored	(ImVec4(1.f, 0.85f, 0.2f, 1.f), "Autotest needs you: %s", text);
+			ImGui::Text			("Walk there and aim the camera, then press F7 to record it (F8 skips).");
+		}
+		ImGui::End();
+	}
+}
+
 void xr_imgui::OnDeviceCreate()
 {
 	if (g_ready)				return;
@@ -247,6 +274,9 @@ void xr_imgui::Render()
 	g_fps_history.Update		(ImGui::GetIO().DeltaTime);
 
 	if (psDebugOverlay.test(dbgShowFPS))	DrawFPSOverlay();
+
+	string256					prompt;
+	if (Autotest::prompt(prompt, sizeof(prompt)))	DrawAutotestPrompt(prompt);
 
 	ImGui::Render				();
 	ImDrawData* draw_data		= ImGui::GetDrawData();

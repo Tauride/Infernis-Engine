@@ -32,6 +32,10 @@ public:
 	// fails; otherwise text is what the chunk returned (empty for nothing) and truthy says whether
 	// Lua takes that for true.
 	virtual bool	run_lua			(LPCSTR code, LPSTR text, u32 text_size, bool& truthy)			= 0;
+	// The actor's place and the angles of his camera (as the camera keeps them, in radians).
+	// False when there is no actor.
+	virtual bool	get_pose		(Fvector& position, float& yaw, float& pitch)					= 0;
+	virtual bool	set_pose		(const Fvector& position, float yaw, float pitch)				= 0;
 };
 
 namespace Autotest
@@ -46,6 +50,9 @@ namespace Autotest
 	void	Stop			();		// after Device.Run returns (shutdown starts)
 	void	OnFrameEnd		();		// the frame is complete, debug overlays included (before the present)
 	int		Finish			();		// after Core._destroy: writes the final result, returns the exit code
+	// What an ask_pose step asks the person at the keyboard, for the overlay; false when no
+	// step is waiting for them.
+	bool	prompt			(LPSTR text, u32 text_size);
 
 	// The UI cursor: in autotest mode the game uses a virtual cursor that only the ui_*
 	// steps move, so the scenario never depends on (or moves) the real mouse.

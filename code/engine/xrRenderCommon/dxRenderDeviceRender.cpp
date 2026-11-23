@@ -507,3 +507,79 @@ LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
 }
 
 #endif // USE_DX10 || USE_DX11
+
+//-----------------------------------------------------------------------------
+// Dear ImGui renderer backend. The engine creates the context and drives the frames
+// (xrEngine/xr_imgui.cpp); this module has its own copy of the ImGui core, pointed at
+// that context.
+//-----------------------------------------------------------------------------
+#if defined(USE_DX10) && !defined(USE_DX11)
+
+// No ImGui backend for Direct3D 10: the debug overlays are off in this renderer
+bool dxRenderDeviceRender::ImGuiCreate(ImGuiContext*) { return false; }
+void dxRenderDeviceRender::ImGuiDestroy() {}
+void dxRenderDeviceRender::ImGuiResetBegin() {}
+void dxRenderDeviceRender::ImGuiResetEnd() {}
+void dxRenderDeviceRender::ImGuiNewFrame() {}
+void dxRenderDeviceRender::ImGuiRender(ImDrawData*) {}
+
+#else
+
+// xrCore marks memset/memmove/strcmp deprecated (C4995); imgui.h uses them.
+#pragma warning(push)
+#pragma warning(disable : 4995)
+#include <imgui.h>
+#ifdef USE_DX11
+#include <imgui_impl_dx11.h>
+#else
+#include <imgui_impl_dx9.h>
+#endif
+#pragma warning(pop)
+
+#ifdef USE_DX11
+
+bool dxRenderDeviceRender::ImGuiCreate(ImGuiContext* context) {
+    ImGui::SetCurrentContext(context);
+    R_ASSERT(ImGui_ImplDX11_Init(HW.pDevice, HW.pContext));
+    return true;
+}
+
+void dxRenderDeviceRender::ImGuiDestroy() { ImGui_ImplDX11_Shutdown(); }
+void dxRenderDeviceRender::ImGuiResetBegin() { ImGui_ImplDX11_InvalidateDeviceObjects(); }
+void dxRenderDeviceRender::ImGuiResetEnd() { ImGui_ImplDX11_CreateDeviceObjects(); }
+void dxRenderDeviceRender::ImGuiNewFrame() { ImGui_ImplDX11_NewFrame(); }
+
+void dxRenderDeviceRender::ImGuiRender(ImDrawData* data) {
+    // Onto the back buffer, whatever the last pass left bound
+    RCache.set_RT(HW.pBaseRT);
+    RCache.set_ZB(HW.pBaseZB);
+    // The DX11 backend saves and restores the context state it changes, but not the
+    // render backend's cache of it: render targets and states are set again
+    ImGui_ImplDX11_RenderDrawData(data);
+    RCache.Invalidate();
+    RCache.set_RT(HW.pBaseRT);
+    RCache.set_ZB(HW.pBaseZB);
+}
+
+#else // Direct3D 9
+
+bool dxRenderDeviceRender::ImGuiCreate(ImGuiContext* context) {
+    ImGui::SetCurrentContext(context);
+    R_ASSERT(ImGui_ImplDX9_Init(HW.pDevice));
+    return true;
+}
+
+void dxRenderDeviceRender::ImGuiDestroy() { ImGui_ImplDX9_Shutdown(); }
+void dxRenderDeviceRender::ImGuiResetBegin() { ImGui_ImplDX9_InvalidateDeviceObjects(); }
+void dxRenderDeviceRender::ImGuiResetEnd() { ImGui_ImplDX9_CreateDeviceObjects(); }
+void dxRenderDeviceRender::ImGuiNewFrame() { ImGui_ImplDX9_NewFrame(); }
+
+void dxRenderDeviceRender::ImGuiRender(ImDrawData* data) {
+    // The DX9 backend saves and restores the device state (a state block), so the
+    // render backend's cached state stays valid
+    ImGui_ImplDX9_RenderDrawData(data);
+}
+
+#endif // USE_DX11
+
+#endif // Direct3D 10

@@ -5,6 +5,7 @@
 #include "x_ray.h"
 #include "xr_ioconsole.h"
 #include "xr_ioc_cmd.h"
+#include "xr_imgui.h"
 //#include "fbasicvisual.h"
 #include "cameramanager.h"
 #include "environment.h"
@@ -821,6 +822,7 @@ void CCC_Register() {
     CMD1(CCC_Fullscreen, "rs_fullscreen");
     CMD1(CCC_ScreenMode, "rs_screenmode");
     CMD1(CCC_FpsLimit, "rs_fps_limit");
+    CMD3(CCC_Mask, "rs_show_fps", &psDebugOverlay, dbgShowFPS);
     CMD3(CCC_Mask, "rs_refresh_60hz", &psDeviceFlags, rsRefresh60hz);
     CMD3(CCC_Mask, "rs_stats", &psDeviceFlags, rsStatistic);
     CMD4(CCC_Float, "rs_vis_distance", &psVisDistance, 0.4f, 1.5f);

@@ -278,10 +278,12 @@ set(GENERAL _d3d_extensions.h
             stdafx.h
             x_ray.h
             xr_autotest.h
+            xr_imgui.h
             defines.cpp
             stdafx.cpp
             x_ray.cpp
-            xr_autotest.cpp)
+            xr_autotest.cpp
+            xr_imgui.cpp)
 
 set(EDITOR_ENVIRONMENT_SUNS_MANAGER editor_environment_suns_manager.hpp
                                     editor_environment_suns_manager.cpp)
@@ -464,4 +466,5 @@ set_target_properties(xrEngine PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
 target_include_directories(xrEngine PUBLIC ${DXSDK_INCLUDE_DIR}
                                     PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(xrEngine vfw32 libogg libtheora d3dx9 d3d9 dinput8 dxguid
-                               shlwapi xrCore xrCDB xrSound xrAPI xrNetServer winmm luabind DiscordRPC)
+                               shlwapi xrCore xrCDB xrSound xrAPI xrNetServer winmm luabind DiscordRPC
+                               imgui_win32)

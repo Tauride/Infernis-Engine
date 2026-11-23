@@ -16,6 +16,7 @@
 #include "x_ray.h"
 #include "render.h"
 #include "xr_autotest.h"
+#include "xr_imgui.h"
 
 #ifdef INGAME_EDITOR
 #include "editor/ide.hpp"
@@ -126,6 +127,9 @@ void CRenderDevice::End(void) {
             }
         }
     }
+
+    xr_imgui::Render(); // debug overlays, on top of everything
+    Autotest::OnFrameEnd();
 
     g_bRendering = FALSE;
     // end scene

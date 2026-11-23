@@ -182,9 +182,11 @@ private:
     CMatrix* matrices[8]; // matrices are supported only for FFP
 #endif
 
+public:
+    // Forget the cached device state: something outside the backend changed it
+    // (the ImGui renderer backend draws straight through the device context)
     void Invalidate();
 
-public:
     struct _stats {
         u32 polys;
         u32 verts;

@@ -29,6 +29,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`) with `screenshot_overlay`: on, after a device reset, off | ~16 s |
 | `device_lost.cfg` | a lost device and reset in the menu, during a level start and in the level; run per renderer | ~17 s |
 | `start_option.cfg` | `-start` on the command line goes straight into a new game (needs `-ExtraArgs`) | ~10 s |
+| `soc_cordon.cfg` | SoC port: the converted Cordon boots with an actor-only spawn, the actor walks in the village and stands on the ground at four places (needs the SoC addon pack) | ~50 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 
@@ -57,6 +58,8 @@ Add one under `tests/autotest/` when the existing scenarios don't exercise the c
 - A new game: `start server(all/single/alife/new) client(localhost)` then `wait_level`.
 - A save: `load_save <name>` then `wait_level`. Saves used by tests are named
   `autotest_*`. Never use or change the user's own saves.
+- `lua <code>` runs Lua in the game (move the actor, set the time); `lua_expect <expression>`
+  fails unless it is true.
 - Console commands work as steps. The runner checks that every command exists before it
   starts.
 - `wait_log <s> <text>` / `expect_log` / `fail_on_log` turn log output into checks.

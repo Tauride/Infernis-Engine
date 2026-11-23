@@ -25,6 +25,8 @@
 #include "PhysicsShellHolder.h"
 #include "string_table.h"
 #include "ui_base.h"
+#include "ai_space.h"
+#include "script_engine.h"
 #include <typeinfo>
 
 extern _keyboard	keyboards[];
@@ -304,6 +306,18 @@ namespace
 		virtual bool	cursor_visible	()
 		{
 			return g_pGamePersistent && GetUICursor().IsVisible();
+		}
+
+		virtual bool	run_lua			(LPCSTR code, LPSTR text, u32 text_size, bool& truthy)
+		{
+			lua_State*	L	= ai().script_engine().lua();
+			bool		ok	= !luaL_loadbuffer(L,code,xr_strlen(code),"@autotest") && !lua_pcall(L,0,1,0);
+			LPCSTR		s	= lua_tostring(L,-1);	// a string or a number; the error message when it failed
+			if (!s && ok)	s = lua_isnil(L,-1) ? "" : lua_isboolean(L,-1) ? (lua_toboolean(L,-1) ? "true" : "false") : lua_typename(L,lua_type(L,-1));
+			truthy			= ok && lua_toboolean(L,-1);
+			strncpy_s		(text,text_size,s ? s : "unknown Lua error",_TRUNCATE);
+			lua_pop			(L,1);
+			return			ok;
 		}
 	};
 

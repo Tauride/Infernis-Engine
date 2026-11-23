@@ -366,7 +366,7 @@ namespace
 			static const char* names[] = { "wait_frames", "wait_seconds", "wait_level", "wait_log", "expect_log", "fail_on_log",
 				"screenshot", "screenshot_overlay", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "debug_device_lost", "load_save",
 				"ui_move", "ui_click", "ui_rclick", "ui_dblclick", "ui_drag", "ui_down", "ui_up", "ui_wheel", "ui_key", "ui_key_down",
-				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", 0 };
+				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", "lua", "lua_expect", 0 };
 			for (int i=0; names[i]; ++i)	if (c==names[i])	return true;
 			return false;
 		}
@@ -387,6 +387,8 @@ namespace
 				else if (S.cmd=="load_save" && (S.arg.empty() || S.arg.find_first_of(" ()/")!=std::string::npos))
 																			xr_sprintf(err,"load_save needs a save name (no spaces, parentheses or slashes)");
 				else if (S.cmd=="perf_begin" && S.arg.empty())				xr_sprintf(err,"perf_begin needs a label");
+				else if ((S.cmd=="lua" || S.cmd=="lua_expect") && (S.arg.empty() || !g_ui))
+																			xr_sprintf(err,S.arg.empty() ? "%s needs Lua code" : "%s: the game DLL has no autotest support",S.cmd.c_str());
 				else if (S.cmd.compare(0,3,"ui_")==0 && !validate_ui(S,err,sizeof(err)))	{}
 				else if (S.cmd=="debug_device_lost" && !S.arg.empty() && atoi(S.arg.c_str())<=0)
 																			xr_sprintf(err,"debug_device_lost takes a frame count");
@@ -790,6 +792,22 @@ namespace
 			if (S.cmd=="log") {
 				Msg		("* [autotest] %s",S.arg.c_str());
 				return	true;
+			}
+			if (S.cmd=="lua" || S.cmd=="lua_expect") {	// Lua in the game's script engine
+				bool		expect	= S.cmd=="lua_expect";
+				std::string	code	= expect ? "return " + S.arg : S.arg;
+				char		text[512]	= "";
+				bool		truthy	= false;
+				if (!g_ui->run_lua(code.c_str(),text,sizeof(text),truthy)) {
+					finish_scenario	(stFailed,S.cmd + ": " + text);
+					return false;
+				}
+				if (*text)	Msg("* [autotest] %s: %s",S.cmd.c_str(),text);
+				if (expect && !truthy) {
+					finish_scenario	(stFailed,"lua_expect: " + S.arg + " is " + (*text ? text : "nil"));
+					return false;
+				}
+				return true;
 			}
 			if (S.cmd=="fail") {
 				finish_scenario	(stFailed,S.arg.empty() ? "fail" : S.arg);

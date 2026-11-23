@@ -957,7 +957,15 @@ namespace
 bool Autotest::active()
 {
 	static int	result	= -1;
-	if (result<0)	result = strstr(Core.Params,"-autotest ") ? 1 : 0;
+	if (result<0) {
+		// "-autotest <scenario>"; the switch alone (last on the line) is on too, and fails as
+		// a bad scenario instead of starting a game nobody watches. Not -autotest_out etc.
+		result	= 0;
+		for (const char* p=strstr(Core.Params,"-autotest"); p && !result; p=strstr(p+1,"-autotest")) {
+			char	next	= p[9];
+			if (next==' ' || next==0)	result = 1;
+		}
+	}
 	return		(result==1);
 }
 

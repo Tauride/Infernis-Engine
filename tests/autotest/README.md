@@ -63,9 +63,11 @@ crashes while the level starts.
 
 The `ui_*` steps drive the menus and in-game windows like a player: they move a
 cursor, hover, click, drag and press keys. The events go to the game's input
-receiver as if they came from the devices, so the real mouse is never read or
+receiver as if they came from the devices, so the real mouse pointer is never
 moved and the window doesn't need the focus. In autotest mode the UI cursor is
 virtual: it starts in the middle of the screen and only these steps move it.
+The real mouse and keyboard are still read while the game window has the focus:
+don't click or type in it during a run.
 
 A **target** is a point, `512,300` in UI coordinates (always 1024x768, whatever
 the resolution), or a path of segments separated by `/`:

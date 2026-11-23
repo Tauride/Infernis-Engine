@@ -205,9 +205,10 @@ void xrDebug::backend(const std::string_view expression, const std::string_view 
     if (handler)
         handler();
 
-    if (unattended()) {
+    if (unattended() && !IsDebuggerPresent()) {
         // No dialog and no breakpoint: write the dump right here (an SEH handler on the way
-        // up could swallow the breakpoint exception) and terminate.
+        // up could swallow the breakpoint exception) and terminate. Under a debugger the
+        // breakpoint below is what the developer wants.
 #ifdef USE_OWN_MINI_DUMP
         save_mini_dump(nullptr);
 #endif // USE_OWN_MINI_DUMP

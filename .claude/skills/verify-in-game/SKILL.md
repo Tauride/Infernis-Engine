@@ -60,7 +60,8 @@ Add one under `tests/autotest/` when the existing scenarios don't exercise the c
 ## Driving the UI
 
 The `ui_*` steps click, hover, drag and press keys in menus and in-game windows through a
-virtual cursor; the real mouse is never touched.
+virtual cursor; the real mouse pointer is never moved. Real clicks and keys still reach
+the game while its window has the focus, so leave the window alone during a run.
 
 1. **Look first.** Put `ui_dump <label>` where the window is open and run it.
    `userdata\logs\autotest_ui_<label>.txt` lists every visible window: `#n`, class, name,

@@ -28,6 +28,10 @@ public:
 	virtual void	dump			(line_cb cb, void* ctx)											= 0;	// the visible windows, one line each
 	virtual int		key_code		(LPCSTR name)													= 0;	// key (kESCAPE, ESCAPE, mouse1) or action (inventory); -1 unknown
 	virtual bool	cursor_visible	()																= 0;
+	// Runs a chunk of Lua in the game's script engine. False with the Lua error in text when it
+	// fails; otherwise text is what the chunk returned (empty for nothing) and truthy says whether
+	// Lua takes that for true.
+	virtual bool	run_lua			(LPCSTR code, LPSTR text, u32 text_size, bool& truthy)			= 0;
 };
 
 namespace Autotest

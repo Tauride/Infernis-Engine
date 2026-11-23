@@ -71,10 +71,10 @@ if (-not (Test-Path $ltx)) {
 
 # Every run starts the same way, whatever the last scenario left in the file: in a window
 # (rs_screenmode; rs_fullscreen is the old switch), without the frame rate limit (frame
-# times are measured without it), and a loaded level starts at once instead of waiting
+# times are measured without it) and the FPS overlay, and a loaded level starts at once instead of waiting
 # for a key on the load screen
-$lines = @(Get-Content $ltx | Where-Object { $_ -notmatch '^(keypress_on_start|rs_fullscreen|rs_screenmode|rs_fps_limit) ' }) +
-    'keypress_on_start 0' + 'rs_screenmode screenmode_windowed' + 'rs_fps_limit off'
+$lines = @(Get-Content $ltx | Where-Object { $_ -notmatch '^(keypress_on_start|rs_fullscreen|rs_screenmode|rs_fps_limit|rs_show_fps) ' }) +
+    'keypress_on_start 0' + 'rs_screenmode screenmode_windowed' + 'rs_fps_limit off' + 'rs_show_fps off'
 Set-Content -Path $ltx -Value $lines -Encoding ascii
 
 # Another renderer: a temporary copy of the settings with that renderer

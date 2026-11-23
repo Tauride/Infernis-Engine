@@ -48,6 +48,8 @@ runs one frame later so the engine can process it.
 | `screenshot_overlay <name>` | the same, taken at the end of the frame: with the debug overlays (the FPS overlay), the UI cursor and the engine statistics |
 | `perf_begin <label>` / `perf_end` | frame-time statistics between the two (avg, p50/p95/p99, max, fps) |
 | `log <text>` | write `* [autotest] text` to the log |
+| `lua <code>` | run the rest of the line as a chunk of Lua in the game's script engine (globals stay for later steps, until a game is started or loaded: that restarts the script engine); fails with the Lua error. A returned value is written to the log as `* [autotest] lua: <value>` |
+| `lua_expect <expression>` | fail unless the Lua expression is true (not `nil` or `false`); its value goes to the log and into the failure reason |
 | `fail <text>` | fail with this reason |
 | `debug_crash assert\|access_violation` | crash on purpose (tests the crash path) |
 | `debug_device_lost [<n>]` | the device is lost for n frames (default 30): no frames are drawn, then the device is reset, as Direct3D 9 does it for real; waits until it is restored |
@@ -161,7 +163,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 - The window keeps rendering and the game does not pause without the focus.
 - `run.ps1` passes `-ltx autotest.ltx -nointro -i`: its own settings file
   (created from `user.ltx` at 1280x720, so the user's settings stay as they are; every
-  run sets `rs_screenmode screenmode_windowed`, `rs_fps_limit off` and
+  run sets `rs_screenmode screenmode_windowed`, `rs_fps_limit off`, `rs_show_fps off` and
   `keypress_on_start 0` in it), no intro videos, no captured input.
 - Only one game can run at a time; a running game also locks `bin\x64`, so
   builds fail while it runs.
@@ -179,6 +181,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`): pictures with it, after a device reset, with it turned off, and a plain screenshot without it; the limit steps 60, 30, 60 for the graph (~16 s). The overlay is off by default; the scenario turns it on and leaves it off | nothing |
 | `device_lost.cfg` | a lost device and the reset after it, three times: in the main menu, while a level starts, in the level; with the FPS overlay on. Run with `-Renderer r1`, `r2`, `r3`, `r4` (~17 s) | nothing |
 | `start_option.cfg` | the `-start` command line option goes straight into a new game; run with `-ExtraArgs "-start server(all/single/alife/new) client(localhost)"` (~10 s) | nothing |
+| `soc_cordon.cfg` | SoC port: a new game on the converted Cordon (`l01_escape`) with an actor-only spawn. The level comes up in Sidorovich's bunker; the actor is put in the village, walks from Wolf's post towards a point Wolf watches (checked: closer by 5 m, still on the ground), then at the bridge, the north and the south end. FPS overlay on, limit 288, pictures with the overlay (~50 s). Needs the SoC addon pack with the `soc` spawn in the game folder | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |
 | `selftest_timeout.cfg` | the watchdog: run with `-Timeout 20`, expect exit code 4 | nothing |

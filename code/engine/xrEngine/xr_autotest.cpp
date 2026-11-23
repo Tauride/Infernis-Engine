@@ -9,6 +9,7 @@
 
 #include <dbghelp.h>
 #include <psapi.h>
+#include <tlhelp32.h>
 #include <string>
 #include <vector>
 #include <algorithm>
@@ -984,6 +985,84 @@ namespace
 		CloseHandle		(h);
 	}
 
+	// The thread that runs the game loop.
+	HANDLE	g_main_thread	= NULL;
+
+	// Writes where a thread is to the log. The thread is stopped only while its return
+	// addresses are read straight from its stack (no locks taken, nothing allocated: it may
+	// hold the heap or the symbol lock itself); the names are looked up after it runs again.
+	void	log_thread_stack	(HANDLE thread, const char* name)
+	{
+		const u32	max_frames	= 48;
+		DWORD64		frames[max_frames];
+		u32			count		= 0;
+
+		if (SuspendThread(thread)==DWORD(-1))	return;
+		CONTEXT		ctx;
+		ZeroMemory	(&ctx,sizeof(ctx));
+		ctx.ContextFlags	= CONTEXT_CONTROL|CONTEXT_INTEGER;
+		if (GetThreadContext(thread,&ctx)) {
+			while (count<max_frames && ctx.Rip) {
+				frames[count++]	= ctx.Rip;
+				DWORD64				image	= 0;
+				PRUNTIME_FUNCTION	fn		= RtlLookupFunctionEntry(ctx.Rip,&image,NULL);
+				if (fn) {
+					PVOID	handler_data	= NULL;
+					DWORD64	establisher		= 0;
+					RtlVirtualUnwind	(UNW_FLAG_NHANDLER,image,ctx.Rip,fn,&ctx,&handler_data,&establisher,NULL);
+				} else {
+					// a leaf function: the return address is on top of the stack
+					if (IsBadReadPtr((void*)ctx.Rsp,sizeof(DWORD64)))	break;
+					ctx.Rip		= *(DWORD64*)ctx.Rsp;
+					ctx.Rsp		+= sizeof(DWORD64);
+				}
+			}
+		}
+		ResumeThread	(thread);
+
+		HANDLE		process		= GetCurrentProcess();
+		Msg			("! [autotest] %s is here (%u frames):",name,count);
+		for (u32 i=0; i<count; ++i) {
+			char			buffer[sizeof(SYMBOL_INFO)+256];
+			SYMBOL_INFO*	symbol		= (SYMBOL_INFO*)buffer;
+			ZeroMemory		(buffer,sizeof(buffer));
+			symbol->SizeOfStruct		= sizeof(SYMBOL_INFO);
+			symbol->MaxNameLen			= 255;
+			IMAGEHLP_LINE64	line;
+			ZeroMemory		(&line,sizeof(line));
+			line.SizeOfStruct			= sizeof(line);
+			DWORD			displacement	= 0;
+			bool			named		= !!SymFromAddr(process,frames[i],NULL,symbol);
+			bool			lined		= !!SymGetLineFromAddr64(process,frames[i],&displacement,&line);
+			Msg			("!   %2u: %s at %s:%u",i,named ? symbol->Name : "?",lined ? line.FileName : "?",lined ? line.LineNumber : 0);
+		}
+	}
+
+	// The stack of the main thread, then of every other thread: a hang is often the main
+	// thread waiting for one of them.
+	void	log_all_stacks	()
+	{
+		SymSetOptions	(SymGetOptions()|SYMOPT_LOAD_LINES);
+		SymInitialize	(GetCurrentProcess(),NULL,TRUE);	// fails harmlessly if the crash handler did it already
+		if (g_main_thread)	log_thread_stack(g_main_thread,"the main thread");
+
+		HANDLE		snapshot	= CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD,0);
+		if (snapshot==INVALID_HANDLE_VALUE)	return;
+		THREADENTRY32	entry;
+		entry.dwSize	= sizeof(entry);
+		DWORD		process_id	= GetCurrentProcessId(), self = GetCurrentThreadId(), main_id = g_main_thread ? GetThreadId(g_main_thread) : 0;
+		for (BOOL ok=Thread32First(snapshot,&entry); ok; ok=Thread32Next(snapshot,&entry)) {
+			if (entry.th32OwnerProcessID!=process_id || entry.th32ThreadID==self || entry.th32ThreadID==main_id)	continue;
+			HANDLE	thread	= OpenThread(THREAD_SUSPEND_RESUME|THREAD_GET_CONTEXT|THREAD_QUERY_INFORMATION,FALSE,entry.th32ThreadID);
+			if (!thread)	continue;
+			char	name[64];
+			xr_sprintf	(name,"thread %u",entry.th32ThreadID);
+			log_thread_stack	(thread,name);
+			CloseHandle	(thread);
+		}
+		CloseHandle	(snapshot);
+	}
+
 	void	watchdog		()
 	{
 		CAutotest*	T	= g_test;
@@ -1014,6 +1093,7 @@ namespace
 			Msg				("! [autotest] %s, terminating (exit code 4)",why);
 			T->status		= stTimeout;
 			T->reason		= why;
+			log_all_stacks	();
 			write_hang_dump	(T);
 			T->write_result	();
 			if (locked)		LeaveCriticalSection(&T->cs);
@@ -1103,6 +1183,8 @@ bool Autotest::Begin()
 		return		false;
 	}
 	T->write_result	();
+	// called from the main thread
+	DuplicateHandle	(GetCurrentProcess(),GetCurrentThread(),GetCurrentProcess(),&g_main_thread,0,FALSE,DUPLICATE_SAME_ACCESS);
 	std::thread		(watchdog).detach();
 	return			true;
 }

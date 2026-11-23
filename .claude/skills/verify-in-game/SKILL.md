@@ -35,6 +35,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `soc_cordon_crates.cfg` | SoC port: the 54 loot crates of Cordon are in the simulation; the 11 in the village break and drop their fixed contents and rolled items, and a crate of pistol rounds gives SoC's number of rounds (needs the SoC addon pack) | ~26 s |
 | `soc_cordon_outfits.cfg` | SoC port: the three SoC outfits the addon pack recreates show in the inventory with their icons, are put on with a double click and give the actor their body models (needs the SoC addon pack) | ~50 s |
 | `soc_cordon_weapons.cfg` | SoC port: the four weapons lying in Cordon are in the simulation and come online as the game's weapons with the game's models, unloaded, in full condition, where SoC placed them (needs the SoC addon pack) | ~29 s |
+| `soc_cordon_supplies.cfg` | SoC port: the 47 boxes of ammunition, medical items, food and drinks lying in Cordon are in the simulation and each comes online near the actor (needs the SoC addon pack) | ~57 s |
 | `pose.cfg` | the `pose` step puts the actor and the camera where it says | ~17 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |

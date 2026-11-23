@@ -32,6 +32,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `soc_cordon.cfg` | SoC port: the converted Cordon boots with the actor and the scenery in the spawn, the actor walks in the village and stands on the ground at four places (needs the SoC addon pack) | ~50 s |
 | `soc_cordon_scenery.cfg` | SoC port: the 221 props of Cordon (props, lamps, ladders, breakables) are in the simulation, come online near the actor, a wooden crate breaks, and the crow spawner makes crows within its limit (needs the SoC addon pack) | ~25 s |
 | `soc_cordon_hazards.cfg` | SoC port: the 184 hazards of Cordon (anomalies, mines, fires, explosive barrels) are in the simulation and online; the invulnerable actor stands in each kind, walks onto a mine and shoots the barrels (needs the SoC addon pack and `-ExtraArgs "-dev_mode"`) | ~55 s |
+| `soc_cordon_outfits.cfg` | SoC port: the three SoC outfits the addon pack recreates show in the inventory with their icons, are put on with a double click and give the actor their body models (needs the SoC addon pack) | ~50 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 

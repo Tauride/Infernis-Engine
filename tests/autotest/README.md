@@ -173,6 +173,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `new_game.cfg` | starts a new game as the menu does, the first level comes up, screenshot, 20 s idle perf (~35 s) | nothing |
 | `ui_options.cfg` | the ui_* steps on the menus: opens the options with the mouse, picks a dropdown value, switches a tab, cancels; opens the options again and closes them with Escape (~6 s) | nothing |
 | `screen_mode.cfg` | the screen mode dropdown in the video options: "Borderless window" locks the resolution, "Windowed" unlocks it, Cancel leaves the mode alone, accepting borderless resets the device to the display's size; back to a window from the console. Covers the whole display for a few seconds (~15 s) | nothing |
+| `resolution_aspect.cfg` | accepting a resolution with another aspect ratio (16:9 to 4:3 and back): the main menu is rebuilt, the options come back with the "keep these settings?" box; Yes keeps the resolution, No restores the old one (~12 s) | nothing |
 | `fps_limit.cfg` | the frame rate limit dropdown in the video options: the list (30, 60, half/full/twice the refresh rate without repeats, Unlimited), picking 30 with the mouse; main menu perf at 30, 60, the refresh rate and unlimited (~25 s) | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |

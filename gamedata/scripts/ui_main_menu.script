@@ -68,6 +68,18 @@ function main_menu:InitCallBacks()
 	self:AddCallback("msg_box",     ui_events.MESSAGE_BOX_NO_CLICKED,		self.OnMsgNo,						self)
 	self:AddCallback("msg_box",			ui_events.MESSAGE_BOX_QUIT_GAME_CLICKED,self.OnMessageQuitGame,				self)
 	self:AddCallback("msg_box",			ui_events.MESSAGE_BOX_QUIT_WIN_CLICKED,	self.OnMessageQuitWin,				self)
+
+	-- The engine rebuilds the main menu when the screen changes between 4:3 and 16:9
+	-- (the layouts differ) and sends this to the new one
+	self:Register(self, "self")
+	self:AddCallback("self",			ui_events.MAIN_MENU_RELOADED,			self.OnMenuReloaded,				self)
+end
+
+-- The rebuild happens while the options are open (a resolution was just accepted):
+-- open them again, and they bring back the "keep these settings?" box
+function main_menu:OnMenuReloaded()
+	self:OnButton_options_clicked()
+	self.opt_dlg:OnMenuReloaded()
 end
 function main_menu:OnMsgOk()
 	self.mbox_mode = 0

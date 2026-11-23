@@ -157,6 +157,7 @@ namespace
 
 	const u32	max_error_samples	= 30;
 	const u32	log_tail_size		= 30;
+	const u32	stacks_seconds		= 20;		// the limit for writing the thread stacks after a hang
 	const double hang_seconds		= 180.0;	// no frame for this long - hung (level loading still counts frames)
 	const double shutdown_seconds	= 60.0;		// the shutdown after quit must finish within this
 
@@ -985,24 +986,26 @@ namespace
 		CloseHandle		(h);
 	}
 
-	// The thread that runs the game loop.
+	// The thread that runs the game loop, and the watchdog's id.
 	HANDLE	g_main_thread	= NULL;
+	DWORD	g_watchdog_id	= 0;
 
 	// Writes where a thread is to the log. The thread is stopped only while its return
 	// addresses are read straight from its stack (no locks taken, nothing allocated: it may
 	// hold the heap or the symbol lock itself); the names are looked up after it runs again.
-	void	log_thread_stack	(HANDLE thread, const char* name)
-	{
-		const u32	max_frames	= 48;
-		DWORD64		frames[max_frames];
-		u32			count		= 0;
+	const u32	max_stack_frames	= 48;
 
-		if (SuspendThread(thread)==DWORD(-1))	return;
-		CONTEXT		ctx;
-		ZeroMemory	(&ctx,sizeof(ctx));
-		ctx.ContextFlags	= CONTEXT_CONTROL|CONTEXT_INTEGER;
-		if (GetThreadContext(thread,&ctx)) {
-			while (count<max_frames && ctx.Rip) {
+	// The return addresses of a stopped thread. The stack may be damaged (that can be why
+	// the thread hangs), so a fault while reading it ends the walk with what was found.
+	u32		walk_stack		(HANDLE thread, DWORD64* frames)
+	{
+		u32			count		= 0;
+		__try {
+			CONTEXT		ctx;
+			ZeroMemory	(&ctx,sizeof(ctx));
+			ctx.ContextFlags	= CONTEXT_CONTROL|CONTEXT_INTEGER;
+			if (!GetThreadContext(thread,&ctx))	return 0;
+			while (count<max_stack_frames && ctx.Rip) {
 				frames[count++]	= ctx.Rip;
 				DWORD64				image	= 0;
 				PRUNTIME_FUNCTION	fn		= RtlLookupFunctionEntry(ctx.Rip,&image,NULL);
@@ -1012,12 +1015,20 @@ namespace
 					RtlVirtualUnwind	(UNW_FLAG_NHANDLER,image,ctx.Rip,fn,&ctx,&handler_data,&establisher,NULL);
 				} else {
 					// a leaf function: the return address is on top of the stack
-					if (IsBadReadPtr((void*)ctx.Rsp,sizeof(DWORD64)))	break;
 					ctx.Rip		= *(DWORD64*)ctx.Rsp;
 					ctx.Rsp		+= sizeof(DWORD64);
 				}
 			}
+		} __except(EXCEPTION_EXECUTE_HANDLER) {
 		}
+		return		count;
+	}
+
+	void	log_thread_stack	(HANDLE thread, const char* name)
+	{
+		DWORD64		frames[max_stack_frames];
+		if (SuspendThread(thread)==DWORD(-1))	return;
+		u32			count		= walk_stack(thread,frames);
 		ResumeThread	(thread);
 
 		HANDLE		process		= GetCurrentProcess();
@@ -1039,7 +1050,7 @@ namespace
 	}
 
 	// The stack of the main thread, then of every other thread: a hang is often the main
-	// thread waiting for one of them.
+	// thread waiting for one of them. Runs on a thread of its own, see the watchdog.
 	void	log_all_stacks	()
 	{
 		SymSetOptions	(SymGetOptions()|SYMOPT_LOAD_LINES);
@@ -1052,7 +1063,7 @@ namespace
 		entry.dwSize	= sizeof(entry);
 		DWORD		process_id	= GetCurrentProcessId(), self = GetCurrentThreadId(), main_id = g_main_thread ? GetThreadId(g_main_thread) : 0;
 		for (BOOL ok=Thread32First(snapshot,&entry); ok; ok=Thread32Next(snapshot,&entry)) {
-			if (entry.th32OwnerProcessID!=process_id || entry.th32ThreadID==self || entry.th32ThreadID==main_id)	continue;
+			if (entry.th32OwnerProcessID!=process_id || entry.th32ThreadID==self || entry.th32ThreadID==main_id || entry.th32ThreadID==g_watchdog_id)	continue;
 			HANDLE	thread	= OpenThread(THREAD_SUSPEND_RESUME|THREAD_GET_CONTEXT|THREAD_QUERY_INFORMATION,FALSE,entry.th32ThreadID);
 			if (!thread)	continue;
 			char	name[64];
@@ -1093,11 +1104,21 @@ namespace
 			Msg				("! [autotest] %s, terminating (exit code 4)",why);
 			T->status		= stTimeout;
 			T->reason		= why;
-			log_all_stacks	();
 			write_hang_dump	(T);
 			T->write_result	();
-			if (locked)		LeaveCriticalSection(&T->cs);
 			FlushLog		();
+			// The stacks come after the result is safe, from another thread and with a time
+			// limit: looking them up takes locks (the log, the symbols, the function tables)
+			// that a hung thread may hold, and the process has to end either way.
+			g_watchdog_id	= GetCurrentThreadId();
+			std::thread		stacks(log_all_stacks);
+			if (WaitForSingleObject((HANDLE)stacks.native_handle(),stacks_seconds*1000)==WAIT_OBJECT_0) {
+				stacks.join		();
+				T->write_result	();		// with the stacks in its log tail
+				FlushLog		();
+			} else
+				stacks.detach	();
+			if (locked)		LeaveCriticalSection(&T->cs);
 			TerminateProcess(GetCurrentProcess(),4);
 		}
 	}

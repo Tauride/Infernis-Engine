@@ -176,7 +176,7 @@ const ui_shader& InventoryUtilities::GetBuyMenuShader() {
 
 void InventoryUtilities::SetItemIconShader(CUIStatic& icon, LPCSTR section) {
     if (pSettings->line_exist(section, "icons_texture")) {
-        icon.CreateShader(pSettings->r_string(section, "icons_texture"), "hud\default");
+        icon.CreateShader(pSettings->r_string(section, "icons_texture"));
         return;
     }
 

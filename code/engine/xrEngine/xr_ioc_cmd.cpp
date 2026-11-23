@@ -366,6 +366,8 @@ public:
 // rate an earlier one already has is left out (at 60 Hz half the refresh rate
 // is 30 and the refresh rate is 60). The setting is saved as the choice, so the
 // refresh rate based ones follow the display; the list names (numbers) work too.
+// A number that is the rate of the current choice keeps that choice: picking 60
+// in the list on a 60 Hz display does not turn "refresh" into a fixed 60.
 static xr_token fps_limit_keywords[] = { { "off", flOff },
                                          { "30", fl30 },
                                          { "60", fl60 },
@@ -400,8 +402,12 @@ class CCC_FpsLimit : public CCC_Token {
                 if (other > fps)
                     break;
             }
-            if (repeated)
+            if (repeated) {
+                // The entry stands for the current choice when that one has this rate
+                if (limit == psFpsLimit)
+                    m_list[pos].id = limit;
                 continue;
+            }
             for (u32 i = count; i > pos; i--)
                 m_list[i] = m_list[i - 1];
             m_list[pos].id = limit;
@@ -421,14 +427,21 @@ public:
     CCC_FpsLimit(LPCSTR N) : inherited(N, &psFpsLimit, NULL) { BuildList(); };
 
     virtual void Execute(LPCSTR args) {
+        // A frame rate the current choice already gives: nothing to change. Only once the
+        // device exists: before that the refresh rate is not known (a config is loading).
+        u32 fps = 0;
+        char rest = 0;
+        const bool is_number = 1 == sscanf(args, "%u%c", &fps, &rest);
+        if (is_number && fps && Device.b_is_Ready && FpsLimitRate(psFpsLimit) == fps)
+            return;
+
         for (xr_token* tok = fps_limit_keywords; tok->name; tok++)
             if (0 == stricmp(tok->name, args)) {
                 psFpsLimit = tok->id;
                 return;
             }
 
-        u32 fps = 0;
-        if (1 == sscanf(args, "%u", &fps)) {
+        if (is_number) {
             BuildList();
             for (xr_token* tok = m_list; tok->name; tok++)
                 if (tok->id != flOff && FpsLimitRate(tok->id) == fps) {

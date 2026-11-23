@@ -33,6 +33,10 @@ void LogMsg(const char* format, const Args&... args) {
 
 typedef void (*LogCallback)(LPCSTR string);
 LogCallback XRCORE_API SetLogCB(LogCallback cb);
+// A second, independent callback for every log line (SetLogCB's slot is taken by the
+// on-screen error text). Called under the log lock, from whichever thread logs.
+void XRCORE_API SetLogObserver(LogCallback cb);
+XRCORE_API LPCSTR log_path(); // the log file's path as it was opened
 void XRCORE_API CreateLog(BOOL no_log = FALSE);
 void InitLog();
 void CloseLog();

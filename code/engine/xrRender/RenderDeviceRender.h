@@ -53,6 +53,10 @@ public:
     virtual void ClearTarget() = 0;
     virtual void SetCacheXform(Fmatrix& mView, Fmatrix& mProject) = 0;
     virtual void OnAssetsChanged() = 0;
+
+    // Saves the back buffer (the frame as rendered so far) as an opaque PNG. Works in
+    // windowed mode. Returns NULL, or what went wrong. Call between Begin() and End().
+    virtual LPCSTR SaveBackBufferPNG(LPCSTR path) = 0;
 };
 
 #endif //	RenderDeviceRender_included

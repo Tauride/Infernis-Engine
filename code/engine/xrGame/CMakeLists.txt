@@ -1443,7 +1443,8 @@ set(AI_ASCRIPT_SCRIPTCLASSES_UI_CURSOR HUDCrosshair.h
                                        UICursor.h
                                        HUDCrosshair.cpp
                                        HUDTarget.cpp
-                                       UICursor.cpp)
+                                       UICursor.cpp
+                                       autotest_ui.cpp)
 
 set(AI_ASCRIPT_SCRIPTCLASSES_UI_COMMON_UI_ITEM_INFOS_CHARACTERINFO ui/UICharacterInfo.h
                                                                    ui/UICharacterInfo.cpp)

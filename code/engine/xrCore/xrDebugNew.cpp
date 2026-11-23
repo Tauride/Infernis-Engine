@@ -31,6 +31,45 @@ XRCORE_API xrDebug Debug;
 
 static bool error_after_dialog = false;
 
+bool xrDebug::unattended() {
+    static int result = -1;
+    if (result < 0) {
+        string4096 command_line;
+        strncpy_s(command_line, sizeof(command_line), GetCommandLine(), _TRUNCATE);
+        _strlwr_s(command_line, sizeof(command_line));
+        result =
+            (strstr(command_line, "-unattended") || strstr(command_line, "-autotest")) ? 1 : 0;
+    }
+    return (result == 1);
+}
+
+// The last minidump save_mini_dump wrote ("" if none)
+static string_path unattended_dump_path = "";
+
+// Unattended mode: report the fatal error and terminate without any dialog.
+[[noreturn]] static void terminate_unattended(const char* reason, const char* dump_path) {
+    static volatile LONG entered = 0;
+    if (!InterlockedExchange(&entered, 1)) { // not a fatal error while reporting one
+        if (shared_str_initialized) {
+            Log("! [unattended] fatal error, terminating (exit code 3)");
+            if (dump_path && *dump_path)
+                Log("! [unattended] minidump:", dump_path);
+            FlushLog();
+        }
+
+        if (Debug.get_on_unattended_crash())
+            Debug.get_on_unattended_crash()(reason ? reason : "", dump_path ? dump_path : "");
+    }
+
+    TerminateProcess(GetCurrentProcess(), 3);
+    for (;;) // TerminateProcess returns before the process is gone
+        Sleep(1000);
+}
+
+#ifdef USE_OWN_MINI_DUMP
+void save_mini_dump(_EXCEPTION_POINTERS* pExceptionInfo);
+#endif // USE_OWN_MINI_DUMP
+
 #include "stacktrace_collector.h"
 
 static thread_local StackTraceInfo stackTrace;
@@ -115,7 +154,8 @@ void xrDebug::gather_info(const std::string_view expression, const std::string_v
             FlushLog();
 
         // TODO: [imdex] use string_view
-        os_clipboard::copy_to_clipboard(writer.c_str());
+        if (!unattended())
+            os_clipboard::copy_to_clipboard(writer.c_str());
     }
 
     if (writer.size() < assertion_info_size) {
@@ -126,6 +166,11 @@ void xrDebug::gather_info(const std::string_view expression, const std::string_v
 }
 
 [[noreturn]] void xrDebug::do_exit(const std::string& message) {
+    if (unattended()) {
+        if (shared_str_initialized)
+            Log("!", message.c_str());
+        terminate_unattended(message.c_str(), "");
+    }
     FlushLog();
     MessageBox(nullptr, message.c_str(), "Error", MB_OK | MB_ICONERROR | MB_SYSTEMMODAL);
     TerminateProcess(GetCurrentProcess(), 1);
@@ -159,6 +204,16 @@ void xrDebug::backend(const std::string_view expression, const std::string_view 
 
     if (handler)
         handler();
+
+    if (unattended() && !IsDebuggerPresent()) {
+        // No dialog and no breakpoint: write the dump right here (an SEH handler on the way
+        // up could swallow the breakpoint exception) and terminate. Under a debugger the
+        // breakpoint below is what the developer wants.
+#ifdef USE_OWN_MINI_DUMP
+        save_mini_dump(nullptr);
+#endif // USE_OWN_MINI_DUMP
+        terminate_unattended(assertion_info, unattended_dump_path);
+    }
 
     if (get_on_dialog())
         get_on_dialog()(true);
@@ -328,13 +383,14 @@ void save_mini_dump(_EXCEPTION_POINTERS* pExceptionInfo) {
                 ExInfo.ExceptionPointers = pExceptionInfo;
                 ExInfo.ClientPointers = NULL;
 
-                // write the dump
+                // write the dump (no exception record when called for an assertion)
                 MINIDUMP_TYPE dump_flags =
                     MINIDUMP_TYPE(MiniDumpNormal | MiniDumpFilterMemory | MiniDumpScanMemory);
 
                 BOOL bOK = pDump(GetCurrentProcess(), GetCurrentProcessId(), hFile, dump_flags,
-                                 &ExInfo, nullptr, nullptr);
+                                 pExceptionInfo ? &ExInfo : nullptr, nullptr, nullptr);
                 if (bOK) {
+                    xr_strcpy(unattended_dump_path, szDumpPath);
                     xr_sprintf(szScratch, "Saved dump file to '%s'", szDumpPath);
                     szResult = szScratch;
                     //					retval = EXCEPTION_EXECUTE_HANDLER;
@@ -388,7 +444,7 @@ LONG WINAPI UnhandledFilter(_EXCEPTION_POINTERS* pExceptionInfo) {
         if (shared_str_initialized)
             Log("stack trace:\n");
 
-        if (!IsDebuggerPresent()) {
+        if (!IsDebuggerPresent() && !xrDebug::unattended()) {
             os_clipboard::copy_to_clipboard("stack trace:\r\n\r\n");
         }
 
@@ -398,7 +454,7 @@ LONG WINAPI UnhandledFilter(_EXCEPTION_POINTERS* pExceptionInfo) {
                 LogMsg("{}", stackTrace[i]);
             xr_sprintf(buffer, sizeof(buffer), "%s\r\n", stackTrace[i]);
 #ifdef DEBUG
-            if (!IsDebuggerPresent())
+            if (!IsDebuggerPresent() && !xrDebug::unattended())
                 os_clipboard::update_clipboard(buffer);
 #endif // #ifdef DEBUG
         }
@@ -409,7 +465,7 @@ LONG WINAPI UnhandledFilter(_EXCEPTION_POINTERS* pExceptionInfo) {
 
             xr_strcat(error_message, sizeof(error_message), "\r\n");
 #ifdef DEBUG
-            if (!IsDebuggerPresent())
+            if (!IsDebuggerPresent() && !xrDebug::unattended())
                 os_clipboard::update_clipboard(buffer);
 #endif // #ifdef DEBUG
         }
@@ -422,7 +478,20 @@ LONG WINAPI UnhandledFilter(_EXCEPTION_POINTERS* pExceptionInfo) {
 #ifdef USE_OWN_MINI_DUMP
     save_mini_dump(pExceptionInfo);
 #endif // USE_OWN_MINI_DUMP
-#else  // USE_OWN_ERROR_MESSAGE_WINDOW
+#endif // USE_OWN_ERROR_MESSAGE_WINDOW
+
+    if (xrDebug::unattended()) {
+        string256 reason; // not error_message: GetLastError() is unrelated to the exception
+        xr_sprintf(reason, sizeof(reason),
+                   "unhandled exception 0x%08X at 0x%p (the stack trace is in the log)",
+                   pExceptionInfo->ExceptionRecord->ExceptionCode,
+                   pExceptionInfo->ExceptionRecord->ExceptionAddress);
+        if (shared_str_initialized)
+            Log("!", reason);
+        terminate_unattended(reason, unattended_dump_path);
+    }
+
+#ifdef USE_OWN_ERROR_MESSAGE_WINDOW
     if (!error_after_dialog) {
         if (Debug.get_on_dialog())
             Debug.get_on_dialog()(true);
@@ -448,6 +517,8 @@ typedef int(__cdecl* _PNH)(size_t);
 void _terminate() {
     if (strstr(GetCommandLine(), "-silent_error_mode"))
         exit(-1);
+    if (xrDebug::unattended())
+        terminate_unattended("Unexpected application termination", "");
 
     string4096 assertion_info;
 
@@ -545,6 +616,9 @@ void debug_on_thread_spawn() {
 
 void xrDebug::_initialize() {
     *g_bug_report_file = 0;
+
+    if (unattended()) // no Windows error boxes (crash, missing disk, ...) either
+        SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX);
 
     debug_on_thread_spawn();
 

@@ -12,6 +12,7 @@ public:
     void SetSystemDepends(ESystemDepends val) { m_dep = val; }
 
     static CUIOptionsManager* GetOptionsManager() { return &m_optionsManager; }
+    LPCSTR GetEntry() const { return m_entry.c_str(); } // the console command
 
     virtual void OnMessage(LPCSTR message);
 

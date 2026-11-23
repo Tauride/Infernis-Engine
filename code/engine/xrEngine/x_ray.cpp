@@ -14,6 +14,7 @@
 #include "xr_input.h"
 #include "xr_ioconsole.h"
 #include "x_ray.h"
+#include "xr_autotest.h"
 #include "std_classes.h"
 #include "GameFont.h"
 #include "resource.h"
@@ -216,7 +217,9 @@ void Startup() {
 
     // Main cycle
     Memory.mem_usage();
+    Autotest::Start();
     Device.Run();
+    Autotest::Stop();
 
     g_discord.Shutdown();
 
@@ -485,6 +488,7 @@ BOOL IsPCAccessAllowed();
 
 int APIENTRY WinMain_impl(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine,
                           int nCmdShow) {
+    int exit_code = 0; // non-zero only in autotest mode
     Debug._initialize();
 
     if (!IsDebuggerPresent()) {
@@ -576,6 +580,12 @@ int APIENTRY WinMain_impl(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lp
     compute_build_id();
     Core._initialize("xray", NULL, TRUE, fsgame[0] ? fsgame : NULL);
 
+    if (!Autotest::Begin()) { // the scenario cannot be used: the result says why
+        const int code = Autotest::Finish();
+        Core._destroy();
+        return code;
+    }
+
     InitSettings();
 
     // Adjust player & computer name for Asian
@@ -628,6 +638,7 @@ int APIENTRY WinMain_impl(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lp
         Console->Execute("stat_memory");
 
         Startup();
+        exit_code = Autotest::Finish();
         Core._destroy();
 
         // check for need to execute something external
@@ -651,7 +662,7 @@ int APIENTRY WinMain_impl(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lp
     }
     // here damn_keys_filter class instanse will be destroyed
 
-    return 0;
+    return exit_code;
 }
 
 int stack_overflow_exception_filter(int exception_code) {
@@ -666,14 +677,15 @@ int stack_overflow_exception_filter(int exception_code) {
 }
 
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* lpCmdLine, int nCmdShow) {
+    int exit_code = 0; // non-zero only in autotest mode
     __try {
-        WinMain_impl(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
+        exit_code = WinMain_impl(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     } __except (stack_overflow_exception_filter(GetExceptionCode())) {
         _resetstkoflw();
         FATAL("stack overflow");
     }
 
-    return (0);
+    return (exit_code);
 }
 
 LPCSTR _GetFontTexName(LPCSTR section) {

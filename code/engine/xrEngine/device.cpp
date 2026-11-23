@@ -15,6 +15,7 @@
 
 #include "x_ray.h"
 #include "render.h"
+#include "xr_autotest.h"
 
 #ifdef INGAME_EDITOR
 #include "editor/ide.hpp"
@@ -495,6 +496,8 @@ void CRenderDevice::OnWM_Activate(WPARAM wParam, LPARAM lParam) {
     u16 fActive = LOWORD(wParam);
     BOOL fMinimized = (BOOL)HIWORD(wParam);
     BOOL bActive = ((fActive != WA_INACTIVE) && (!fMinimized)) ? TRUE : FALSE;
+    if (Autotest::active())
+        bActive = TRUE; // keep rendering and never pause in the background
 
     if (bActive != Device.b_is_Active) {
         Device.b_is_Active = bActive;

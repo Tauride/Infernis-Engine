@@ -3,6 +3,8 @@ cmake_minimum_required(VERSION 3.8)
 project(imgui)
 
 # Dear ImGui 1.93.0 (https://github.com/ocornut/imgui), MIT license, see LICENSE.txt.
+# All files are upstream's, unmodified, except imgui_impl_dx10.*, which was written here
+# from imgui_impl_dx11.* because the vendored copy came without a Direct3D 10 backend.
 # The core is a static library linked into xrEngine and into every renderer that draws
 # it: each module has its own copy, and the renderers are pointed at the context the
 # engine created (ImGui::SetCurrentContext). The backends are separate static libraries
@@ -30,6 +32,10 @@ target_link_libraries(imgui_win32 PUBLIC imgui)
 add_library(imgui_dx9 STATIC imgui_impl_dx9.h imgui_impl_dx9.cpp)
 target_include_directories(imgui_dx9 PRIVATE ${DXSDK_INCLUDE_DIR})
 target_link_libraries(imgui_dx9 PUBLIC imgui)
+
+# Direct3D 10 renderer backend (R3). Not an upstream file: see imgui_impl_dx10.h
+add_library(imgui_dx10 STATIC imgui_impl_dx10.h imgui_impl_dx10.cpp)
+target_link_libraries(imgui_dx10 PUBLIC imgui)
 
 # Direct3D 11 renderer backend (R4)
 add_library(imgui_dx11 STATIC imgui_impl_dx11.h imgui_impl_dx11.cpp)

@@ -2,7 +2,8 @@
 #include "xr_imgui.h"
 #include "../xrRender/RenderDeviceRender.h"
 
-ENGINE_API Flags32 psDebugOverlay = {dbgShowFPS};
+// Off unless the config turns it on (rs_show_fps on)
+ENGINE_API Flags32 psDebugOverlay = {0};
 
 // xrCore marks memset/memmove/strcmp deprecated (C4995); imgui.h uses them.
 #pragma warning(push)

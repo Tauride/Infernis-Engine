@@ -545,4 +545,4 @@ add_library(xrRender_R3 SHARED ${DX9_TO_DX10_UTILS}
                                ${SHADING_TEMPLATES_3DFLUID})
 target_include_directories(xrRender_R3 PUBLIC ${DXSDK_INCLUDE_DIR}
                                        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(xrRender_R3 nvapi dxguid d3dcompiler d3d10 ${DXSDK_LIB_DIR}/dxgi.lib d3dx10 xrEngine xrCPU_Pipe xrParticles)
+target_link_libraries(xrRender_R3 nvapi dxguid d3dcompiler d3d10 ${DXSDK_LIB_DIR}/dxgi.lib d3dx10 xrEngine xrCPU_Pipe xrParticles imgui_dx10)

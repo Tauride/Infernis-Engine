@@ -174,6 +174,15 @@ const ui_shader& InventoryUtilities::GetBuyMenuShader() {
     return *g_BuyMenuShader;
 }
 
+void InventoryUtilities::SetItemIconShader(CUIStatic& icon, LPCSTR section) {
+    if (pSettings->line_exist(section, "icons_texture")) {
+        icon.CreateShader(pSettings->r_string(section, "icons_texture"));
+        return;
+    }
+
+    icon.SetShader(GetEquipmentIconsShader());
+}
+
 const ui_shader& InventoryUtilities::GetEquipmentIconsShader() {
     if (!g_EquipmentIconsShader) {
         g_EquipmentIconsShader = xr_new<ui_shader>();

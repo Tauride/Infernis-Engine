@@ -70,6 +70,12 @@ public:
     virtual void SetCacheXform(Fmatrix& mView, Fmatrix& mProject);
     virtual void OnAssetsChanged();
     virtual LPCSTR SaveBackBufferPNG(LPCSTR path);
+    virtual bool ImGuiCreate(ImGuiContext* context);
+    virtual void ImGuiDestroy();
+    virtual void ImGuiResetBegin();
+    virtual void ImGuiResetEnd();
+    virtual void ImGuiNewFrame();
+    virtual void ImGuiRender(ImDrawData* data);
 
 public:
     CResourceManager* Resources;

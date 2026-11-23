@@ -40,6 +40,7 @@ namespace Autotest
 	bool	Begin			();
 	void	Start			();		// after the device and CApplication exist: runs the scenario
 	void	Stop			();		// after Device.Run returns (shutdown starts)
+	void	OnFrameEnd		();		// the frame is complete, debug overlays included (before the present)
 	int		Finish			();		// after Core._destroy: writes the final result, returns the exit code
 
 	// The UI cursor: in autotest mode the game uses a virtual cursor that only the ui_*

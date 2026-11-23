@@ -431,4 +431,4 @@ add_library(xrRender_R1 SHARED ${INTERFASE_IMPLEMENTATIONS_LENSFLARE}
                                ${REFACTORED_STATS_MANAGER})
 target_include_directories(xrRender_R1 PUBLIC ${DXSDK_INCLUDE_DIR}
                                        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(xrRender_R1 nvapi d3dx9 xrEngine xrCPU_Pipe xrParticles xrAPI)
+target_link_libraries(xrRender_R1 nvapi d3dx9 xrEngine xrCPU_Pipe xrParticles xrAPI imgui_dx9)

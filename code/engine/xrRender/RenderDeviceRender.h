@@ -2,6 +2,9 @@
 #define RenderDeviceRender_included
 #pragma once
 
+struct ImGuiContext;
+struct ImDrawData;
+
 class IRenderDeviceRender {
 public:
     enum DeviceState { dsOK = 0, dsLost, dsNeedReset };
@@ -57,6 +60,16 @@ public:
     // Saves the back buffer (the frame as rendered so far) as an opaque PNG. Works in
     // windowed mode. Returns NULL, or what went wrong. Call between Begin() and End().
     virtual LPCSTR SaveBackBufferPNG(LPCSTR path) = 0;
+
+    // Dear ImGui renderer backend. The engine creates the context and drives the frames
+    // (xr_imgui.cpp); the renderer has its own copy of the ImGui core, pointed at that
+    // context. ImGuiCreate returns false when the renderer has no backend.
+    virtual bool ImGuiCreate(ImGuiContext* context) = 0;
+    virtual void ImGuiDestroy() = 0;
+    virtual void ImGuiResetBegin() = 0; // before the device reset
+    virtual void ImGuiResetEnd() = 0;   // after it
+    virtual void ImGuiNewFrame() = 0;
+    virtual void ImGuiRender(ImDrawData* data) = 0;
 };
 
 #endif //	RenderDeviceRender_included

@@ -480,4 +480,4 @@ add_library(xrRender_R2 SHARED ${ROOT_SPECIAL_CONV}
                                ${REFACTORED_HW})
 target_include_directories(xrRender_R2 PUBLIC ${DXSDK_INCLUDE_DIR}
                                        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(xrRender_R2 nvapi d3dx9 xrEngine xrCPU_Pipe xrParticles)
+target_link_libraries(xrRender_R2 nvapi d3dx9 xrEngine xrCPU_Pipe xrParticles imgui_dx9)

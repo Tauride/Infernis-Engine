@@ -45,6 +45,7 @@ runs one frame later so the engine can process it.
 | `expect_log <text>` | fail unless a log line (since the start) contains text |
 | `fail_on_log <text>` | from now on, fail as soon as a log line contains text |
 | `screenshot <name>` | save the finished frame to `userdata\screenshots\autotest\<name>.png`; works windowed. Fails on a multisampled or non-8-bit back buffer (the engine creates neither) |
+| `screenshot_overlay <name>` | the same, taken at the end of the frame: with the debug overlays (the FPS overlay), the UI cursor and the engine statistics |
 | `perf_begin <label>` / `perf_end` | frame-time statistics between the two (avg, p50/p95/p99, max, fps) |
 | `log <text>` | write `* [autotest] text` to the log |
 | `fail <text>` | fail with this reason |
@@ -175,6 +176,7 @@ failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),
 | `screen_mode.cfg` | the screen mode dropdown in the video options: "Borderless window" locks the resolution, "Windowed" unlocks it, Cancel leaves the mode alone, accepting borderless resets the device to the display's size; back to a window from the console. Covers the whole display for a few seconds (~15 s) | nothing |
 | `resolution_aspect.cfg` | accepting a resolution with another aspect ratio (16:9 to 4:3 and back): the main menu is rebuilt, the options come back with the "keep these settings?" box; Yes keeps the resolution, No restores the old one (~12 s) | nothing |
 | `fps_limit.cfg` | the frame rate limit dropdown in the video options: the list (30, 60, half/full/twice the refresh rate without repeats, Unlimited), picking 30 with the mouse; main menu perf at 30, 60, the refresh rate and unlimited (~25 s) | nothing |
+| `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`): pictures with it, after a device reset, with it turned off, and a plain screenshot without it; the limit steps 60, 30, 60 for the graph (~16 s). The overlay is off by default; the scenario turns it on and leaves it off | nothing |
 | `ui_inventory.cfg` | in a level: opens the inventory with the bound key, finds the starting rifle by its section, closes it with Escape (~17 s) | nothing |
 | `selftest_assert.cfg`, `selftest_av.cfg` | the crash path: expect exit code 3 | nothing |
 | `selftest_timeout.cfg` | the watchdog: run with `-Timeout 20`, expect exit code 4 | nothing |

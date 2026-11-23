@@ -216,6 +216,7 @@ namespace
 		// waits
 		u32							wait_frames_left;
 		bool						screenshot_pending;
+		bool						screenshot_overlays;	// take it after the debug overlays are drawn
 		std::string					screenshot_name;
 
 		// perf
@@ -246,7 +247,7 @@ namespace
 
 		CAutotest() : timeout_s(900), status(stRunning), phase(phStartup), step(0), t_start(now_s()), t_step(0), t_shutdown(0),
 			step_started(false), frames(0), last_frame_seen(0), last_frame_time(now_s()), registered(false), finished(0), wait_frames_left(0),
-			screenshot_pending(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1)
+			screenshot_pending(false), screenshot_overlays(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1)
 		{
 			InitializeCriticalSection	(&cs);
 			InitializeCriticalSection	(&log_cs);
@@ -363,7 +364,7 @@ namespace
 		bool	is_directive	(const std::string& c)
 		{
 			static const char* names[] = { "wait_frames", "wait_seconds", "wait_level", "wait_log", "expect_log", "fail_on_log",
-				"screenshot", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "load_save",
+				"screenshot", "screenshot_overlay", "perf_begin", "perf_end", "log", "fail", "quit", "debug_crash", "load_save",
 				"ui_move", "ui_click", "ui_rclick", "ui_dblclick", "ui_drag", "ui_down", "ui_up", "ui_wheel", "ui_key", "ui_key_down",
 				"ui_key_up", "ui_wait", "ui_expect", "ui_expect_no", "ui_dump", "ui_hover", 0 };
 			for (int i=0; names[i]; ++i)	if (c==names[i])	return true;
@@ -381,7 +382,7 @@ namespace
 				else if (S.cmd=="wait_log" && (atof(S.arg.c_str())<=0 || S.arg.find(' ')==std::string::npos))
 																			xr_sprintf(err,"wait_log needs <seconds> <text>");
 				else if ((S.cmd=="expect_log" || S.cmd=="fail_on_log") && S.arg.empty())	xr_sprintf(err,"%s needs a text",S.cmd.c_str());
-				else if (S.cmd=="screenshot" && (S.arg.empty() || S.arg.find_first_of(" \\/:*?\"<>|")!=std::string::npos))
+				else if ((S.cmd=="screenshot" || S.cmd=="screenshot_overlay") && (S.arg.empty() || S.arg.find_first_of(" \\/:*?\"<>|")!=std::string::npos))
 																			xr_sprintf(err,"screenshot needs a file name without spaces or path characters");
 				else if (S.cmd=="load_save" && (S.arg.empty() || S.arg.find_first_of(" ()/")!=std::string::npos))
 																			xr_sprintf(err,"load_save needs a save name (no spaces, parentheses or slashes)");
@@ -760,9 +761,10 @@ namespace
 				fail_patterns.push_back	(S.arg);
 				return true;
 			}
-			if (S.cmd=="screenshot") {
-				if (!step_started) {		// request; OnRender of this frame takes it
+			if (S.cmd=="screenshot" || S.cmd=="screenshot_overlay") {
+				if (!step_started) {		// request; this frame's OnRender (or the end of the frame) takes it
 					step_started		= true;
+					screenshot_overlays	= S.cmd=="screenshot_overlay";
 					screenshot_pending	= true;
 					screenshot_name		= S.arg;
 					return false;
@@ -872,6 +874,13 @@ namespace
 		}
 
 		virtual void	OnRender	()
+		{
+			if (!screenshot_overlays)	take_screenshot();
+		}
+
+		// screenshot: from OnRender, before the debug overlays; screenshot_overlay: from
+		// Autotest::OnFrameEnd, after them
+		void	take_screenshot	()
 		{
 			if (!screenshot_pending)	return;
 			EnterCriticalSection	(&cs);
@@ -1013,6 +1022,12 @@ bool Autotest::ui_cursor(Fvector2& pos)
 void Autotest::set_ui_cursor(const Fvector2& pos)
 {
 	g_cursor	= pos;
+}
+
+void Autotest::OnFrameEnd()
+{
+	CAutotest*	T	= g_test;
+	if (T && T->screenshot_pending && T->screenshot_overlays)	T->take_screenshot();
 }
 
 bool Autotest::Begin()

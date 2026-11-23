@@ -4,6 +4,7 @@
 #include "xrRender/DrawUtils.h"
 //#include "xr_effgamma.h"
 #include "render.h"
+#include "xr_imgui.h"
 #include "dedicated_server_only.h"
 #include "../xrcdb/xrxrc.h"
 
@@ -190,6 +191,7 @@ PROTECT_API void CRenderDevice::Create() {
 #endif // #ifdef INGAME_EDITOR
                                true);
     UpdateDisplayRefreshRate(m_hWnd);
+    xr_imgui::OnDeviceCreate();
 
     string_path fname;
     FS.update_path(fname, "$game_data$", "shaders.xr");

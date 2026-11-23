@@ -556,4 +556,4 @@ add_library(xrRender_R4 SHARED ${REFACTORED_EXECUTION__AND__3D_SHADERS_RESOURCES
                                ${SHADING_TEMPLATES_3DFLUID})
 target_include_directories(xrRender_R4 PUBLIC ${DXSDK_INCLUDE_DIR}
                                        PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(xrRender_R4 nvapi dxguid d3dx11 D3DCompiler d3d11 ${DXSDK_LIB_DIR}/dxgi.lib dxerr d3d10 d3dx9 xrEngine xrCPU_Pipe xrParticles)
+target_link_libraries(xrRender_R4 nvapi dxguid d3dx11 D3DCompiler d3d11 ${DXSDK_LIB_DIR}/dxgi.lib dxerr d3d10 d3dx9 xrEngine xrCPU_Pipe xrParticles imgui_dx11)

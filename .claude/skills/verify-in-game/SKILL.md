@@ -26,6 +26,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `screen_mode.cfg` | `rs_screenmode` in the options: borderless locks the resolution, accept resets the device; covers the whole display for a few seconds | ~15 s |
 | `resolution_aspect.cfg` | a resolution change between 16:9 and 4:3 in the options: the menu is rebuilt, the confirm box comes back, Yes keeps and No restores | ~12 s |
 | `fps_limit.cfg` | `rs_fps_limit` in the options: the list, picking an entry; main menu fps at each limit | ~25 s |
+| `fps_overlay.cfg` | the FPS overlay (`rs_show_fps`) with `screenshot_overlay`: on, after a device reset, off | ~16 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |
 
@@ -38,6 +39,7 @@ the game folder: `status`, `reason`, `step_line`/`step_text` (where it stopped),
 `screenshots`, `ui_dumps`, `dump`, `log` (the full engine log), `log_error_samples`,
 `log_tail`.
 
+- **Overlays:** `screenshot` is taken before the debug overlays (the FPS overlay), `screenshot_overlay` after them.
 - **Screenshots:** read the PNGs (they are in the result) whenever the change can affect
   what is drawn, and say what you see.
 - **Frame times:** they vary from run to run. Compare against a run of the same scenario

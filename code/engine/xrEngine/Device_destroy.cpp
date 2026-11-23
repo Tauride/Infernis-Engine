@@ -2,6 +2,7 @@
 
 #include "xrRender/DrawUtils.h"
 #include "render.h"
+#include "xr_imgui.h"
 #include "IGame_Persistent.h"
 #include "xr_IOConsole.h"
 
@@ -31,6 +32,7 @@ void CRenderDevice::Destroy(void) {
     _Destroy(FALSE);
 
     // real destroy
+    xr_imgui::OnDeviceDestroy();
     m_pRender->DestroyHW();
 
     // xr_delete					(Resources);
@@ -65,7 +67,9 @@ void CRenderDevice::Reset(bool precache) {
         //.		g_pGamePersistent->Environment().OnDeviceDestroy();
     }
 
+    xr_imgui::OnDeviceResetBegin();
     m_pRender->Reset(m_hWnd, dwWidth, dwHeight, fWidth_2, fHeight_2);
+    xr_imgui::OnDeviceResetEnd();
     UpdateDisplayRefreshRate(m_hWnd);
 
     if (g_pGamePersistent) {

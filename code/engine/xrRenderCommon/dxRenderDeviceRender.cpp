@@ -331,7 +331,9 @@ void dxRenderDeviceRender::OnAssetsChanged() {
 }
 
 //-----------------------------------------------------------------------------
-// SaveBackBufferPNG: the frame as rendered so far, as an opaque PNG (autotest screenshots)
+// SaveBackBufferPNG: the frame as rendered so far, as an opaque PNG (autotest screenshots).
+// The engine creates its swap chains without multisampling and with 8-bit colour; anything
+// else is refused with an error rather than saved wrong.
 //-----------------------------------------------------------------------------
 #if defined(USE_DX10) || defined(USE_DX11)
 
@@ -342,7 +344,11 @@ void dxRenderDeviceRender::OnAssetsChanged() {
 #endif
 
 namespace {
-bool has_alpha_byte(DXGI_FORMAT format) {
+enum class EAlpha { none, byte3, unsupported };
+
+// Where the alpha is, so it can be overwritten: the back buffer's alpha is whatever the
+// last pass left there, not the picture's
+EAlpha alpha_layout(DXGI_FORMAT format) {
     switch (format) {
     case DXGI_FORMAT_R8G8B8A8_TYPELESS:
     case DXGI_FORMAT_R8G8B8A8_UNORM:
@@ -350,13 +356,16 @@ bool has_alpha_byte(DXGI_FORMAT format) {
     case DXGI_FORMAT_B8G8R8A8_TYPELESS:
     case DXGI_FORMAT_B8G8R8A8_UNORM:
     case DXGI_FORMAT_B8G8R8A8_UNORM_SRGB:
-        return true;
+        return EAlpha::byte3;
+    case DXGI_FORMAT_B8G8R8X8_TYPELESS:
+    case DXGI_FORMAT_B8G8R8X8_UNORM:
+    case DXGI_FORMAT_B8G8R8X8_UNORM_SRGB:
+        return EAlpha::none;
     default:
-        return false;
+        return EAlpha::unsupported;
     }
 }
 
-// The back buffer's alpha is whatever the last pass left there: make the picture opaque
 void make_opaque(void* data, u32 pitch, u32 width, u32 height) {
     for (u32 y = 0; y < height; ++y) {
         u8* row = (u8*)data + size_t(y) * pitch;
@@ -384,30 +393,18 @@ LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
     D3D_TEXTURE2D_DESC desc;
     source->GetDesc(&desc);
 
+    const EAlpha alpha = alpha_layout(desc.Format);
     LPCSTR error = nullptr;
-    ID3DTexture2D* resolved = nullptr;
+    if (desc.SampleDesc.Count > 1)
+        error = "a multisampled back buffer is not supported";
+    else if (alpha == EAlpha::unsupported)
+        error = "the back buffer format is not supported (8-bit RGBA or BGRA expected)";
+
     ID3DTexture2D* staging = nullptr;
-
-    if (desc.SampleDesc.Count > 1) { // a multisampled back buffer cannot be copied or mapped
-        D3D_TEXTURE2D_DESC rd = desc;
-        rd.SampleDesc.Count = 1;
-        rd.SampleDesc.Quality = 0;
-        rd.Usage = D3D_USAGE_DEFAULT;
-        rd.BindFlags = 0;
-        rd.CPUAccessFlags = 0;
-        rd.MiscFlags = 0;
-        if (FAILED(HW.pDevice->CreateTexture2D(&rd, nullptr, &resolved)))
-            error = "cannot create the resolve texture";
-        else
-            HW.pContext->ResolveSubresource(resolved, 0, source, 0, desc.Format);
-    }
-
     if (!error) {
         D3D_TEXTURE2D_DESC sd = desc;
         sd.MipLevels = 1;
         sd.ArraySize = 1;
-        sd.SampleDesc.Count = 1;
-        sd.SampleDesc.Quality = 0;
         sd.BindFlags = 0;
         sd.MiscFlags = 0;
 #ifdef USE_DX11
@@ -422,9 +419,8 @@ LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
     }
 
     if (!error) {
-        HW.pContext->CopySubresourceRegion(staging, 0, 0, 0, 0, resolved ? resolved : source, 0,
-                                           nullptr);
-        if (has_alpha_byte(desc.Format)) {
+        HW.pContext->CopySubresourceRegion(staging, 0, 0, 0, 0, source, 0, nullptr);
+        if (alpha == EAlpha::byte3) {
 #ifdef USE_DX11
             D3D11_MAPPED_SUBRESOURCE mapped;
             if (SUCCEEDED(HW.pContext->Map(staging, 0, D3D11_MAP_READ_WRITE, 0, &mapped))) {
@@ -454,7 +450,6 @@ LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
     }
 
     _RELEASE(staging);
-    _RELEASE(resolved);
     _RELEASE(source);
     return error;
 }
@@ -468,39 +463,46 @@ LPCSTR dxRenderDeviceRender::SaveBackBufferPNG(LPCSTR path) {
     D3DSURFACE_DESC desc;
     if (FAILED(rt->GetDesc(&desc)))
         return "GetDesc failed";
+    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE)
+        return "a multisampled back buffer is not supported";
 
-    IDirect3DSurface9* src = rt;
-    IDirect3DSurface9* resolved = nullptr;
+    // The alpha is not the picture's: it is overwritten where the format has one
+    bool alpha_byte = false;
+    switch (desc.Format) {
+    case D3DFMT_A8R8G8B8:
+    case D3DFMT_X8R8G8B8:
+        alpha_byte = true;
+        break;
+    case D3DFMT_R8G8B8:
+    case D3DFMT_R5G6B5:
+    case D3DFMT_X1R5G5B5:
+        break;
+    default:
+        return "the back buffer format is not supported (8-bit RGB expected)";
+    }
+
     IDirect3DSurface9* sys = nullptr;
     LPCSTR error = nullptr;
-    if (desc.MultiSampleType != D3DMULTISAMPLE_NONE) {
-        if (FAILED(HW.pDevice->CreateRenderTarget(desc.Width, desc.Height, desc.Format,
-                                                  D3DMULTISAMPLE_NONE, 0, FALSE, &resolved,
-                                                  nullptr)) ||
-            FAILED(HW.pDevice->StretchRect(rt, nullptr, resolved, nullptr, D3DTEXF_NONE)))
-            error = "cannot resolve the multisampled back buffer";
-        src = resolved;
-    }
-    if (!error && FAILED(HW.pDevice->CreateOffscreenPlainSurface(
-                      desc.Width, desc.Height, desc.Format, D3DPOOL_SYSTEMMEM, &sys, nullptr)))
+    if (FAILED(HW.pDevice->CreateOffscreenPlainSurface(desc.Width, desc.Height, desc.Format,
+                                                       D3DPOOL_SYSTEMMEM, &sys, nullptr)))
         error = "CreateOffscreenPlainSurface failed";
-    if (!error && FAILED(HW.pDevice->GetRenderTargetData(src, sys)))
+    if (!error && FAILED(HW.pDevice->GetRenderTargetData(rt, sys)))
         error = "GetRenderTargetData failed";
-    if (!error && (desc.Format == D3DFMT_A8R8G8B8 || desc.Format == D3DFMT_X8R8G8B8)) {
+    if (!error && alpha_byte) {
         D3DLOCKED_RECT locked;
-        if (SUCCEEDED(sys->LockRect(&locked, nullptr, 0))) { // the alpha is not the picture's
+        if (SUCCEEDED(sys->LockRect(&locked, nullptr, 0))) {
             for (u32 y = 0; y < desc.Height; ++y) {
                 u8* row = (u8*)locked.pBits + size_t(y) * locked.Pitch;
                 for (u32 x = 0; x < desc.Width; ++x)
                     row[x * 4 + 3] = 0xff;
             }
             sys->UnlockRect();
-        }
+        } else
+            error = "cannot lock the copy of the back buffer";
     }
     if (!error && FAILED(D3DXSaveSurfaceToFileA(path, D3DXIFF_PNG, sys, nullptr, nullptr)))
         error = "D3DXSaveSurfaceToFile failed";
     _RELEASE(sys);
-    _RELEASE(resolved);
     return error;
 }
 

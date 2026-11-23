@@ -112,7 +112,7 @@ if (-not (Test-Path $result)) {
     exit $code
 }
 
-$r = Get-Content $result -Raw | ConvertFrom-Json
+$r = Get-Content $result -Raw -Encoding UTF8 | ConvertFrom-Json   # the result is UTF-8
 Write-Host ''
 Write-Host ("{0}  (exit code {1}, {2} s, {3} frames)" -f $r.status.ToUpper(), $code, $secs, $r.frames)
 if ($r.reason)      { Write-Host "reason:  $($r.reason)" }

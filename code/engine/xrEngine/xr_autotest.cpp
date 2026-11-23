@@ -83,6 +83,17 @@ namespace
 		return	(n && n<sizeof(buf)) ? std::string(buf) : std::string(path);
 	}
 
+	// The length of the UTF-8 sequence that starts at s[i] (2..4 bytes), or 0 if there is none
+	size_t		utf8_length	(const std::string& s, size_t i)
+	{
+		unsigned char	c	= (unsigned char)s[i];
+		size_t			n	= (c>=0xC2 && c<=0xDF) ? 2 : (c>=0xE0 && c<=0xEF) ? 3 : (c>=0xF0 && c<=0xF4) ? 4 : 0;
+		if (!n || i+n>s.size())		return 0;
+		for (size_t k=1; k<n; ++k)
+			if (((unsigned char)s[i+k] & 0xC0)!=0x80)	return 0;
+		return n;
+	}
+
 	void		json_str	(std::string& out, const std::string& s)
 	{
 		out		+= '"';
@@ -97,7 +108,18 @@ namespace
 			default:
 				if (c<0x20)		{ char b[8]; xr_sprintf(b,"\\u%04x",c); out += b; }
 				else if (c<0x80)	out += char(c);
-				else			{ char b[8]; xr_sprintf(b,"\\u%04x",c); out += b; }	// cp1251 bytes: keep them readable as \u00XX
+				else {
+					// The log mixes UTF-8 and cp1251 text. A valid UTF-8 sequence is kept as it
+					// is (the file is UTF-8); any other byte is taken as cp1251.
+					size_t	n	= utf8_length(s,i);
+					if (n)		{ out.append(s,i,n); i += n-1; }
+					else {
+						char	in	= char(c);
+						wchar_t	w	= 0;
+						if (!MultiByteToWideChar(1251,0,&in,1,&w,1))	w = L'?';
+						char b[8]; xr_sprintf(b,"\\u%04x",unsigned(w)); out += b;
+					}
+				}
 			}
 		}
 		out		+= '"';
@@ -205,8 +227,9 @@ namespace
 		std::vector<SPerf>			perf;
 
 		// log
-		std::vector<std::string>	log_lines;		// since Begin()
-		std::vector<std::string>	log_new;		// from the observer, moved to log_lines each frame
+		std::vector<std::string>	log_lines;		// since Begin(), from the observer
+		size_t						log_drained;	// lines before this one were checked against fail_patterns
+		size_t						log_scanned;	// lines before this one were searched by the current wait_log/expect_log
 		std::vector<std::string>	fail_patterns;
 		u32							log_errors;
 		std::vector<std::string>	error_samples;
@@ -223,7 +246,7 @@ namespace
 
 		CAutotest() : timeout_s(900), status(stRunning), phase(phStartup), step(0), t_start(now_s()), t_step(0), t_shutdown(0),
 			step_started(false), frames(0), last_frame_seen(0), last_frame_time(now_s()), registered(false), finished(0), wait_frames_left(0),
-			screenshot_pending(false), perf_on(false), perf_t0(0), last_frame_t(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1)
+			screenshot_pending(false), perf_on(false), perf_t0(0), last_frame_t(0), log_drained(0), log_scanned(0), log_errors(0), input_pos(0), input_t(0), last_press_t(0), hover_s(0.1)
 		{
 			InitializeCriticalSection	(&cs);
 			InitializeCriticalSection	(&log_cs);
@@ -621,12 +644,14 @@ namespace
 				&& Device.dwPrecacheFrame==0 && !load_screen_renderer.b_registered;
 		}
 
+		// Searches the lines the current step has not seen yet (all of them on its first
+		// frame), so a long wait does not rescan the whole log every frame
 		bool	log_contains	(const std::string& text)
 		{
 			bool	found	= false;
 			EnterCriticalSection	(&log_cs);
-			for (size_t i=0; i<log_lines.size() && !found; ++i)
-				found		= log_lines[i].find(text)!=std::string::npos;
+			for (; log_scanned<log_lines.size() && !found; ++log_scanned)
+				found		= log_lines[log_scanned].find(text)!=std::string::npos;
 			LeaveCriticalSection	(&log_cs);
 			return	found;
 		}
@@ -675,6 +700,7 @@ namespace
 			t_step			= now_s();
 			step_started	= false;
 			wait_frames_left= 0;
+			log_scanned		= 0;
 			if (step<int(steps.size())) {
 				Msg			("* [autotest] step %d/%d (line %d): %s",step+1,int(steps.size()),steps[step].line,steps[step].text.c_str());
 				write_result();
@@ -804,9 +830,13 @@ namespace
 
 		void	drain_log		()
 		{
+			// The new lines are copied out only when there is something to check them against:
+			// a failed check logs, and that must not happen under log_cs
 			std::vector<std::string>	lines;
 			EnterCriticalSection	(&log_cs);
-			lines.swap				(log_new);
+			if (phase==phScenario && !fail_patterns.empty())
+				lines.assign		(log_lines.begin()+log_drained,log_lines.end());
+			log_drained				= log_lines.size();
 			LeaveCriticalSection	(&log_cs);
 
 			for (size_t i=0; i<lines.size(); ++i) {
@@ -877,7 +907,6 @@ namespace
 		if (!T || !line)	return;
 		EnterCriticalSection	(&T->log_cs);
 		T->log_lines.push_back	(line);
-		T->log_new.push_back	(line);
 		if (line[0]=='!' && !strstr(line,"[autotest]") && !strstr(line,"[unattended]")) {
 			++T->log_errors;
 			if (T->error_samples.size()<max_error_samples)	T->error_samples.push_back(line);

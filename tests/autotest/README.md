@@ -44,7 +44,7 @@ runs one frame later so the engine can process it.
 | `wait_log <s> <text>` | wait until a log line (since the start) contains text; fails after s seconds |
 | `expect_log <text>` | fail unless a log line (since the start) contains text |
 | `fail_on_log <text>` | from now on, fail as soon as a log line contains text |
-| `screenshot <name>` | save the finished frame to `userdata\screenshots\autotest\<name>.png`; works windowed |
+| `screenshot <name>` | save the finished frame to `userdata\screenshots\autotest\<name>.png`; works windowed. Fails on a multisampled or non-8-bit back buffer (the engine creates neither) |
 | `perf_begin <label>` / `perf_end` | frame-time statistics between the two (avg, p50/p95/p99, max, fps) |
 | `log <text>` | write `* [autotest] text` to the log |
 | `fail <text>` | fail with this reason |
@@ -142,6 +142,7 @@ Key names and bound actions are checked before the scenario starts.
 
 `userdata\logs\autotest_result.json` (or `-autotest_out <path>`). It is rewritten
 at every step, so after a hang or a kill it shows the last step reached.
+The file is UTF-8: log lines in the game's cp1251 are converted.
 Fields: `status`, `exit_code`, `phase` (`startup`, `scenario`, `shutdown`,
 `done`), `reason`, `step`/`steps_total`/`step_line`/`step_text` (the current or
 failing step), `elapsed_s`, `frames`, `level`, `log` (the full engine log),

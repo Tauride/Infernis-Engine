@@ -39,6 +39,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `soc_cordon_quest_items.cfg` | SoC port: the recreated quest item of Cordon, `quest_case_01`, has its section and texts, lies on the level and comes online, and shows in the inventory with its icon (needs the SoC addon pack) | ~21 s |
 | `soc_cordon_artefacts.cfg` | SoC port: the six artefacts lying in Cordon are in the simulation as the game's artefacts and each comes online near the actor (needs the SoC addon pack) | ~41 s |
 | `soc_cordon_boxes.cfg` | SoC port: the 25 inventory boxes of Cordon (stashes and plain boxes) are in the simulation, each comes online empty and usable with the game's model, and a box holds an item put into it (needs the SoC addon pack) | ~76 s |
+| `soc_cordon_scripted.cfg` | SoC port: the 12 scripted objects of Cordon (ten doors, the checkpoint loudspeaker, the army helicopter) are online with their logic running; the trader's door unlocks, opens and closes, the loudspeaker goes through its modes (day, alarm, commander dead, night, hit), the helicopter takes off on its info portion (needs the SoC addon pack) | ~88 s |
 | `pose.cfg` | the `pose` step puts the actor and the camera where it says | ~17 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |

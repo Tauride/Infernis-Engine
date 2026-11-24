@@ -16,6 +16,10 @@ Follow the stages in order. Do not skip a stage, and do not merge before the cod
   `git switch soc-infernis/main` then `git pull --ff-only`.
 - Create the working branch from it, named `soc-infernis/<short-topic>`.
 - Never branch from `main`.
+- **Cordon conversion** has an integration branch of its own, `soc-infernis/cordon-conversion` (cut from
+  `soc-infernis/main`). Every Cordon working branch starts from it and its pull request targets it:
+  `git switch soc-infernis/cordon-conversion`, `git pull --ff-only`, then the working branch. Read
+  `soc-infernis/cordon-conversion` for `soc-infernis/main` in the stages below.
 
 ## 2. Change and verify
 
@@ -24,6 +28,8 @@ Follow the stages in order. Do not skip a stage, and do not merge before the cod
   repository.
 - Build the affected targets (x64, `RelWithDebInfo`) and check the change in the game or with the tool it touches.
   Say plainly what was verified and what was not.
+- Do not run the whole autotest suite for a change: it takes too long. Run the scenarios the change needs: the
+  one written for it, and those whose subject it touches.
 
 ## 3. Pull request
 

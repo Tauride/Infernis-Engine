@@ -123,7 +123,9 @@ void CTrade::StartTrade() {
     m_dwLastTradeTime = Level().timeServer();
     m_bNeedToUpdateArtefactTasks = false;
 
-    //	if (pThis.type == TT_TRADER) smart_cast<CAI_Trader*>(pThis.base)->OnStartTrade();
+    // SoC port: a trader (CAI_Trader) is told the trade started (script callback trade_start),
+    // as in Shadow of Chornobyl; his logic reacts to the trade
+    TradeCB(true);
 }
 
 void CTrade::StartTradeEx(CInventoryOwner* pInvOwner) {
@@ -146,14 +148,16 @@ void CTrade::OnPerformTrade(u32 money_get, u32 money_put) {
 }
 
 void CTrade::StopTrade() {
+    const bool was_trading = TradeState;
     TradeState = false;
     m_dwLastTradeTime = 0;
     //	Msg("--TRADE:: [%s]: Trade stopped...",*pThis.base->cName());
 
     CAI_Trader* pTrader = NULL;
     if (pThis.type == TT_TRADER) {
-        // pTrader = smart_cast<CAI_Trader*>(pThis.base);
-        // pTrader->OnStopTrade();
+        // SoC port: ... and that it stopped (trade_stop), once per trade
+        if (was_trading)
+            TradeCB(false);
     } else if (pPartner.type == TT_TRADER) {
         pTrader = smart_cast<CAI_Trader*>(pPartner.base);
     }

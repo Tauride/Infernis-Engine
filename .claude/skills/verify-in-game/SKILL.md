@@ -36,6 +36,7 @@ powershell -ExecutionPolicy Bypass -File tests\autotest\run.ps1 tests\autotest\n
 | `soc_cordon_outfits.cfg` | SoC port: the SoC outfits the addon pack recreates show in the inventory with their icons, are put on with a double click and give the actor their body models; the bandit jacket has its own upgrade tree and the unique Mail jacket has the first of its upgrades installed; the two outfits lying on Cordon come online (needs the SoC addon pack) | ~68 s |
 | `soc_cordon_weapons.cfg` | SoC port: the four weapons lying in Cordon are in the simulation and come online as the game's weapons with the game's models, unloaded, in full condition, where SoC placed them (needs the SoC addon pack) | ~29 s |
 | `soc_cordon_supplies.cfg` | SoC port: the 47 boxes of ammunition, medical items, food and drinks lying in Cordon are in the simulation and each comes online near the actor (needs the SoC addon pack) | ~57 s |
+| `soc_cordon_quest_items.cfg` | SoC port: the recreated quest item of Cordon, `quest_case_01`, has its section and texts, lies on the level and comes online, and shows in the inventory with its icon (needs the SoC addon pack) | ~21 s |
 | `pose.cfg` | the `pose` step puts the actor and the camera where it says | ~17 s |
 | `ui_inventory.cfg` | in a level: inventory opened with the bound key, an item found by section, closed | ~17 s |
 | `selftest_*.cfg` | the harness itself (crash and timeout paths) | ~3-25 s |

@@ -100,7 +100,7 @@
 		</flashing_icon>
 	</flashing_icons>
 
-	<pick_up_item x="452" y="400" width="120" height="100"/>
+	<pick_up_item x="452" y="424" width="120" height="100"/>
 
 	<new_contact_snd>detectors\contact_1</new_contact_snd>
 

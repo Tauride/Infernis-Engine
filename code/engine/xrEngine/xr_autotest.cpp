@@ -768,8 +768,11 @@ namespace
 		{
 			bool	found	= false;
 			EnterCriticalSection	(&log_cs);
+			// The harness's own step lines are left out: they echo the step, and the text of a
+			// wait_log or expect_log would be found in its own line.
 			for (; log_scanned<log_lines.size() && !found; ++log_scanned)
-				found		= log_lines[log_scanned].find(text)!=std::string::npos;
+				found		= log_lines[log_scanned].find(text)!=std::string::npos &&
+							  log_lines[log_scanned].find("[autotest] step ")==std::string::npos;
 			LeaveCriticalSection	(&log_cs);
 			return	found;
 		}

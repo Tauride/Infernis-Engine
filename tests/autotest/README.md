@@ -41,8 +41,8 @@ runs one frame later so the engine can process it.
 | `wait_seconds <s>` | wait s seconds of real time |
 | `load_save <name>` | load a save from `userdata\savedgames`: from the main menu through `start server(<name>/single/alife/load) client(localhost)` (as the menu does), in a game through `load` |
 | `wait_level [<s>]` | wait until a level is loaded, the actor exists and the load screen is gone (default limit 300 s; fails after). The load screen waits for a key unless `keypress_on_start` is 0, which `run.ps1` sets |
-| `wait_log <s> <text>` | wait until a log line (since the start) contains text; fails after s seconds |
-| `expect_log <text>` | fail unless a log line (since the start) contains text |
+| `wait_log <s> <text>` | wait until a log line (since the start) contains text; fails after s seconds. The harness's own step lines are not searched (they echo the step's text). A script's `log()` writes nothing to the log in this build |
+| `expect_log <text>` | fail unless a log line (since the start) contains text; as with `wait_log`, the harness's own step lines are not searched |
 | `fail_on_log <text>` | from now on, fail as soon as a log line contains text |
 | `screenshot <name>` | save the finished frame to `userdata\screenshots\autotest\<name>.png`; works windowed. Fails on a multisampled or non-8-bit back buffer (the engine creates neither) |
 | `screenshot_overlay <name>` | the same, taken at the end of the frame: with the debug overlays (the FPS overlay), the UI cursor and the engine statistics |

@@ -1170,7 +1170,16 @@ CScriptGameObject* CScriptGameObject::item_in_slot(u32 slot_id) const {
         return (0);
     }
 
-    CInventoryItem* result = inventory_owner->inventory().ItemFromSlot((u16)slot_id);
+    // SoC port: a slot the inventory does not have is a script error, not a read past its slots
+    const CInventory& inventory = inventory_owner->inventory();
+    if (slot_id < inventory.FirstSlot() || slot_id > inventory.LastSlot()) {
+        ai().script_engine().script_log(ScriptStorage::eLuaMessageTypeError,
+                                        "item_in_slot: no slot %u (slots are %u to %u)", slot_id,
+                                        u32(inventory.FirstSlot()), u32(inventory.LastSlot()));
+        return (0);
+    }
+
+    CInventoryItem* result = inventory.ItemFromSlot((u16)slot_id);
     return (result ? result->object().lua_game_object() : 0);
 }
 

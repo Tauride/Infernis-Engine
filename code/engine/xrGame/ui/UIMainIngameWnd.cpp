@@ -129,6 +129,16 @@ void CUIMainIngameWnd::Init() {
     m_iPickUpItemIconHeight = UIPickUpItemIcon->GetHeight();
     m_iPickUpItemIconX = UIPickUpItemIcon->GetWndRect().left;
     m_iPickUpItemIconY = UIPickUpItemIcon->GetWndRect().top;
+
+    // The mark the inventory cells lay over an item with upgrades (CUICellItem), in the
+    // corner of the icon
+    CUIXml cell_xml;
+    cell_xml.Load(CONFIG_PATH, UI_PATH, "actor_menu_item.xml");
+    UIPickUpItemUpgrade = xr_new<CUIStatic>();
+    UIPickUpItemUpgrade->SetAutoDelete(true);
+    UIPickUpItemIcon->AttachChild(UIPickUpItemUpgrade);
+    CUIXmlInit::InitStatic(cell_xml, "cell_item_upgrade", 0, UIPickUpItemUpgrade);
+    UIPickUpItemUpgrade->Show(false);
     //---------------------------------------------------------
 
     //индикаторы
@@ -563,6 +573,7 @@ void CUIMainIngameWnd::UpdatePickUpItem() {
         m_iPickUpItemIconY + (m_iPickUpItemIconHeight - UIPickUpItemIcon->GetHeight()) / 2.0f));
 
     UIPickUpItemIcon->SetTextureColor(color_rgba(255, 255, 255, 192));
+    UIPickUpItemUpgrade->Show(m_pPickUpItem->has_any_upgrades());
     UIPickUpItemIcon->Show(true);
 };
 

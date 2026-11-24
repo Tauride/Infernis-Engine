@@ -160,6 +160,7 @@ protected:
     CInventoryItem* m_pPickUpItem;
     shared_str m_pickup_icon_section; // the item UIPickUpItemIcon has the icon sheet of
     CUIStatic* UIPickUpItemIcon;
+    CUIStatic* UIPickUpItemUpgrade; // the mark of an item with upgrades, as on an inventory cell
 
     float m_iPickUpItemIconX;
     float m_iPickUpItemIconY;

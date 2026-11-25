@@ -149,6 +149,16 @@ CLocatorAPI::~CLocatorAPI() {
     _dump_open_files(1);
 }
 
+bool CLocatorAPI::TryLoad(LPCSTR full_path) {
+    if (exist(full_path))
+        return true;
+    struct _stat64 st;
+    if (_stat64(full_path, &st) != 0 || (st.st_mode & _S_IFREG) == 0)
+        return false;
+    Register(full_path, 0xffffffff, 0, 0, u32(st.st_size), u32(st.st_size), u32(st.st_mtime));
+    return true;
+}
+
 void CLocatorAPI::Register(LPCSTR name, u32 vfs, u32 crc, u32 ptr, u32 size_real,
                            u32 size_compressed, u32 modif) {
     // Msg("Register[%d] [%s]",vfs,name);

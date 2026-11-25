@@ -1,5 +1,5 @@
 #pragma once
-#include "NodeBuilder/Nodes.h" // Infernis port: BoneNodes.h needs CBone, built with the Actor Editor stage
+#include "NodeBuilder/Nodes.h" // Infernis: BoneNodes.h (CBone) is included by UIBoneView.h, built by xrECore
 
 class XREPROPS_API CNodeViewport:
 	public IEditorWnd

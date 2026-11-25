@@ -29,7 +29,8 @@ the environment for both commands.
 | `compat` | IX-Ray `xrCore` types and helpers that Infernis's `xrCore` lacks (`xr_path`, `xr_delegate`, string helpers). Editor-only. |
 | (shared) | Dear ImGui lives in `code/3rd-party/imgui` (1.92.1 docking, IX-Ray's copy): the game links it statically, the editors as `imgui_editor.dll`. |
 | `xrECore` | Editor core: device, cameras, tools and scene base, editable objects, libraries, and Infernis's DX9 R1 renderer sources compiled in `_EDITOR` mode as the viewport renderer. Links `xrEngineCore.dll`, the engine built as a DLL for the editors. |
-| `ShaderEditor` | Engine shaders (`shaders.xr`), compiler shaders (`shaders_xrlc.xr`), game materials and material pairs (`gamemtl.xr`). The sound environment page is not ported (IX-Ray's edits its own EFX format; Infernis keeps GSC's EAX `senvironment.xr`). |
+| `ShaderEditor` | Engine shaders (`shaders.xr`), compiler shaders (`shaders_xrlc.xr`), game materials and material pairs (`gamemtl.xr`), sound environments (`senvironment.xr`, GSC's EAX layout; IX-Ray's page edits its own EFX layout, so this one is rewritten). |
+| `ParticleEditor` | Particle effects and groups (`particles.xr`, or the `.pe`/`.pg` sources under `$game_particles$` when the workspace has them). The actions use GSC's layout (Clear Sky SDK), as Infernis's particle engine is GSC's; IX-Ray's particle animation curves are left out (`EDITOR_PARTICLE_ANIM_CURVES`). |
 | `test` | `xrEditorUITest`: opens the shell with a property grid. Run it from a folder with an `fsgame.ltx` whose `$game_fonts$` holds `editors\*.ttf`; `-frames <n> -shot <file.bmp>` closes after n frames and saves the last one. |
 
 ## Running the editors
@@ -39,9 +40,14 @@ workspace's game data must have the game's `shaders\r1` (the viewport renderer c
 textures (`textures\ed`) and editor fonts (`fonts\editors`). Settings and the shader cache go to
 `$app_data_root$`.
 
-Options for checks without anyone at the screen (Shader Editor): `-frames <n>` closes after n frames, `-shot
-<file.png|bmp>` saves the last one, `-ogf <model>` draws a game model (`$game_meshes$` name, no extension) at the
-origin and fits the camera to it.
+Options for checks without anyone at the screen: `-frames <n>` closes after n frames (drawn every frame, dialogs
+logged and answered OK, or Cancel/No for questions), `-shot <file.png|bmp>` saves the last one, `-save` runs Save
+on the last frame without edits (open/save round trips). Shader Editor: `-ogf <model>` draws a game model
+(`$game_meshes$` name, no extension) at the origin and fits the camera to it. Particle Editor: `-pe <effect>`
+selects an effect and plays it.
+
+The editors are per-monitor DPI aware (their manifests): on a scaled display they draw at native resolution and
+scale their UI by the display's DPI.
 
 Not built yet: the bone views and bone nodes in `xrEProps` (need `CBone` from the editor core) and the dialog nodes
 (use IX-Ray's tinyxml2-based XML API).

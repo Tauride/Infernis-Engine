@@ -52,6 +52,8 @@ struct CEditorCheckRun
         ReadCommandLineValue(CmdLine, "-shot ", ShotPath);
         SaveAtEnd = FrameLimit > 0 && strstr(CmdLine, "-save") != nullptr;
         ELog.Unattended = FrameLimit > 0; // dialogs are logged and answered OK/Cancel (ELog.h)
+        if (FrameLimit > 0)
+            psDeviceFlags.set(rsRenderRealTime, TRUE); // redraw every frame (the editors redraw on request otherwise)
     }
 
     // Before each frame.

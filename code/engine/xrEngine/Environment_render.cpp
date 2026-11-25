@@ -280,7 +280,8 @@ void CEnvironment::OnDeviceDestroy() {
             for (auto it = _I->second.begin(); it != _I->second.end(); it++)
                 (*it)->on_device_destroy();
     }
-    CurrentEnv->destroy();
+    if (CurrentEnv) // no mixer when the environment never ran (the editors close without one)
+        CurrentEnv->destroy();
 }
 
 #if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors

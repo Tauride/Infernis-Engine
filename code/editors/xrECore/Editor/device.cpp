@@ -1,5 +1,6 @@
 ﻿//---------------------------------------------------------------------------
 #include "stdafx.h"
+#include "xrEngine/Engine.h"
 
 #include "xrEngine/GameFont.h"
 #include <sal.h>
@@ -86,8 +87,8 @@ CEditorRenderDevice::CEditorRenderDevice()
 	fASPECT 		= 1.f;
 	fFOV 			= 60.f;
     dwPrecacheFrame = 0;
-	// Infernis: the plain material library (GMLib, Engine/GameMtlLib.cpp). IX-Ray's editing subclass
-	// (XrGameMaterialLibraryEditors) comes with the Shader Editor stage.
+	// Infernis: Infernis's material library (GMLib) with its editor methods (Engine/GameMtlLibEditor.cpp)
+	// instead of IX-Ray's editing subclass.
 	PGMLib = &GMLib;
 
 	DevicePtr = this;
@@ -113,6 +114,10 @@ typedef void __cdecl ttapi_Done_func(void);
 void CEditorRenderDevice::Initialize()
 {
     m_DefaultMat.set(1,1,1);
+
+	// Infernis: the engine object binds the CPU pipeline (xrCPU_Pipe.dll: software skinning and other PSGP
+	// routines) and the scheduler, as the game does at start. IX-Ray's engine has that pipeline built in.
+	Engine.Initialize();
 
 	RenderFactory = &RenderFactoryImpl;
 	UIRender = &UIRenderImpl;
@@ -170,6 +175,7 @@ void CEditorRenderDevice::ShutDown()
 
 	// destroy context
 	Destroy();
+	Engine.Destroy();
 
 	if (psDeviceFlags.test(mtSound))
 	{
@@ -246,6 +252,11 @@ bool CEditorRenderDevice::Create()
 		// (IX-Ray: InitRenderDeviceEditor through its RHI); the editor RHI shim draws with it.
 		HW.CreateDevice(hwnd, false);
 		GRHI->SetDevice(HW.pDevice);
+		m_hWnd = hwnd; // the engine's DirectInput device binds to the device window
+		// The game fills the caps in dxRenderDeviceRender::OnDeviceCreate, which the editor does not run. Without
+		// them render targets of viewport size (not powers of two) are silently not created.
+		HW.Caps.Update();
+
 		UI->Initialize(hwnd, RDevice, ini_path);
 	}
 	
@@ -327,6 +338,7 @@ void CEditorRenderDevice::_SetupStates()
 void CEditorRenderDevice::_Create(IReader* F)
 {
 	b_is_Ready				= true;
+	m_CreateCount++;
 
 	// General Render States
     _SetupStates		();
@@ -490,6 +502,20 @@ void CEditorRenderDevice::End()
 	g_bRendering = 	false;
 	// end scene
 	RCache.OnFrameEnd();
+	if (m_ScreenshotPath[0])
+	{
+		IDirect3DSurface9* BackBuffer = nullptr;
+		HRESULT Result = HW.pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &BackBuffer);
+		if (SUCCEEDED(Result))
+		{
+			const char* Ext = strrchr(m_ScreenshotPath, '.');
+			const D3DXIMAGE_FILEFORMAT Format = (Ext && 0 == _stricmp(Ext, ".bmp")) ? D3DXIFF_BMP : D3DXIFF_PNG;
+			Result = D3DXSaveSurfaceToFileA(m_ScreenshotPath, Format, BackBuffer, nullptr, nullptr);
+			BackBuffer->Release();
+		}
+		Msg("* screenshot %s: %s", m_ScreenshotPath, SUCCEEDED(Result) ? "saved" : "FAILED");
+		m_ScreenshotPath[0] = 0;
+	}
 	GRHI->Present();
 }
 

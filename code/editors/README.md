@@ -28,7 +28,20 @@ the environment for both commands.
 | `Public` | Headers shared by the editor libraries. |
 | `compat` | IX-Ray `xrCore` types and helpers that Infernis's `xrCore` lacks (`xr_path`, `xr_delegate`, string helpers). Editor-only. |
 | (shared) | Dear ImGui lives in `code/3rd-party/imgui` (1.92.1 docking, IX-Ray's copy): the game links it statically, the editors as `imgui_editor.dll`. |
+| `xrECore` | Editor core: device, cameras, tools and scene base, editable objects, libraries, and Infernis's DX9 R1 renderer sources compiled in `_EDITOR` mode as the viewport renderer. Links `xrEngineCore.dll`, the engine built as a DLL for the editors. |
+| `ShaderEditor` | Engine shaders (`shaders.xr`), compiler shaders (`shaders_xrlc.xr`), game materials and material pairs (`gamemtl.xr`). The sound environment page is not ported (IX-Ray's edits its own EFX format; Infernis keeps GSC's EAX `senvironment.xr`). |
 | `test` | `xrEditorUITest`: opens the shell with a property grid. Run it from a folder with an `fsgame.ltx` whose `$game_fonts$` holds `editors\*.ttf`; `-frames <n> -shot <file.bmp>` closes after n frames and saves the last one. |
+
+## Running the editors
+
+Run an editor from a workspace folder holding an IX-Ray-style `fs.ltx` (pass another with `-fsltx <file>`). The
+workspace's game data must have the game's `shaders\r1` (the viewport renderer compiles them), IX-Ray's editor
+textures (`textures\ed`) and editor fonts (`fonts\editors`). Settings and the shader cache go to
+`$app_data_root$`.
+
+Options for checks without anyone at the screen (Shader Editor): `-frames <n>` closes after n frames, `-shot
+<file.png|bmp>` saves the last one, `-ogf <model>` draws a game model (`$game_meshes$` name, no extension) at the
+origin and fits the camera to it.
 
 Not built yet: the bone views and bone nodes in `xrEProps` (need `CBone` from the editor core) and the dialog nodes
 (use IX-Ray's tinyxml2-based XML API).
@@ -38,7 +51,7 @@ types only, no lazy archive loading, DX9 texture handles instead of IX-Ray's RHI
 
 ## Licence
 
-The sources under `xrEUI`, `xrEProps`, `Public`, `compat` (ported parts) and the ImGui core in `code/3rd-party/imgui` come from
+The sources under `xrEUI`, `xrEProps`, `xrECore`, `ShaderEditor`, `Public`, `compat` (ported parts) and the ImGui core in `code/3rd-party/imgui` come from
 [IX-Ray](https://github.com/ixray-team/ixray-1.6-stcop), commit `09c1a3de9`, under its licence: MIT-style
 permission to use, copy, modify, merge, publish and distribute, **except selling copies**; the copyright notice
 must be kept ("Copyright (c) 2019-2025 IX-Ray and contributors"). GSC Game World keeps the rights to the original

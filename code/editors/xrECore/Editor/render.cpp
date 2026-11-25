@@ -909,7 +909,7 @@ HRESULT	CRender::shader_compile(
 		string_path file;
 		xr_strcpy(file, "shaders_cache\\");
 		xr_strcat(file, "infernis"); // Infernis: IX-Ray puts its version (_VER) here
-		xr_strcat(file, "\\editor\\");
+		xr_strcat(file, "\\r1\\"); // the game's R1 shader set (getShaderPath)
 		xr_strcat(file, name);
 		xr_strcat(file, ".");
 		xr_strcat(file, extension);
@@ -947,7 +947,9 @@ HRESULT	CRender::shader_compile(
 		LPD3DXBUFFER pShaderBuf = nullptr;
 		LPD3DXBUFFER pErrorBuf = nullptr;
 
-		_result = D3DXCompileShader((LPCSTR)pSrcData, SrcDataLen, defines, &Includer, pFunctionName, pTarget, Flags, &pShaderBuf, &pErrorBuf, nullptr);
+		// The game's R1 shaders include ps_1_x programs, which only the legacy D3DX compiler builds (as in R1).
+		_result = D3DXCompileShader((LPCSTR)pSrcData, SrcDataLen, defines, &Includer, pFunctionName, pTarget,
+		                            Flags | D3DXSHADER_USE_LEGACY_D3DX9_31_DLL, &pShaderBuf, &pErrorBuf, nullptr);
 
 		if (SUCCEEDED(_result))
 		{

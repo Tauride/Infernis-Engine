@@ -3,6 +3,7 @@
 #include "UI_ToolsCustom.h"
 
 #include "ui_main.h"
+#include "EStats.h"
 #include "D3DUtils.h"
 #include "SoundManager.h"
 #include "xrRenderCommon/PSLibrary.h"
@@ -529,7 +530,7 @@ void TUI::Redraw()
 
 
 			EDevice->Statistic->RenderDUMP_RT.End();
-			EDevice->Statistic->Show();
+			static_cast<CEStats*>(EDevice->Statistic)->Show(); // Infernis: CStats::Show is not virtual and needs the game's spatial DB
 			EDevice->SetRS(D3DRS_FILLMODE, D3DFILL_SOLID);
 
 			g_FontManager->Render();

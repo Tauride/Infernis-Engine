@@ -37,6 +37,9 @@ void IBlender::CreatePalette(xr_vector<IBlender*>& palette) {
     palette.push_back(Create(B_TREE));
     palette.push_back(Create(B_PARTICLE));
 
+    // Classes this build does not have (the editors' Create below has no LIGHT and B blenders) come back null.
+    palette.erase(std::remove(palette.begin(), palette.end(), nullptr), palette.end());
+
     // Remove duplicated classes (some of them are really the same in different renderers)
     for (u32 i = 0; i < palette.size(); i++) {
         IBlender* A = palette[i];
@@ -44,6 +47,7 @@ void IBlender::CreatePalette(xr_vector<IBlender*>& palette) {
             IBlender* B = palette[j];
             if (TYPES_EQUAL(*A, *B)) {
                 xr_delete(palette[j]);
+                palette.erase(palette.begin() + j); // GSC only deleted, leaving a null to be compared again
                 j--;
             }
         }

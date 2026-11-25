@@ -78,6 +78,13 @@ public:
 	void ResetNearer();
 	bool Begin();
 	void End();
+	// Infernis: saves the next presented frame as an image (D3DX picks the format from the extension); for
+	// checks run without anyone at the screen (the editors' -shot option).
+	void RequestScreenshot(const char* Path) { xr_strcpy(m_ScreenshotPath, Path); }
+	string_path m_ScreenshotPath = {};
+	// Infernis: counts device (re)creations. A full reset (Reset with a shader stream, as the Shader Editor does to
+	// apply shaders) destroys the model pool, so code holding models compares this to know when to recreate them.
+	u32 m_CreateCount = 0;
 
 	void Initialize(void);
 	void ShutDown(void);

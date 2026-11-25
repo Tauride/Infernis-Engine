@@ -242,9 +242,11 @@ public:
 		RCache.hemi.set_material(0.7, 1, 0, (mtl + .5f) / 4.f);
 	}
 
+	// Infernis: the editor renderer is Infernis's R1, so it compiles the game's R1 shaders (IX-Ray's editor\ set is
+	// written for IX-Ray's own renderer).
 	virtual const char*			getShaderPath()
 	{
-		return "editor\\";
+		return "r1\\";
 	}
 
 	virtual IDirect3DBaseTexture9* texture_load(const char*	fname, u32& mem_size);

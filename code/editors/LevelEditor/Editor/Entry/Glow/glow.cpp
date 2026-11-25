@@ -104,7 +104,7 @@ void CGlow::Render(int priority, bool strictB2F)
 
 bool CGlow::FrustumPick(const CFrustum& frustum)
 {
-    return (frustum.testSphere_dirty(GetPosition(),m_fRadius))?true:false;
+    return (frustum.testSphere_dirty(const_cast<Fvector&>(GetPosition()),m_fRadius))?true:false;
 }
 
 bool CGlow::RayPick(float& distance, const Fvector& start, const Fvector& direction, SRayPickInfo* pinf)

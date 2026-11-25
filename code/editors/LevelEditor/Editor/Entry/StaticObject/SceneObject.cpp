@@ -475,13 +475,8 @@ void CSceneObject::ClearSurface()
 			m_Surfaces.push_back(surf);
 			if (surf->IsVoid())
 			{
-				if (m_pReference->IsSkeleton())
-					Engine.External.SetSkinningMode(4);
-
+				// Infernis: IX-Ray switched the engine's skinning mode around this (Engine.External.SetSkinningMode)
 				surf->OnDeviceCreate();
-
-				if (m_pReference->IsSkeleton())
-					Engine.External.SetSkinningMode();
 			}
 		}
 	}

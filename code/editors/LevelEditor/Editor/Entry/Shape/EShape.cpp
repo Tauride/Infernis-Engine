@@ -262,7 +262,7 @@ bool CEditShape::FrustumPick(const CFrustum& frustum)
 		    Fvector 	C;
             Fsphere&	T	= it->data.sphere;
 		    M.transform_tiny(C,T.P);
-        	if (frustum.testSphere_dirty(C,T.R*FScale.x)) return true;
+        	if (frustum.testSphere_dirty(const_cast<Fvector&>(C),T.R*FScale.x)) return true;
 		}break;
 		case cfBox:{
         	Fbox 			box;

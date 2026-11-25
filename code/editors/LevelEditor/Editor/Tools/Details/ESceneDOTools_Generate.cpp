@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <random> // std::shuffle (IX-Ray: random_shuffle, gone in C++17)
 
 static Fvector down_vec	={0.f,-1.f,0.f};
 static Fvector left_vec	={-1.f,0.f,0.f};
@@ -157,8 +158,8 @@ void EDetailManager::UpdateSlotBBox(int sx, int sz, DetailSlot& slot)
     bbox.max.set		(rect.x2, m_BBox.max.y, rect.y2);
 
     SBoxPickInfoVec pinf;
-    extern ECORE_API CDB::COLLIDER XRC;
-    XRC.box_options(0);
+    extern ECORE_API CDB::COLLIDER EditorXRC; // Infernis: xrECore's
+    EditorXRC.box_options(0);
     if (Scene->BoxPickObjects(bbox,pinf,&m_SnapObjects)){
 		bbox.grow		(EPS_L_VAR);
     	Fplane			frustum_planes[4];
@@ -369,7 +370,7 @@ bool EDetailManager::UpdateSlotObjects(int x, int z){
         U8Vec elem; elem.resize(CI->second.size());
         for (U8It b_it=elem.begin(); b_it!=elem.end(); b_it++) *b_it=u8(b_it-elem.begin());
 //        best_rand A(DetailRandom);
-        random_shuffle(elem.begin(),elem.end());//,A);
+        std::shuffle(elem.begin(),elem.end(), std::mt19937{std::random_device{}()});//,A);
         for (auto b_it=elem.begin(); b_it!=elem.end(); b_it++){
 			bool bNotFound=true;
             slot->w_id	(k, GetObject(CI,*b_it));

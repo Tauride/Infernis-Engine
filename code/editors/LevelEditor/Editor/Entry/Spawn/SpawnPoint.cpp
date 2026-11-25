@@ -559,6 +559,44 @@ void CSpawnPoint::SSpawnData::FillProp(const char* pref, PropItemVec& items)
 #endif
 }
 
+// Infernis: GSC's CObjectAnimator::DrawPath (Infernis's engine keeps it for GSC's editor build only): the motion
+// path, and its keys near the camera
+static void DrawAnimatorPath(CObjectAnimator* Animator)
+{
+	COMotion* Current = Animator->Current();
+	if (!Current)
+		return;
+	const float FPS = Current->FPS();
+	const float MinT = (float)Current->FrameStart() / FPS;
+	const float MaxT = (float)Current->FrameEnd() / FPS;
+
+	FvectorVec PathPoints;
+	Fvector T, R;
+	const u32 Color = 0xffffffff;
+	for (float t = MinT; (t < MaxT) || fsimilar(t, MaxT, EPS_L); t += 1 / 30.f)
+	{
+		Current->_Evaluate(t, T, R);
+		PathPoints.push_back(T);
+	}
+
+	EDevice->SetShader(EDevice->m_WireShader);
+	RCache.set_xform_world(Fidentity);
+	if (PathPoints.size() > 1)
+		DU_impl.DrawPrimitiveL(ERHI_PRIMITIVE_TOPOLOGY::LINE_STRIP, (u32)PathPoints.size() - 1, PathPoints.data(), (u32)PathPoints.size(), Color, true, false);
+	CEnvelope* Envelope = Current->Envelope();
+	for (st_Key* Key : Envelope->keys)
+	{
+		Current->_Evaluate(Key->time, T, R);
+		if (UI->CurrentView().m_Camera.GetPosition().distance_to_sqr(T) < 50.f * 50.f)
+		{
+			DU_impl.DrawCross(T, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, 0.1f, Color, false);
+			string64 Text;
+			xr_sprintf(Text, "K: %3.3f", Key->time);
+			DU_impl.OutText(T, Text, 0xffffffff, 0x00000000);
+		}
+	}
+}
+
 void CSpawnPoint::SSpawnData::Render(bool bSelected, const Fmatrix& parent,int priority, bool strictB2F)
 {
 	xrCriticalSectionGuard guard(mLuaEnter);
@@ -567,7 +605,7 @@ void CSpawnPoint::SSpawnData::Render(bool bSelected, const Fmatrix& parent,int p
 		::RImplementation.model_Render	(m_Visual->visual,parent,priority,strictB2F,1.f);
 
 	if (m_Motion&&m_Motion->animator&&bSelected&&(1==priority)&&(false==strictB2F))
-		m_Motion->animator->DrawPath();
+		DrawAnimatorPath(m_Motion->animator);
 
 	RCache.set_xform_world		(Fidentity);
 	EDevice->SetShader			(EDevice->m_WireShader);
@@ -727,8 +765,10 @@ void  CSpawnPoint::	OnSceneRemove	()
 }
 CSpawnPoint::~CSpawnPoint()
 {
+#ifdef EDITOR_ENV_MODIFIER_PREVIEW // IX-Ray's live preview of environment modifiers (an engine extension)
 	if(m_Type == ptEnvMod && m_EM_Ptr)
 		g_pGamePersistent->Environment().remove_modifier(m_EM_Ptr);
+#endif
 
 	xr_delete(m_AttachedObject);
 	OnDeviceDestroy();
@@ -876,7 +916,7 @@ bool CSpawnPoint::GetBox( Fbox& box )
 					CShapeData::ShapeVec& SV	= shape->GetShapes();
 					box.invalidate();
 					Fvector p;
-					for (CShapeData::auto it=SV.begin(); it!=SV.end(); it++){
+					for (auto it=SV.begin(); it!=SV.end(); it++){
 						switch (it->type){
 						case CShapeData::cfSphere:
 							p.add(it->data.sphere.P,it->data.sphere.R); shape->_Transform().transform_tiny(p); box.modify(p);
@@ -942,6 +982,7 @@ void CSpawnPoint::OnFrame()
 		  m_SpawnData.OnFrame			();
 	}
 
+#ifdef EDITOR_ENV_MODIFIER_PREVIEW // IX-Ray's live preview of environment modifiers (an engine extension)
 	if(m_Type == ptEnvMod)
 	{
 		if(Visible())
@@ -977,6 +1018,7 @@ void CSpawnPoint::OnFrame()
 			}
 		}
 	}
+#endif
 
 }
 void CSpawnPoint::RenderSimBox()

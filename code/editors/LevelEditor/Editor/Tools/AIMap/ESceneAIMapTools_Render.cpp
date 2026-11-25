@@ -91,7 +91,7 @@ void ESceneAIMapTool::OnRender(int priority, bool strictB2F)
                                 float p_denom 	= N.Plane.n.dotproduct(DUP);
                                 float b			= (std::abs(p_denom)<EPS_S)?m_Params.fPatchSize: std::abs(N.Plane.classify(v) / p_denom);
 							
-                                if (Render->ViewBase.testSphere_dirty(N.Pos, std::max(b,st))){
+                                if (Render->ViewBase.testSphere_dirty(const_cast<Fvector&>(N.Pos), std::max(b,st))){
                                     u32 clr;
                                     if (N.flags.is(SAINode::flSelected))clr = 0xffffffff;
                                     else 								clr = N.flags.is(SAINode::flHLSelected)?0xff909090:0xff606060;

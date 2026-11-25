@@ -24,7 +24,7 @@ UIMainForm::UIMainForm()
 	EnableReceiveCommands();
 	if (!ExecCommand(COMMAND_INITIALIZE, (u32)0, (u32)0))
 	{
-		xrLogger::FlushLog();
+		FlushLog();
 		exit(-1);
 	}
 	ExecCommand(COMMAND_UPDATE_GRID);
@@ -488,7 +488,7 @@ void UIMainForm::DrawRenderToolBar(ImVec2 Pos, ImVec2 Size)
 
 		bool UseLocal = imManipulator.MatrixMode;
 		ref_texture& CurrentCoordsView = UseLocal ? TransformLocalOrWorld2 : TransformLocalOrWorld;
-		if (CurrentCoordsView->get_SRView() == nullptr)
+		if (CurrentCoordsView->get_surface_noref() == nullptr)
 		{
 			CurrentCoordsView = EDevice->texture_null;
 		}
@@ -856,7 +856,7 @@ void UIMainForm::RenderOldCameraButtons()
 	ImGui::SameLine(0, 4);
 
 	ImGui::BeginGroup();
-	ECameraStyle Camera = UI->CurrentView().m_Camera.GetStyle();
+	auto Camera = UI->CurrentView().m_Camera.GetStyle();
 
 	bool CamPlane = Camera == csPlaneMove;
 	bool CamArcBall = Camera == cs3DArcBall;

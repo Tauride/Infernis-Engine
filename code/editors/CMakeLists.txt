@@ -179,6 +179,7 @@ set(ECORE_RENDER_SOURCES
     ${ENGINE_DIR}/xrRenderPC_R1/Blender_Vertex_aref.cpp
     ${ENGINE_DIR}/xrRenderPC_R1/Blender_default_aref.cpp
     ${ENGINE_DIR}/xrEngine/GameMtlLib.cpp
+    ${ENGINE_DIR}/xrServerEntities/LevelGameDef.cpp
     ${CMAKE_SOURCE_DIR}/code/utils/common/NvMender2003/NVMeshMender.cpp
     ${CMAKE_SOURCE_DIR}/code/utils/ETools/object.cpp
     ${ENGINE_DIR}/xrEngine/ai_script_lua_debug.cpp
@@ -262,18 +263,31 @@ set_target_properties(ActorEditor PROPERTIES FOLDER editors)
 # (AI/, scene_spawn.cpp; Infernis's xrAI builds those), and its Python plugin. Server entities come from Infernis's xrSE_Factory, built for the editors (xrSE_Factory_Editor).
 file(GLOB_RECURSE LEVEL_EDITOR_SOURCES CONFIGURE_DEPENDS LevelEditor/*.cpp LevelEditor/*.h)
 list(FILTER LEVEL_EDITOR_SOURCES EXCLUDE REGEX
-     "/LevelEditor/(Engine/(XRayEditor|XrGameManager)[^/]*|AI/.*|Plugins/PluginPython[^/]*|Editor/Scene/scene_spawn[.]cpp|Nodes/UIDialogsView[.](cpp|h))$")
+     "/LevelEditor/(Engine/(XRayEditor|XrGameManager)[^/]*|AI/.*|Plugins/Plugin(Python|Lua)[^/]*|Editor/Scene/(scene_spawn|CFormBuilder)[.](cpp|h)|Nodes/UIDialogsView[.](cpp|h))$")
 # (Nodes/UIDialogsView: IX-Ray's dialog editor uses its tinyxml2-based XML API, like the dialog nodes of xrEProps.)
-add_executable(LevelEditor WIN32 ${LEVEL_EDITOR_SOURCES} LevelEditor/LevelEditor.rc LevelEditor/LevelEditor.manifest)
+# The detail manager is compiled here, as in IX-Ray's build: its editor part (_EDITOR) places details on the
+# editor's scene objects.
+set(LEVEL_EDITOR_ENGINE_SOURCES ${ENGINE_DIR}/xrRenderCommon/DetailManager.cpp
+                                ${ENGINE_DIR}/xrRenderCommon/DetailManager_CACHE.cpp
+                                ${ENGINE_DIR}/xrRenderCommon/DetailManager_Decompress.cpp
+                                ${ENGINE_DIR}/xrRenderCommon/DetailManager_VS.cpp
+                                ${ENGINE_DIR}/xrRenderCommon/DetailManager_soft.cpp
+                                ${ENGINE_DIR}/xrRenderCommon/stats_manager.cpp)
+add_executable(LevelEditor WIN32 ${LEVEL_EDITOR_SOURCES} ${LEVEL_EDITOR_ENGINE_SOURCES} LevelEditor/LevelEditor.rc
+                           LevelEditor/LevelEditor.manifest)
 target_precompile_headers(LevelEditor PRIVATE LevelEditor/stdafx.h)
 target_compile_definitions(LevelEditor PRIVATE _LEVEL_EDITOR _WINDOWS)
 target_include_directories(LevelEditor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/LevelEditor ${CMAKE_CURRENT_SOURCE_DIR}
                                                ${ENGINE_DIR} ${ENGINE_DIR}/xrServerEntities
                                                ${CMAKE_SOURCE_DIR}/code/3rd-party/openal/include
+                                               ${CMAKE_SOURCE_DIR}/code/3rd-party/luajit/include/lua # the Lua plugin
+                                               # the detail manager's editor part includes these by bare name
+                                               ${CMAKE_CURRENT_SOURCE_DIR}/LevelEditor/Editor/Scene
+                                               ${CMAKE_CURRENT_SOURCE_DIR}/LevelEditor/Editor/Entry/StaticObject
                                                # xrECore's own folders, which its headers include by bare name
                                                ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Editor ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Engine
                                                ${ENGINE_DIR}/xrEngine ${CMAKE_SOURCE_DIR}/code/utils/ETools
                                                ${CMAKE_SOURCE_DIR}/code/utils/xrQSlim/src
                                                ${CMAKE_SOURCE_DIR}/code/utils/common/NvMender2003)
-target_link_libraries(LevelEditor PRIVATE xrECore xrSE_Factory_Editor libogg libvorbis libvorbisfile)
+target_link_libraries(LevelEditor PRIVATE xrECore xrSE_Factory_Editor ETools libogg libvorbis libvorbisfile)
 set_target_properties(LevelEditor PROPERTIES FOLDER editors)

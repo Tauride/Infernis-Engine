@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <random> // std::shuffle (IX-Ray: random_shuffle, gone in C++17)
 #include "../../Editor/Utils/TerrainGarbageGenerator.h"
 #include "IconsFontAwesome6.h"
 
@@ -358,7 +359,7 @@ void UIObjectTool::DrawRandomAppend()
 
 void UIObjectTool::LoadFromFile(xr_string& Outfile)
 {
-	FS.TryLoad(Outfile);
+	FS.TryLoad((Outfile).c_str());
 	IReader* Stream = FS.r_open(Outfile.data());
 	u8 Ver = Stream->r_u8();
 
@@ -542,7 +543,7 @@ void UIObjectTool::OnItemFocused(ListItem* item)
 			if (Surface != nullptr)
 			{
 				m_RealTexture = new CTexture;
-				m_RealTexture->surface_set(Surface);
+				m_RealTexture->surface_set(Surface ? Surface->GetD3D() : nullptr);
 
 				Surface->Release();
 			}
@@ -594,7 +595,7 @@ void UIObjectTool::MultiSelByRefObject(bool clear_prev)
 		}
 		std::sort(sellist.begin(), sellist.end());
 		sellist.erase(std::unique(sellist.begin(), sellist.end()), sellist.end());
-		random_shuffle(sellist.begin(), sellist.end());
+		std::shuffle(sellist.begin(), sellist.end(), std::mt19937{std::random_device{}()});
 		int max_k = iFloor(float(sellist.size()) / 100.f * float(m_selPercent) + 0.5f);
 		int k = 0;
 		for (auto o_it = sellist.begin(); k < max_k; o_it++, k++) {

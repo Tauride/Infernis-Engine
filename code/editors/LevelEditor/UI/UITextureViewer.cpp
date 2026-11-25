@@ -175,7 +175,7 @@ void CUITextureViewer::LoadFromFile(const xr_path& File)
 	SubResource.Data = Pixels.data();
 
 	IRHISurface* Surf = GRHI->CreateTexture2D(Desc, SubResource);
-	Texture->surface_set(Surf);
+	Texture->surface_set(Surf ? Surf->GetD3D() : nullptr);
 	Surf->Release();
 
 	UpdateTexture();
@@ -183,26 +183,30 @@ void CUITextureViewer::LoadFromFile(const xr_path& File)
 
 void CUITextureViewer::UpdateTexture()
 {
-	if (!Texture || !Texture->pSurface)
+	// Infernis: the texture's D3D9 surface, locked directly (IX-Ray: its RHI surface)
+	IDirect3DTexture9* Surf = Texture ? static_cast<IDirect3DTexture9*>(Texture->get_surface_noref()) : nullptr;
+	if (!Surf)
 	{
 		return;
 	}
 
-	IRHISurface* Surf = Texture->pSurface;
-	u32 Width = Surf->GetWidth();
-	u32 Height = Surf->GetHeight();
+	D3DSURFACE_DESC Desc = {};
+	Surf->GetLevelDesc(0, &Desc);
+	u32 Width = Desc.Width;
+	u32 Height = Desc.Height;
 
-	u8* Data = static_cast<u8*>(Surf->Lock(0, nullptr));
-	if (!Data)
+	D3DLOCKED_RECT Locked = {};
+	if (FAILED(Surf->LockRect(0, &Locked, nullptr, 0)) || !Locked.pBits)
 	{
 		return;
 	}
+	u8* Data = static_cast<u8*>(Locked.pBits);
 
 	bool FullMask = (ChannelMask == (Channel_R | Channel_G | Channel_B | Channel_A));
 
 	for (size_t y = 0; y < Height; ++y)
 	{
-		u8* Row = Data + y * Width * 4;
+		u8* Row = Data + y * Locked.Pitch;
 		for (size_t x = 0; x < Width; ++x)
 		{
 			size_t idx = (y * Width + x) * 4;
@@ -246,5 +250,5 @@ void CUITextureViewer::UpdateTexture()
 		}
 	}
 
-	Surf->Unlock();
+	Surf->UnlockRect(0);
 }

@@ -26,10 +26,10 @@ void UIReferenceReplacer::Draw()
 			{
 				if (HasChars)
 				{
-					if (!Ref.Contains(InputFile))
+					if (!xr_string_contains(Ref, InputFile))
 						continue;
 
-					if (Ref.EqualWithCaseInsensitive(InputFile))
+					if ((0 == _stricmp((Ref).c_str(), (InputFile))))
 					{
 						HasItemInScene = true;
 					}

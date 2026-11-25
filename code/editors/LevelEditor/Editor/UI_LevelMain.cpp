@@ -182,7 +182,6 @@ CCommandVar CommandLoad(CCommandVar p1, CCommandVar p2)
 
 			// Level loading creates D3D9 state blocks and Lua shaders. Keep it on the
 			// render thread so neither can be changed concurrently with a frame.
-			Device.secondary_tasks.wait();
 			UI->SetStatus("Level loading...");
 			ExecCommand(COMMAND_CLEAR);
 			FS.TryLoad(temp_fn.c_str());
@@ -302,7 +301,9 @@ CCommandVar CommandClear(CCommandVar p1, CCommandVar p2)
 
 	if( !Scene->locked() )
 	{
+#ifdef EDITOR_PLAY_IN_EDITOR
 		Scene->Stop();
+#endif
 		
 		if (!Scene->IfModified()) 
 			return true;

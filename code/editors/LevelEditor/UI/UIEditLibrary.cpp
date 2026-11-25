@@ -57,7 +57,7 @@ void UIEditLibrary::OnItemFocused(ListItem* item)
 			m_Thm->Update(Surface);
 
 			m_RealTexture = new CTexture();
-			m_RealTexture->surface_set(Surface);
+			m_RealTexture->surface_set(Surface ? Surface->GetD3D() : nullptr);
 			Surface->Release();
 
 			m_Thm->FillInfo(Info);
@@ -220,14 +220,14 @@ void UIEditLibrary::DrawObjects()
 		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }
 
-void UIEditLibrary::GenerateLOD(const RStringVec& props, bool bHighQuality)
+void UIEditLibrary::GenerateLOD(const SharedStrVec& props, bool bHighQuality)
 {
 	u32 lodsCnt = 0;
 	SPBItem* pb = UI->ProgressStart(props.size(), "Making LOD");
 
 	for (const shared_str& str : props)
 	{
-		RStringVec reference;
+		SharedStrVec reference;
 		reference.push_back(str);
 		ChangeReference(reference);   // select item
 
@@ -279,7 +279,7 @@ void UIEditLibrary::MakeLOD(bool bHighQuality)
 
 	if (res == mrNo)
 	{
-		RStringVec sel_items;
+		SharedStrVec sel_items;
 		for (ListItem* ListItem : ActualItemList().m_SelectedItems)
 		{
 			sel_items.push_back(ListItem->Key());
@@ -517,7 +517,7 @@ void UIEditLibrary::DrawRightBar()
 		{
 			if (Changed)
 			{
-				RStringVec selItems;
+				SharedStrVec selItems;
 
 				for (const xr_string& xrStr : lst)
 					selItems.push_back(xrStr.c_str());
@@ -536,7 +536,7 @@ void UIEditLibrary::RenderSaveButton()
 {
 	if (ImGui::Button("Save", ImVec2(-1, 0)))
 	{
-		RStringVec sel_strings;
+		SharedStrVec sel_strings;
 		ChangeReference(sel_strings);
 		Lib.Save(&modif_map);
 		modif_map.clear();
@@ -621,7 +621,7 @@ void UIEditLibrary::PickCallback()
 
 bool UIEditLibrary::SelectionToReference(ListItemsVec* props)
 {
-	RStringVec sel_strings;
+	SharedStrVec sel_strings;
 	ListItemsVec sel_items;
 
 	if (props)
@@ -730,7 +730,7 @@ void UIEditLibrary::OnModified()
 	UI->RedrawScene();
 }
 
-void UIEditLibrary::ChangeReference(const RStringVec& items)
+void UIEditLibrary::ChangeReference(const SharedStrVec& items)
 {
 	for (CSceneObject* Obj : m_pEditObjects)
 	{
@@ -868,7 +868,7 @@ void UIEditLibrary::ImportClick()
 		{
 			nm = ChangeFileExt(EFS.ExtractFileName((*it).c_str()), "").c_str();
 			CEditableObject* O = new CEditableObject(nm.c_str());
-			FS.TryLoad(*it);
+			FS.TryLoad((*it).c_str());
 			if (O->Load(it->c_str()))
 			{
 				save_nm = xr_string(FS.get_path(_objects_)->m_Path) + folder.c_str() + EFS.ChangeFileExt(nm, ".object");
@@ -894,7 +894,7 @@ void UIEditLibrary::ImportClick()
 			xr_delete(O);
 
 			const char* p = FS.get_path(_objects_)->m_Path;
-			if (folder.Contains(p))
+			if (xr_string_contains(folder, p))
 			{
 				m_LastSelection = xr_string(folder.c_str() + strlen(p)) + nm;
 				xr_strlwr(m_LastSelection);

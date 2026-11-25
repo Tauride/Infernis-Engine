@@ -139,7 +139,14 @@ bool ESceneObjectTool::ExportBreakableObjects(SExportStreams* F)
 					m_Data->set_name_replace(sn);
 					m_Data->position().set(P->m_RefOffset);
 					m_Data->angle().set(P->m_RefRotate);
-					m_Visual->set_visual(sn, false);
+					{ // Infernis: CSE_Visual::set_visual's steps (it is not exported from xrSE_Factory)
+						string_path VisualName;
+						xr_strcpy(VisualName, sn);
+						if (strext(VisualName))
+							*strext(VisualName) = 0;
+						xr_strlwr(VisualName);
+						m_Visual->visual_name = VisualName;
+					}
 
 					if (s_draw_dbg) 
 					{

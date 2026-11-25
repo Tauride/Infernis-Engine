@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <random> // std::shuffle (IX-Ray: random_shuffle, gone in C++17)
 #include "UIGroupTool.h"
 
 #include <algorithm>
@@ -136,7 +137,7 @@ void UIGroupTool::MultiSelByRefObject(bool clear_prev)
 		}
 		std::sort(sellist.begin(), sellist.end());
 		sellist.erase(std::unique(sellist.begin(), sellist.end()), sellist.end());
-		random_shuffle(sellist.begin(), sellist.end());
+		std::shuffle(sellist.begin(), sellist.end(), std::mt19937{std::random_device{}()});
 		int max_k = iFloor(float(sellist.size()) / 100.f * float(m_selPercent) + 0.5f);
 		int k = 0;
 		for (auto o_it = sellist.begin(); k < max_k; o_it++, k++) {

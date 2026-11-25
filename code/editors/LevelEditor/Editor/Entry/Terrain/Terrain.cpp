@@ -177,7 +177,7 @@ bool CTerrain::OnChangeHMData(PropValue* sender, int& NewValue)
 	CEditableObject* OldObject = TerrainObject;
 	UI->CommandList[TUI::ECommandListID::NextFrame].push_back
 	(
-		[OldObject]()
+		[OldObject]() mutable // Infernis: xr_delete takes the pointer by reference
 		{
 			xr_delete(OldObject);
 		}

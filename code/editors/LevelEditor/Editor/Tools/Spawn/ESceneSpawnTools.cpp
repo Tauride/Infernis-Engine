@@ -105,9 +105,10 @@ ESceneSpawnTool::ESceneSpawnTool():ESceneCustomOTool(OBJCLASS_SPAWNPOINT)
 	m_Flags.zero();
     UIChooseForm::AppendEvents	(smSpawnItem,		"Select Spawn Item",		FillSpawnItems,		0,0,0,0);
     m_Classes.clear			();
-    CInifile::Root& sections = pSettings->sections();
-    for (CInifile::Sect& sect : sections)
+    const CInifile::Root& sections = pSettings->sections();
+    for (CInifile::Sect* SectPtr : sections) // Infernis: the root holds pointers
     {
+    	CInifile::Sect& sect = *SectPtr;
     	const char* val;
     	if (sect.line_exist	("$spawn",&val))
         {

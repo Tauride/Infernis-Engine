@@ -244,6 +244,8 @@ public:
 #ifdef EDITOR_PLAY_IN_EDITOR
 	bool GetPlayInEditorRayPickCall();
 	virtual void SetPlayInEditorRayPickCall(bool Value) override;
+#else
+	bool GetPlayInEditorRayPickCall() { return true; }
 #endif
 
 	void 			OnCreate();

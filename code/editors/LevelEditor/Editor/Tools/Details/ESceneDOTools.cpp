@@ -63,7 +63,7 @@ void EDetailManager::Clear(bool bSpecific)
 void EDetailManager::InvalidateCache()
 {
 	// Initialize 'vis' and 'cache'
-    cache_ReInitialize();
+    cache_Initialize();
 }
 
 extern void bwdithermap	(int levels, int magic[16][16] );
@@ -102,7 +102,7 @@ void EDetailManager::OnRender(int priority, bool strictB2F)
                             c.x			= fromSlotX(x);
                             c.y			= slot->r_ybase()+slot->r_yheight()*0.5f; //(slot->y_max+slot->y_min)*0.5f;
                             float dist = UI->CurrentView().m_Camera.GetPosition().distance_to_sqr(c);
-                         	if ((dist<dist_lim)&&::Render->ViewBase.testSphere_dirty(c,DETAIL_SLOT_SIZE_2)){
+                         	if ((dist<dist_lim)&&::Render->ViewBase.testSphere_dirty(const_cast<Fvector&>(c),DETAIL_SLOT_SIZE_2)){
 								bbox.min.set(c.x-DETAIL_SLOT_SIZE_2, slot->r_ybase(), 					c.z-DETAIL_SLOT_SIZE_2);
                             	bbox.max.set(c.x+DETAIL_SLOT_SIZE_2, slot->r_ybase()+slot->r_yheight(),	c.z+DETAIL_SLOT_SIZE_2);
                             	bbox.shrink	(0.05f);
@@ -688,7 +688,7 @@ bool EDetailManager::Export(const char* path)
     Fvector2Vec			scales;
     boolVec				rotated;
     RStringSet 			textures_set;
-    RStringVec 			textures;
+    SharedStrVec 			textures;
     U32Vec				remap;
     U8Vec remap_object	(objects.size(),u8(-1));
 

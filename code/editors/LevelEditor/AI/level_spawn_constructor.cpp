@@ -7,6 +7,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include <random> // std::shuffle (IX-Ray: random_shuffle, gone in C++17)
 #include "level_spawn_constructor.h"
 #include "game_level_cross_table.h"
 #include "level_graph.h"
@@ -678,7 +679,7 @@ void CLevelSpawnConstructor::generate_artefact_spawn_positions_worker()
 			l_tpaStack.end()
 		);
 
-		random_shuffle(l_tpaStack.begin(), l_tpaStack.end());
+		std::shuffle(l_tpaStack.begin(), l_tpaStack.end(), std::mt19937{std::random_device{}()});
 
 		m_generate_artefact_spawn_positions_worker_mutex.Enter();
 		zone->m_artefact_position_offset = m_level_points.size();

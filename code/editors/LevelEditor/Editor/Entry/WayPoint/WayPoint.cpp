@@ -103,7 +103,7 @@ bool CWayPoint::RayPick(float& distance, const Fvector& S, const Fvector& D)
 bool CWayPoint::FrustumPick(const CFrustum& frustum)
 {
 	Fvector P=m_vPosition; P.y+=WAYPOINT_RADIUS;
-	return (frustum.testSphere_dirty(P,WAYPOINT_RADIUS))?true:false;
+	return (frustum.testSphere_dirty(const_cast<Fvector&>(P),WAYPOINT_RADIUS))?true:false;
 }
 bool CWayPoint::FrustumSelect(int flag, const CFrustum& frustum)
 {

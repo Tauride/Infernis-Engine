@@ -33,12 +33,12 @@ private:
 	void OnPreviewClick();
 
 	void MakeLOD(bool highQuality);
-	void GenerateLOD(const RStringVec& props, bool bHighQuality);
+	void GenerateLOD(const SharedStrVec& props, bool bHighQuality);
 
 	void RefreshSelected();
 	void PickSurface();
 	void PickCallback();
-	void ChangeReference(const RStringVec& items);
+	void ChangeReference(const SharedStrVec& items);
 	bool SelectionToReference(ListItemsVec* props);
 	void ExportOneOBJ(CEditableObject* EO);
 	void ExportObj();

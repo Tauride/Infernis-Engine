@@ -37,6 +37,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	if (const char* Arg = strstr(pCmdLine, "-frames "))
 		FrameLimit = atoi(Arg + 8);
 	ReadCommandLineValue(pCmdLine, "-shot ", ShotPath);
+	// -save: saves every library (the Save command) on the last frame of a timed run, without edits; for checking
+	// that what the editor writes is what it read.
+	const bool SaveAtEnd = FrameLimit > 0 && strstr(pCmdLine, "-save") != nullptr;
 	int FrameCount = 0;
 
 	bool NeedExit = false;
@@ -102,7 +105,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 		}
 		MainForm->Frame();
 		if (FrameLimit > 0 && ++FrameCount >= FrameLimit)
+		{
+			if (SaveAtEnd)
+				Msg("* -save: %s", ExecCommand(COMMAND_SAVE) ? "saved" : "FAILED");
 			NeedExit = true;
+		}
 	}
 	if (EDevice && EDevice->m_ScreenshotPath[0])
 		Msg("! screenshot %s: not saved (no frame was drawn)", EDevice->m_ScreenshotPath);

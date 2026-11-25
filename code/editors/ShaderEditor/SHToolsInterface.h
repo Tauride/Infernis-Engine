@@ -11,8 +11,7 @@ enum EToolsID{
     aeCompiler,
     aeMtl,
     aeMtlPair,
-    // Infernis: no sound environment page yet. IX-Ray's edits its EFX reverb format; Infernis keeps GSC's EAX
-    // senvironment.xr, so the page has to be written for that format.
+    aeSoundEnv,
     aeMaxTools
 };
 

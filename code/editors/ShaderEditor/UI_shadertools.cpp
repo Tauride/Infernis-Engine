@@ -261,6 +261,7 @@ void CShaderTool::Reload()
 #include "SHGameMtlTools.h"
 #include "SHGameMtlPairTools.h"
 #include "SHCompilerTools.h"
+#include "SHSoundEnvTools.h"
 
 void CShaderTool::RegisterTools()
 {
@@ -271,6 +272,7 @@ void CShaderTool::RegisterTools()
     	case aeCompiler:	tools = new CSHCompilerTools	(ISHInit( EToolsID(k),	m_Items,	 m_ItemProps,	m_PreviewProps));	break;
     	case aeMtl:			tools = new CSHGameMtlTools		(ISHInit( EToolsID(k),	m_Items,		m_ItemProps,	m_PreviewProps));	break;
     	case aeMtlPair:		tools = new CSHGameMtlPairTools	(ISHInit( EToolsID(k),	m_Items,m_ItemProps,	m_PreviewProps));	break;
+    	case aeSoundEnv:	tools = new CSHSoundEnvTools	(ISHInit( EToolsID(k),	m_Items,	m_ItemProps,	m_PreviewProps));	break;
         }
         R_ASSERT(tools);
 		m_Tools.insert(std::make_pair(static_cast<EToolsID>(k),tools));

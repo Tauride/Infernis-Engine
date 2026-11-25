@@ -152,6 +152,10 @@ CLocatorAPI::~CLocatorAPI() {
 bool CLocatorAPI::TryLoad(LPCSTR full_path) {
     if (exist(full_path))
         return true;
+    if (xr_strlen(full_path) >= sizeof(string256)) { // Register keeps file names in a string256
+        Msg("! FS: path too long to register (%u characters): %s", xr_strlen(full_path), full_path);
+        return false;
+    }
     struct _stat64 st;
     if (_stat64(full_path, &st) != 0 || (st.st_mode & _S_IFREG) == 0)
         return false;

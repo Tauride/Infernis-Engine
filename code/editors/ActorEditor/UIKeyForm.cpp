@@ -500,8 +500,8 @@ void UIKeyForm::DrawMark(int id)
 {
 	std::memset(m_TempForPlotHistogram.data(), 0, sizeof(float) * m_TempForPlotHistogram.size());
 
-	if (!m_currentEditMotion)
-		return;
+	if (!m_currentEditMotion || id >= (int)m_currentEditMotion->marks.size()) // Infernis: the key bars may show
+		return;                                                                 // with no marks (preferences)
 
 	motion_marks& M = m_currentEditMotion->marks[id];
 
@@ -521,7 +521,9 @@ void UIKeyForm::DrawMark(int id)
 	{
 		const motion_marks::interval& iv = *it;
 		Ivector2	posLT, posRB;
-		for (int i = iv.first * k_len; i < iv.second * k_len; i++)
+		const int first = std::max(0, int(iv.first * k_len)); // Infernis: clamped to the bar
+		const int last = std::min((int)m_TempForPlotHistogram.size(), int(iv.second * k_len));
+		for (int i = first; i < last; i++)
 		{
 			m_TempForPlotHistogram[i] = 1;
 		}

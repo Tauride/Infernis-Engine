@@ -45,9 +45,12 @@ void DragFile(xr_string File)
 			FS.update_path(CurrentGM, "$game_meshes$", "");
 			FS.update_path(CurrentWD, "$fs_root$", CurrentGM);
 
+			// Infernis: the reference is the name under the meshes folder without ".omf" either way (IX-Ray kept the
+			// extension for a file already there), and a copy over an existing file replaces it (IX-Ray threw).
 			if (xr_string_contains(File, CurrentWD))
 			{
-				pObject->m_SMotionRefs.emplace_back(File.substr(strlen(CurrentWD)).c_str());
+				const xr_string Ref = File.substr(strlen(CurrentWD));
+				pObject->m_SMotionRefs.emplace_back(Ref.substr(0, Ref.length() - 4).c_str());
 			}
 			else
 			{
@@ -55,8 +58,15 @@ void DragFile(xr_string File)
 				xr_string FileName = FilePath.xfilename();
 				xr_string OutPath = CurrentWD + FileName;
 
-				// Make temp file
-				std::filesystem::copy_file(File.c_str(), OutPath.c_str());
+				std::error_code CopyError;
+				std::filesystem::copy_file(File.c_str(), OutPath.c_str(), std::filesystem::copy_options::overwrite_existing,
+				                           CopyError);
+				if (CopyError)
+				{
+					ELog.DlgMsg(mtError, "Can't copy '%s' to '%s': %s", File.c_str(), OutPath.c_str(),
+					            CopyError.message().c_str());
+					return;
+				}
 				FS.TryLoad(OutPath.c_str());
 
 				pObject->m_SMotionRefs.emplace_back(FileName.substr(0, FileName.length() - 4).c_str());
@@ -159,6 +169,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	string_path ExportOGF = "", ExportOMF = "";
 	ReadCommandLineValue(pCmdLine, "-export_ogf ", ExportOGF);
 	ReadCommandLineValue(pCmdLine, "-export_omf ", ExportOMF);
+	if ((ExportOGF[0] || ExportOMF[0]) && CheckRun.FrameLimit <= 0)
+		Msg("! -export_ogf and -export_omf run on the last frame: give -frames <n> too");
 
 	bool NeedExit = false;
 	while (!NeedExit && !UI->NeedQuit())

@@ -1074,18 +1074,24 @@ void CParticleTool::PlayCurrent(int idx)
     case emEffectSlot:
         {
             VERIFY(m_CurrentEf);
+            // Infernis: an item whose effect is no longer in the library (deleted while the group still uses it)
+            // has no definition; IX-Ray dereferenced it.
+            bool Found = false;
             for (auto& item : m_EditPG->items)
             {
                 VERIFY(item._effect);
                 auto CastedEffect = (PS::CParticleEffect*)item._effect;
-                if (CastedEffect->m_Def->Name() == m_CurrentEf->m_EffectName)
+                if (CastedEffect->GetDefinition() && CastedEffect->GetDefinition()->m_Name == m_CurrentEf->m_EffectName)
                 {
                     m_LibPED = CastedEffect->GetDefinition();
                     m_EditPE->Compile(m_LibPED);
                     m_EditPE->Play();
+                    Found = true;
                     break;
                 }
             }
+            if (!Found)
+                ELog.Msg(mtError, "Effect '%s' is not in the library.", *m_CurrentEf->m_EffectName);
             break;
         }
     case emGroup:
@@ -1093,8 +1099,15 @@ void CParticleTool::PlayCurrent(int idx)
             if (idx>-1){
                 VERIFY(idx<(int)m_EditPG->items.size());
                 m_LibPED = ((PS::CParticleEffect*)m_EditPG->items[idx]._effect)->GetDefinition();
-                m_EditPE->Compile(m_LibPED);
-                m_EditPE->Play();
+                if (m_LibPED)
+                {
+                    m_EditPE->Compile(m_LibPED);
+                    m_EditPE->Play();
+                }
+                else // Infernis: the effect was deleted while the group still uses it
+                {
+                    ELog.Msg(mtError, "Effect '%s' is not in the library.", *m_LibPGD->m_Effects[idx]->m_EffectName);
+                }
             }else{
                 // play all
                 m_EditPG->Play();

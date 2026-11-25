@@ -52,6 +52,11 @@ void CHW::Reset(HWND hwnd) {
             selectRefresh(DevPP.BackBufferWidth, DevPP.BackBufferHeight, Caps.fTarget);
     else
         DevPP.FullScreen_RefreshRateInHz = D3DPRESENT_RATE_DEFAULT;
+#else
+    // Infernis: the editor resets at the size it asks for (its window's client area in pixels). D3D9 kept the
+    // size the device was created with, and Present stretched that onto the resized window.
+    DevPP.BackBufferWidth = psCurrentVidMode[0];
+    DevPP.BackBufferHeight = psCurrentVidMode[1];
 #endif
 
     while (TRUE) {

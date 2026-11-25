@@ -148,7 +148,7 @@ using SMotionIt = SMotionVec::iterator;
 
 struct ECORE_API SBonePart{
 	shared_str 		alias;
-	RStringVec 		bones;
+	SharedStrVec 		bones;
 };
 
 using BPVec = xr_vector<SBonePart>;

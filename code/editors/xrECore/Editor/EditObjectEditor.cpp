@@ -311,14 +311,16 @@ void CEditableObject::OnDeviceDestroy()
 	DefferedUnloadRP();
 }
 
-static RHIInputElementDesc dwDecl_4W[] =
+// Infernis: a D3D9 vertex declaration (IX-Ray: RHIInputElementDesc), same layout.
+static D3DVERTEXELEMENT9 dwDecl_4W[] =
 {
-	{ "POSITION",  0, ERHI_FORMAT::R32G32B32A32_FLOAT, 0, 0,  ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
-	{ "NORMAL",    0, ERHI_FORMAT::R32G32B32A32_FLOAT, 0, 16, ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
-	{ "TANGENT",   0, ERHI_FORMAT::R32G32B32A32_FLOAT, 0, 32, ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
-	{ "BINORMAL",  0, ERHI_FORMAT::R32G32B32A32_FLOAT, 0, 48, ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
-	{ "TEXCOORD",  0, ERHI_FORMAT::R32G32_FLOAT,       0, 64, ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
-	{ "TEXCOORD",  1, ERHI_FORMAT::B8G8R8A8_UNORM,     0, 72, ERHI_INPUT_CLASSIFICATION::VERTEX_DATA, 0 },
+	{ 0, 0,  D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_POSITION, 0 },
+	{ 0, 16, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_NORMAL,   0 },
+	{ 0, 32, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TANGENT,  0 },
+	{ 0, 48, D3DDECLTYPE_FLOAT4,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_BINORMAL, 0 },
+	{ 0, 64, D3DDECLTYPE_FLOAT2,   D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 0 },
+	{ 0, 72, D3DDECLTYPE_D3DCOLOR, D3DDECLMETHOD_DEFAULT, D3DDECLUSAGE_TEXCOORD, 1 },
+	D3DDECL_END()
 };
 
 void CEditableObject::DefferedLoadRP()
@@ -328,7 +330,7 @@ void CEditableObject::DefferedLoadRP()
 	// skeleton
 	if (IsSkeleton())
 	{
-		vs_SkeletonGeom.create(dwDecl_4W, std::size(dwDecl_4W), RCache.Vertex.Buffer(), RCache.Index.Buffer());
+		vs_SkeletonGeom.create(dwDecl_4W, RCache.Vertex.Buffer(), RCache.Index.Buffer());
 	}
 
 	// создать LOD shader
@@ -495,8 +497,8 @@ void CEditableObject::DeleteBone(CBone* bone)
 		m_Bones.erase	(bit);
 
 	BPIt bpit 			= BonePart(bone);
-	RStringVec::iterator iit 	= (*bpit).bones.begin();
-	RStringVec::iterator iit_e 	= (*bpit).bones.end();
+	SharedStrVec::iterator iit 	= (*bpit).bones.begin();
+	SharedStrVec::iterator iit_e 	= (*bpit).bones.end();
 	for( ;iit!=iit_e; ++iit)
 	{
 		if(*iit==bone->Name())
@@ -523,8 +525,8 @@ BPIt CEditableObject::BonePart(CBone* B)
 	BPIt it_e 		= LastBonePart();
 	for( ;it!=it_e; ++it)
 	{
-		RStringVec::iterator iit 	= (*it).bones.begin();
-		RStringVec::iterator iit_e 	= (*it).bones.end();
+		SharedStrVec::iterator iit 	= (*it).bones.begin();
+		SharedStrVec::iterator iit_e 	= (*it).bones.end();
 		for( ;iit!=iit_e; ++iit)
 		{
 			if(*iit==B->Name())
@@ -537,8 +539,8 @@ BPIt CEditableObject::BonePart(CBone* B)
 void CEditableObject::RenameBone(CBone* bone, const char* new_name)
 {
 	BPIt bpit = BonePart(bone);
-	RStringVec::iterator iit = (*bpit).bones.begin();
-	RStringVec::iterator iit_e = (*bpit).bones.end();
+	SharedStrVec::iterator iit = (*bpit).bones.begin();
+	SharedStrVec::iterator iit_e = (*bpit).bones.end();
 
 	for (; iit != iit_e; ++iit)
 	{

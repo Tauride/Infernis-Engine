@@ -176,7 +176,7 @@ int	CImageManager::CreateMergedTexture	(u32 layer_cnt, SSimpleImageVec& src_imag
 }
 
 
-int CImageManager::CreateMergedTexture(const RStringVec& _names, const char* dest_name, STextureParams::ETFormat fmt, int dest_width, int dest_height, Fvector2Vec& dest_offset, Fvector2Vec& dest_scale, boolVec& dest_rotate, U32Vec& dest_remap)
+int CImageManager::CreateMergedTexture(const SharedStrVec& _names, const char* dest_name, STextureParams::ETFormat fmt, int dest_width, int dest_height, Fvector2Vec& dest_offset, Fvector2Vec& dest_scale, boolVec& dest_rotate, U32Vec& dest_remap)
 {
 	if (_names.empty()) return -1;
 
@@ -184,7 +184,7 @@ int CImageManager::CreateMergedTexture(const RStringVec& _names, const char* des
     dest_scale.clear	();
     dest_rotate.clear	();
 
-    RStringVec src_names= _names;
+    SharedStrVec src_names= _names;
     dest_remap.resize	(src_names.size());
     std::sort			(src_names.begin(),src_names.end());
     src_names.erase		(std::unique(src_names.begin(),src_names.end()),src_names.end());
@@ -197,7 +197,7 @@ int CImageManager::CreateMergedTexture(const RStringVec& _names, const char* des
 
     SSimpleImageVec src_items	(src_names.size());
     SSimpleImageVecIt s_it		= src_items.begin();
-    for (RStringVecIt n_it=src_names.begin(); n_it!=src_names.end(); n_it++,s_it++){
+    for (SharedStrVecIt n_it=src_names.begin(); n_it!=src_names.end(); n_it++,s_it++){
     	s_it->layers.resize(1);
     	string_path		t_name;
 //.        FS.update_path	(t_name,_textures_,**n_it);
@@ -250,7 +250,7 @@ int CImageManager::CreateMergedTexture(const RStringVec& _names, const char* des
     return 1;
 }
 
-int	CImageManager::CreateMergedTexture	(const RStringVec& src_names, const char* dest_name, STextureParams::ETFormat fmt, int dest_width_min, int dest_width_max, int dest_height_min, int dest_height_max, Fvector2Vec& dest_offset, Fvector2Vec& dest_scale, boolVec& dest_rotate, U32Vec& remap)
+int	CImageManager::CreateMergedTexture	(const SharedStrVec& src_names, const char* dest_name, STextureParams::ETFormat fmt, int dest_width_min, int dest_width_max, int dest_height_min, int dest_height_max, Fvector2Vec& dest_offset, Fvector2Vec& dest_scale, boolVec& dest_rotate, U32Vec& remap)
 {
     int res	= 0;
     int w	= dest_width_min;

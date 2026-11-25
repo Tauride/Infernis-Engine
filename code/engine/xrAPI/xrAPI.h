@@ -8,7 +8,8 @@
 #define XRAPI_API __declspec(dllimport)
 #endif
 
-#ifndef _EDITOR
+// One set of declarations for the game and the editors (xrAPI.dll exports these; the old _EDITOR variant
+// declared an engine-exported CRender* Render for GSC's editors).
 class IRender_interface;
 extern XRAPI_API IRender_interface* Render;
 
@@ -24,23 +25,14 @@ extern XRAPI_API xr_token* vid_mode_token;
 class IUIRender;
 extern XRAPI_API IUIRender* UIRender;
 
-#ifndef _EDITOR
 class CGameMtlLibrary;
 extern XRAPI_API CGameMtlLibrary* PGMLib;
-#endif
 
 #ifdef DEBUG
 class IDebugRender;
 extern XRAPI_API IDebugRender* DRender;
 #endif // DEBUG
 
-#else
-class CRender;
-extern ENGINE_API CRender* Render;
-
-class IRenderFactory;
-extern ENGINE_API IRenderFactory* RenderFactory;
-#endif
 /*
 // This class is exported from the xrAPI.dll
 class XRAPI_API CxrAPI {

@@ -53,6 +53,40 @@ inline xr_string UTF8_to_CP1251(const xr_string& Utf8) { return ConvertCodePage(
 } // namespace Platform
 
 using xr_atomic_bool = std::atomic_bool;
+using U8Vec = xr_vector<u8>; // IX-Ray xrCore; Infernis has U16Vec and U32Vec only
+
+// IX-Ray xrCore's critical section and its scope guard (Infernis's xrCore uses std::mutex directly).
+class xrCriticalSection
+{
+public:
+    void Enter() { Mutex.lock(); }
+    void Leave() { Mutex.unlock(); }
+    bool TryEnter() { return Mutex.try_lock(); }
+
+private:
+    std::recursive_mutex Mutex;
+};
+
+class xrCriticalSectionGuard
+{
+public:
+    explicit xrCriticalSectionGuard(xrCriticalSection& Section) : Section(Section) { Section.Enter(); }
+    explicit xrCriticalSectionGuard(xrCriticalSection* Section) : Section(*Section) { this->Section.Enter(); }
+    ~xrCriticalSectionGuard() { Section.Leave(); }
+    xrCriticalSectionGuard(const xrCriticalSectionGuard&) = delete;
+    xrCriticalSectionGuard& operator=(const xrCriticalSectionGuard&) = delete;
+
+private:
+    xrCriticalSection& Section;
+};
+
+// Old xrCore macro, still used by engine headers the editors include (xrEngine/Shader_xrLC.h, GameMtlLib.h) but
+// no longer defined anywhere in Infernis.
+#ifndef DEFINE_VECTOR
+#define DEFINE_VECTOR(type, vec, it) \
+    using vec = xr_vector<type>;     \
+    using it = vec::iterator
+#endif
 
 // IX-Ray's _flags compares with ==; the property grid compares Flags8/16/32 values that way.
 template <class T>

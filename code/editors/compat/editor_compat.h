@@ -1,4 +1,5 @@
 #pragma once
+#include <ppl.h> // xr_task_group
 // Bridges between the IX-Ray editor sources and Infernis's xrCore. Included by every editor library's stdafx.h
 // right after xrCore/xrCore.h. Keep additions here small and documented; anything engine code needs as well
 // belongs in xrCore instead.
@@ -62,6 +63,10 @@ inline xr_string WideToCP1251(const wchar_t* Wide)
 } // namespace Platform
 
 using xr_atomic_bool = std::atomic_bool;
+using xr_atomic_u32 = std::atomic<u32>;
+template <typename T> using xr_shared_ptr = std::shared_ptr<T>;
+using RTokenVecIt = RTokenVec::iterator;
+using xr_task_group = concurrency::task_group; // IX-Ray: the same on Windows (xrCore/_thread_types.h)
 
 // Borland calling-convention marker, empty in IX-Ray xrCore; GSC-era editor declarations still carry it.
 #ifndef _BCL

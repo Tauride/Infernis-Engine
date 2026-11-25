@@ -255,3 +255,24 @@ target_include_directories(ActorEditor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/Actor
                                                ${ENGINE_DIR}/xrEngine) # xrGame/PostprocessAnimator.h: envelope.h
 target_link_libraries(ActorEditor PRIVATE xrECore)
 set_target_properties(ActorEditor PROPERTIES FOLDER editors)
+
+# --- Level Editor (stage 5): scenes (.level), their objects and tools, and the build data for Infernis's compilers
+# (xrLC, xrDO_Light, xrAI). Left out (see README): IX-Ray's play in editor (Engine/XRayEditor, XrGameManager,
+# EDITOR_PLAY_IN_EDITOR: it runs the game DLL inside the editor), with the in-memory AI graphs and spawn it plays
+# (AI/, scene_spawn.cpp; Infernis's xrAI builds those), and its Python plugin. Server entities come from Infernis's xrSE_Factory, built for the editors (xrSE_Factory_Editor).
+file(GLOB_RECURSE LEVEL_EDITOR_SOURCES CONFIGURE_DEPENDS LevelEditor/*.cpp LevelEditor/*.h)
+list(FILTER LEVEL_EDITOR_SOURCES EXCLUDE REGEX
+     "/LevelEditor/(Engine/(XRayEditor|XrGameManager)[^/]*|AI/.*|Plugins/PluginPython[^/]*|Editor/Scene/scene_spawn[.]cpp)$")
+add_executable(LevelEditor WIN32 ${LEVEL_EDITOR_SOURCES} LevelEditor/LevelEditor.rc LevelEditor/LevelEditor.manifest)
+target_precompile_headers(LevelEditor PRIVATE LevelEditor/stdafx.h)
+target_compile_definitions(LevelEditor PRIVATE _LEVEL_EDITOR _WINDOWS)
+target_include_directories(LevelEditor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/LevelEditor ${CMAKE_CURRENT_SOURCE_DIR}
+                                               ${ENGINE_DIR} ${ENGINE_DIR}/xrServerEntities
+                                               ${CMAKE_SOURCE_DIR}/code/3rd-party/openal/include
+                                               # xrECore's own folders, which its headers include by bare name
+                                               ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Editor ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Engine
+                                               ${ENGINE_DIR}/xrEngine ${CMAKE_SOURCE_DIR}/code/utils/ETools
+                                               ${CMAKE_SOURCE_DIR}/code/utils/xrQSlim/src
+                                               ${CMAKE_SOURCE_DIR}/code/utils/common/NvMender2003)
+target_link_libraries(LevelEditor PRIVATE xrECore xrSE_Factory_Editor libogg libvorbis libvorbisfile)
+set_target_properties(LevelEditor PROPERTIES FOLDER editors)

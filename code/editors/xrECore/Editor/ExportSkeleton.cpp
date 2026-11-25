@@ -469,7 +469,12 @@ void CExportSkeleton::SSplit::MakeStripify()
 	// faces
 	{
 		xr_vector<DWORD> remap(m_Faces.size());
-		R_CHK(D3DXOptimizeFaces(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data()));
+		// A failed optimisation only costs vertex cache efficiency: skip it, as IX-Ray did (GSC stopped with R_CHK)
+		if (FAILED(D3DXOptimizeFaces(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data())))
+		{
+			Msg("! %s: the face order is kept (D3DXOptimizeFaces failed)", m_Texture.c_str());
+			return;
+		}
 		SkelFaceVec _source = m_Faces;
 		for (u32 it = 0; it < _source.size(); it++)
 			m_Faces[it] = _source[remap[it]];
@@ -479,7 +484,11 @@ void CExportSkeleton::SSplit::MakeStripify()
 	// plain reordering leaves the vertices as they are.
 	{
 		xr_vector<DWORD> remap(m_Verts.size());
-		R_CHK(D3DXOptimizeVertices(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data()));
+		if (FAILED(D3DXOptimizeVertices(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data())))
+		{
+			Msg("! %s: the vertex order is kept (D3DXOptimizeVertices failed)", m_Texture.c_str());
+			return;
+		}
 		const u32 count = (u32)m_Verts.size();
 		xr_vector<bool> taken(count, false);
 		u32 used = 0;

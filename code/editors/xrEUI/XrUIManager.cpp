@@ -342,8 +342,9 @@ void XrUIManager::Draw()
 		if (!m_DefaultLayoutChecked)
 		{
 			m_DefaultLayoutChecked = true;
-			ImGuiDockNode* Node = ImGui::DockBuilderGetNode(dockMain);
-			if (!Node || (!Node->IsSplitNode() && Node->Windows.Size == 0))
+			// Only when the saved layout has no dock space at all (a first run): an empty one may be the user's choice
+			// of floating windows.
+			if (!ImGui::DockBuilderGetNode(dockMain))
 			{
 				ImGui::DockBuilderRemoveNode(dockMain);
 				ImGui::DockBuilderAddNode(dockMain, ImGuiDockNodeFlags_DockSpace);

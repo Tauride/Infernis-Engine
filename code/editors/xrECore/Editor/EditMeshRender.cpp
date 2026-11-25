@@ -84,17 +84,18 @@ void CEditableMesh::GenerateRenderBuffers()
 
 		VERIFY2(buffer_size, "Empty buffer size");
 
-		IRHIBuffer* pVB = nullptr;
-		R_ASSERT(RHIUtils::CreateVertexBuffer(&pVB, nullptr, buffer_size));
+		// Infernis: a D3D9 vertex buffer (IX-Ray: IRHIBuffer through RHIUtils)
+		ID3DVertexBuffer* pVB = nullptr;
+		R_CHK(HW.pDevice->CreateVertexBuffer(buffer_size, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &pVB, nullptr));
 
 		rb.pGeom.create(VEditorVertexDecl, pVB, nullptr);
 
-		RHIMappedSubresource mapped{};
-		if (pVB->Map(ERHI_BUFFER_MAP::WRITE, 0, &mapped))
+		void* mapped = nullptr;
+		if (SUCCEEDED(pVB->Lock(0, 0, &mapped, 0)))
 		{
-			u8* bytes = static_cast<u8*>(mapped.pData);
+			u8* bytes = static_cast<u8*>(mapped);
 			FillRenderBuffer(face_lst, 0, face_count, S, bytes);
-			pVB->Unmap();
+			pVB->Unlock();
 		}
 
 		m_RenderBuffers->insert(std::make_pair(S, rb_vec));

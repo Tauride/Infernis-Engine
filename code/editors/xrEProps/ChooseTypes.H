@@ -12,7 +12,7 @@ struct SChooseItem
     SChooseItem	(const char* nm, const char* ht):name(nm),hint(ht){}
 };
 
-struct IDirect3DBaseTexture9; // Infernis: the editor preview renders with DX9 (IX-Ray: IRHISurface)
+class IRHISurface; // Infernis: compat/editor_rhi.h, on D3D9
 
 using ChooseItemVec = xr_vector<SChooseItem>;
 using ChooseItemVecIt = ChooseItemVec::iterator;
@@ -23,7 +23,7 @@ typedef xr_delegate<void(SChooseItem*, PropItemVec&)>	TOnChooseSelectItem;
 typedef xr_delegate<void(const char*, HDC, const Irect&)> 	TOnDrawThumbnail;
 typedef xr_delegate<void()>						   	TOnChooseClose;
 
-using TGetTexture = xr_delegate<void(const char*, IDirect3DBaseTexture9*&)>;
+using TGetTexture = xr_delegate<void(const char*, IRHISurface*&)>;
 
 typedef void (*TOnChooseFillEvents)();
 

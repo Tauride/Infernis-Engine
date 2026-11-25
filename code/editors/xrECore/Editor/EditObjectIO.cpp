@@ -170,7 +170,7 @@ void CEditableObject::Save(IWriter& F)
             F.w_stringZ	(bp_it->alias);
             F.w_u32		(bp_it->bones.size());
 
-            for (RStringVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); ++s_it)
+            for (SharedStrVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); ++s_it)
 	            F.w_stringZ(s_it->c_str());
 
         }
@@ -384,7 +384,7 @@ bool CEditableObject::Load(IReader& F)
                 for (BPIt bp_it=m_BoneParts.begin(); bp_it!=m_BoneParts.end(); bp_it++){
                     F.r_stringZ	(buf); bp_it->alias=buf;
                     bp_it->bones.resize(F.r_u32());
-                    for (RStringVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); s_it++){
+                    for (SharedStrVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); s_it++){
                         int idx		= F.r_u32();
                         if ((idx>=0)&&(idx<(int)m_Bones.size())){
                             *s_it	= m_Bones[idx]->Name();
@@ -404,7 +404,7 @@ bool CEditableObject::Load(IReader& F)
                 for (BPIt bp_it=m_BoneParts.begin(); bp_it!=m_BoneParts.end(); bp_it++){
                     F.r_stringZ	(buf); bp_it->alias=buf;
                     bp_it->bones.resize(F.r_u32());
-                    for (RStringVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); s_it++)
+                    for (SharedStrVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); s_it++)
                         F.r_stringZ(*s_it);
                 }
                 if (!m_BoneParts.empty()&&!VerifyBoneParts())

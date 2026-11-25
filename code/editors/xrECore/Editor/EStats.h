@@ -49,7 +49,7 @@ public:
 	CStatTimer	TEST2;				// debug counter
 	CStatTimer	TEST3;				// debug counter
 
-	virtual void	Show		() override;
+	void	Show		(); // Infernis: CStats::Show is not virtual
 
 	CEStats	();
 	virtual	~CEStats	();

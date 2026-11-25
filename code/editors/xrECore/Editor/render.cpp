@@ -757,7 +757,7 @@ static HRESULT create_shader(const char* const pTarget, DWORD const* buffer, u32
 	if (pTarget[0] == 'p')
 	{
 		SPS* sps_result = (SPS*)result;
-		_result = RDevice->CreatePixelShader(buffer, &sps_result->ps);
+		_result = HW.pDevice->CreatePixelShader(buffer, &sps_result->ps);
 		if (!SUCCEEDED(_result)) {
 			Msg("! PS: %s", file_name);
 			Msg("! CreatePixelShader hr == 0x%08x", _result);
@@ -765,7 +765,7 @@ static HRESULT create_shader(const char* const pTarget, DWORD const* buffer, u32
 		}
 
 		LPCVOID			data = nullptr;
-		_result = D3D9FindShaderComment(buffer, MAKEFOURCC('C', 'T', 'A', 'B'), &data, nullptr);
+		_result = D3DXFindShaderComment(buffer, MAKEFOURCC('C', 'T', 'A', 'B'), &data, nullptr);
 		if (SUCCEEDED(_result) && data)
 		{
 			LPD3DXSHADER_CONSTANTTABLE	pConstants = LPD3DXSHADER_CONSTANTTABLE(data);
@@ -780,7 +780,7 @@ static HRESULT create_shader(const char* const pTarget, DWORD const* buffer, u32
 	else
 	{
 		SVS* svs_result = (SVS*)result;
-		_result = RDevice->CreateVertexShader(buffer, &svs_result->vs);
+		_result = HW.pDevice->CreateVertexShader(buffer, &svs_result->vs);
 		if (!SUCCEEDED(_result)) {
 			Msg("! VS: %s", file_name);
 			Msg("! CreatePixelShader hr == 0x%08x", _result);
@@ -788,7 +788,7 @@ static HRESULT create_shader(const char* const pTarget, DWORD const* buffer, u32
 		}
 
 		LPCVOID			data = nullptr;
-		_result = D3D9FindShaderComment(buffer, MAKEFOURCC('C', 'T', 'A', 'B'), &data, nullptr);
+		_result = D3DXFindShaderComment(buffer, MAKEFOURCC('C', 'T', 'A', 'B'), &data, nullptr);
 		if (SUCCEEDED(_result) && data)
 		{
 			LPD3DXSHADER_CONSTANTTABLE	pConstants = LPD3DXSHADER_CONSTANTTABLE(data);
@@ -889,7 +889,7 @@ HRESULT	CRender::shader_compile(
 	{
 		string_path file;
 		xr_strcpy(file, "shaders_cache\\");
-		xr_strcat(file, _VER);
+		xr_strcat(file, "infernis"); // Infernis: IX-Ray puts its version (_VER) here
 		xr_strcat(file, "\\editor\\");
 		xr_strcat(file, name);
 		xr_strcat(file, ".");
@@ -923,33 +923,38 @@ HRESULT	CRender::shader_compile(
 
 	if (FAILED(_result))
 	{
+		// Infernis: D3DX compiles the DX9 shaders, as in Infernis's R1 (IX-Ray: GRHI->BuildShader)
 		includer Includer;
-		xr_vector<u8> pShaderBuf;
-		xr_vector<u8> pErrorBuf;
+		LPD3DXBUFFER pShaderBuf = nullptr;
+		LPD3DXBUFFER pErrorBuf = nullptr;
 
-		_result = GRHI->BuildShader("editor", pSrcData, SrcDataLen, "", defines, &Includer, pFunctionName, pTarget, Flags, 0, pShaderBuf, pErrorBuf);
+		_result = D3DXCompileShader((LPCSTR)pSrcData, SrcDataLen, defines, &Includer, pFunctionName, pTarget, Flags, &pShaderBuf, &pErrorBuf, nullptr);
 
 		if (SUCCEEDED(_result))
 		{
+			const void* ShaderData = pShaderBuf->GetBufferPointer();
+			const u32 ShaderSize = pShaderBuf->GetBufferSize();
 			if (ps_r__common_flags.test(RFLAG_USE_CACHE))
 			{
 				IWriter* file = FS.w_open(file_name);
-				u32 const crc = crc32(pShaderBuf.data(), pShaderBuf.size());
+				u32 const crc = crc32(ShaderData, ShaderSize);
 				file->w_u32(crc);
 				file->w_u32(RealCodeCRC);
-				file->w(pShaderBuf.data(), pShaderBuf.size());
+				file->w(ShaderData, ShaderSize);
 				FS.w_close(file);
 			}
-			_result = create_shader(pTarget, (DWORD*)pShaderBuf.data(), pShaderBuf.size(), file_name, result);
+			_result = create_shader(pTarget, (DWORD*)ShaderData, ShaderSize, file_name, result);
 		}
 		else
 		{
 			Msg("! %s", file_name);
-			if (!pErrorBuf.empty())
-				Msg("! error: %s", (const char*)pErrorBuf.data());
+			if (pErrorBuf)
+				Msg("! error: %s", (const char*)pErrorBuf->GetBufferPointer());
 			else
 				Msg("Can't compile shader hr=0x%08x", _result);
 		}
+		_RELEASE(pShaderBuf);
+		_RELEASE(pErrorBuf);
 	}
 
 	return _result;

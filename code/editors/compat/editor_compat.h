@@ -54,6 +54,24 @@ inline xr_string UTF8_to_CP1251(const xr_string& Utf8) { return ConvertCodePage(
 
 using xr_atomic_bool = std::atomic_bool;
 using U8Vec = xr_vector<u8>; // IX-Ray xrCore; Infernis has U16Vec and U32Vec only
+using Fvector2Vec = xr_vector<Fvector2>; // IX-Ray xrCore
+// IX-Ray xrCore hashes shared_str for unordered containers. Equal shared_str share one interned value, so the
+// pointer is a valid hash (operator== compares the same pointer).
+template <>
+struct std::hash<shared_str>
+{
+    size_t operator()(const shared_str& Value) const noexcept { return std::hash<const void*>()(Value._get()); }
+};
+
+// More IX-Ray xrCore container aliases the editor code uses.
+using boolVec = xr_vector<bool>;
+using boolIt = boolVec::iterator;
+using U8It = U8Vec::iterator;
+using U16It = U16Vec::iterator;
+using U32It = U32Vec::iterator;
+using IntIt = IntVec::iterator;
+using FvectorIt = FvectorVec::iterator;
+using SStringVecIt = SStringVec::iterator;
 
 // IX-Ray xrCore's critical section and its scope guard (Infernis's xrCore uses std::mutex directly).
 class xrCriticalSection
@@ -175,3 +193,6 @@ inline bool IsUTF8(const char* String)
 #ifndef _game_textures_
 #define _game_textures_ "$game_textures$"
 #endif
+
+// IX-Ray RHI subset on Direct3D 9 (textures, cull mode, clears) shared by all editor modules.
+#include "editor_rhi.h"

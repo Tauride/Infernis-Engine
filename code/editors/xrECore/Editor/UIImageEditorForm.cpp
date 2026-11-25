@@ -307,10 +307,10 @@ void UIImageEditorForm::OnCubeMapBtnClick(ButtonValue* value, bool& bModif, bool
 	switch (B->btn_num) {
 	case 0: 
 	{
-		RStringVec items;
+		SharedStrVec items;
 		if (0 != m_ItemList->GetSelected(items))
 		{
-			for (RStringVecIt it = items.begin(); it != items.end(); it++)
+			for (SharedStrVecIt it = items.begin(); it != items.end(); it++)
 			{
 				xr_string new_name = xr_string(it->c_str()) + "#small";
 				ImageLib.CreateSmallerCubeMap(it->c_str(), new_name.c_str());
@@ -419,7 +419,7 @@ void UIImageEditorForm::UpdateLib()
 void UIImageEditorForm::UpdateSelected() 
 {
 	texture_map.clear();
-	RStringVec items; 
+	SharedStrVec items; 
 	string_path fn{};
 
 	if(m_ItemList->GetSelected(items)) 

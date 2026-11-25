@@ -97,8 +97,9 @@ u32 m_ColorSafeRect = 0xffB040B0;
 
 void SPrimitiveBuffer::CreateFromData(ERHI_PRIMITIVE_TOPOLOGY _pt, u32 _p_cnt, u32 FVF, LPVOID vertices, u32 _v_cnt, u16* indices, u32 _i_cnt)
 {
-    IRHIBuffer* pVB = nullptr;
-    IRHIBuffer* pIB = nullptr;
+    // Infernis: D3D9 buffers created on the device (IX-Ray: IRHIBuffer through RHIUtils)
+    ID3DVertexBuffer* pVB = nullptr;
+    ID3DIndexBuffer* pIB = nullptr;
 
     p_cnt = _p_cnt;
     p_type = _pt;
@@ -111,11 +112,11 @@ void SPrimitiveBuffer::CreateFromData(ERHI_PRIMITIVE_TOPOLOGY _pt, u32 _p_cnt, u
     for (u32 k = 0; k < v_cnt; ++k)
         verts[k].set(((Fvector*)vertices)[k], 0xFFFFFFFF);
 
-    R_ASSERT(RHIUtils::CreateVertexBuffer(&pVB, verts.data(), v_cnt * stride));
+    R_CHK(HW.pDevice->CreateVertexBuffer(v_cnt * stride, D3DUSAGE_WRITEONLY, 0, D3DPOOL_MANAGED, &pVB, nullptr));
 
     if (i_cnt)
     {
-        R_ASSERT(RHIUtils::CreateIndexBuffer(&pIB, indices, i_cnt * sizeof(u16)));
+        R_CHK(HW.pDevice->CreateIndexBuffer(i_cnt * sizeof(u16), D3DUSAGE_WRITEONLY, D3DFMT_INDEX16, D3DPOOL_MANAGED, &pIB, nullptr));
         OnRender.bind(this, &SPrimitiveBuffer::RenderDIP);
     }
     else
@@ -123,19 +124,19 @@ void SPrimitiveBuffer::CreateFromData(ERHI_PRIMITIVE_TOPOLOGY _pt, u32 _p_cnt, u
         OnRender.bind(this, &SPrimitiveBuffer::RenderDP);
     }
 
-    RHIMappedSubresource mapped = {};
-    if (pVB->Map(ERHI_BUFFER_MAP::WRITE, 0, &mapped))
+    void* mapped = nullptr;
+    if (SUCCEEDED(pVB->Lock(0, 0, &mapped, 0)))
     {
-        Memory.mem_copy(mapped.pData, verts.data(), v_cnt * stride);
-        pVB->Unmap();
+        Memory.mem_copy(mapped, verts.data(), v_cnt * stride);
+        pVB->Unlock();
     }
 
     if (pIB && i_cnt > 0)
     {
-        if (pIB->Map(ERHI_BUFFER_MAP::WRITE, 0, &mapped))
+        if (SUCCEEDED(pIB->Lock(0, 0, &mapped, 0)))
         {
-            Memory.mem_copy(mapped.pData, indices, i_cnt * sizeof(u16));
-            pIB->Unmap();
+            Memory.mem_copy(mapped, indices, i_cnt * sizeof(u16));
+            pIB->Unlock();
         }
     }
 

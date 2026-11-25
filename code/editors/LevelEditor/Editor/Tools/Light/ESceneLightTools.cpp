@@ -172,9 +172,9 @@ void ESceneLightTool::FillProp(const char* pref, PropItemVec& items)
 	RTokenVecIt		_E 	= lcontrols.end();
 	for (;_I!=_E; _I++){
 		if (_I->equal(LCONTROL_HEMI)||_I->equal(LCONTROL_STATIC)||_I->equal(LCONTROL_SUN)){
-			PHelper().CreateCaption(items,	PrepareKey(pref,"Controls\\System",*_I->name),"");
+			PHelper().CreateCaption(items,	PrepareKey(pref,"Controls\\System",_I->name.c_str()),"");
 		}else{
-			B=PHelper().CreateButton(items,	PrepareKey(pref,"Controls\\User",*_I->name),"Rename,Remove",ButtonValue::flFirstOnly);
+			B=PHelper().CreateButton(items,	PrepareKey(pref,"Controls\\User",_I->name.c_str()),"Rename,Remove",ButtonValue::flFirstOnly);
 			B->OnBtnClickEvent.bind		(this,&ESceneLightTool::OnControlRenameRemoveClick);
 		}
 	}                              

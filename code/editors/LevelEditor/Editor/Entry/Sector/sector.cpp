@@ -169,7 +169,7 @@ void CSector::Move( Fvector& amount ){
 
 bool CSector::FrustumPick(const CFrustum& frustum)
 {
-	if (!frustum.testSphere_dirty(m_SectorCenter,m_SectorRadius)) return false;
+	if (!frustum.testSphere_dirty(const_cast<Fvector&>(m_SectorCenter),m_SectorRadius)) return false;
 	for (SItemIt s_it=sector_items.begin();s_it!=sector_items.end();s_it++)
 		if (s_it->mesh->FrustumPick(frustum,s_it->object->_Transform())) return true;
 	return false;

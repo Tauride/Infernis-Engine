@@ -83,7 +83,7 @@ static bool ParseNameIndex(const char* Str, u32& Index)
 		}
 
 		Value = Value * 10 + u64(*Str - '0');
-		if (Value >= u64(type_max(int)))
+		if (Value >= u64(type_max<int>))
 		{
 			return false;
 		}

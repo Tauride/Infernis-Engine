@@ -136,7 +136,7 @@
 #include "Editor/Tools/WayPoint/ESceneWayControls.h"
 #include "Editor/Tools/Glow/ESceneGlowTools.h"
 
-#include "Editor/Scene/CFormBuilder.h"
+// Infernis: Editor/Scene/CFormBuilder (play in editor) is not built
 #include "Editor/Scene/scene.h"
 #include "Editor/Scene/SceneGraph.h"
 #include "Editor/Scene/SceneSummaryInfo.h"
@@ -168,3 +168,5 @@
 #include "UI/Tools/UISpawnTool.h"
 #include "UI/Tools/UIToolCustom.h"
 #include "UI/Tools/UIWayTool.h"
+#include "xrECore/Editor/EditorCommandLine.h" // Infernis: the editors' check options
+

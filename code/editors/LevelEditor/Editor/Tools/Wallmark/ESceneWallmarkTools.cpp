@@ -230,7 +230,7 @@ void ESceneWallmarkTool::OnRender(int priority, bool strictB2F)
             for (WMVecIt w_it=slot->items.begin(); w_it!=slot->items.end(); w_it++){
                 wallmark* W			= *w_it;
                 VERIFY3				(W->verts.size()<=MAX_R_VERTEX,"ERROR: Invalid wallmark.",*slot->tx_name);
-                if (RImplementation.ViewBase.testSphere_dirty(W->bounds.P,W->bounds.R)){
+                if (RImplementation.ViewBase.testSphere_dirty(const_cast<Fvector&>(W->bounds.P),W->bounds.R)){
                     float dst		= EDevice->vCameraPosition.distance_to_sqr(W->bounds.P);
                     float ssa		= W->bounds.R * W->bounds.R / dst;
                     if (ssa>=ssaCLIP){
@@ -244,7 +244,7 @@ void ESceneWallmarkTool::OnRender(int priority, bool strictB2F)
                                 RCache.Vertex.Unlock   	(w_count,hGeom->vb_stride);
                                 RCache.set_Shader		(slot->shader);
                                 RCache.set_Geometry		(hGeom);
-                                RCache.Render			(ERHI_PRIMITIVE_TOPOLOGY::TRIANGLE_LIST,w_offset,w_count/3);
+                                RCache.Render			(D3DPT_TRIANGLELIST,w_offset,w_count/3);
                                 // Restart (re-lock/re-calc)
                                 w_verts					= (FVF::LIT*)	RCache.Vertex.Lock	(MAX_R_VERTEX,hGeom->vb_stride,w_offset);
                                 w_start					= w_verts;
@@ -267,7 +267,7 @@ void ESceneWallmarkTool::OnRender(int priority, bool strictB2F)
             {
 				RCache.set_Shader	(slot->shader);
                 RCache.set_Geometry	(hGeom);
-                RCache.Render		(ERHI_PRIMITIVE_TOPOLOGY::TRIANGLE_LIST,w_offset,w_count/3);
+                RCache.Render		(D3DPT_TRIANGLELIST,w_offset,w_count/3);
             }
             // Projection
             EDevice->mProject._43		= _43;
@@ -277,7 +277,7 @@ void ESceneWallmarkTool::OnRender(int priority, bool strictB2F)
             for (WMVecIt w_it=slot->items.begin(); w_it!=slot->items.end(); w_it++){
                 wallmark* W		= *w_it;
                 if (W->flags.is(wallmark::flSelected))
-                    if (RImplementation.ViewBase.testSphere_dirty(W->bounds.P,W->bounds.R))
+                    if (RImplementation.ViewBase.testSphere_dirty(const_cast<Fvector&>(W->bounds.P),W->bounds.R))
                         DU_impl.DrawSelectionBoxB(W->bbox);
             }
         }

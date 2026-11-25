@@ -11,7 +11,9 @@ class CScenePhysics
  	CScenePhysics			() : m_object_space(0), b_update_level_collision(false)	{}
 	~CScenePhysics			() ;
  public:
+#ifdef EDITOR_PLAY_IN_EDITOR
      void	GenerateCForm(CObjectSpace*To, CDB::build_callback cb);
+#endif
     void	CreateWorld			();
     void 	DestroyWorld		();
     void	CreateShellsSelected();

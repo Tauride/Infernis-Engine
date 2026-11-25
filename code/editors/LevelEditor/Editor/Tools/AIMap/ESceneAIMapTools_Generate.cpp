@@ -1,6 +1,6 @@
 #include "stdafx.h"
 #include "../Terrain/ESceneTerrainTools.h"
-#include"../xrCore/Collision/cl_intersect.h"
+#include "xrEngine/cl_intersect.h"
 static SPickQuery	PQ;
 
 IC void SnapXZ	(Fvector&	V, float ps)
@@ -656,7 +656,6 @@ bool ESceneAIMapTool::GenerateMap(bool bFromSelectedOnly)
 
 						// collect tris
 						const IntVec& face_lst = sp_it->second;
-						CL.reserve(face_lst.size());
 						for (IntVec::const_iterator it = face_lst.begin(); it != face_lst.end(); it++)
 						{
 							E->GetFaceWorld((*o_it)->_Transform(), *m_it, *it, verts);

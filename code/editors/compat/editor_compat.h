@@ -1,5 +1,6 @@
 #pragma once
 #include <ppl.h> // xr_task_group
+#include <optional>
 // Bridges between the IX-Ray editor sources and Infernis's xrCore. Included by every editor library's stdafx.h
 // right after xrCore/xrCore.h. Keep additions here small and documented; anything engine code needs as well
 // belongs in xrCore instead.
@@ -51,6 +52,7 @@ inline xr_string ConvertCodePage(const xr_string& Text, UINT From, UINT To)
 
 inline xr_string ANSI_TO_UTF8(const xr_string& Ansi) { return ConvertCodePage(Ansi, CP_ACP, CP_UTF8); }
 inline xr_string UTF8_to_CP1251(const xr_string& Utf8) { return ConvertCodePage(Utf8, CP_UTF8, 1251); }
+inline void Unlink(const char* Path) { DeleteFileA(Path); } // IX-Ray Platform::Unlink
 inline xr_string WideToCP1251(const wchar_t* Wide)
 {
     const int Size = WideCharToMultiByte(1251, 0, Wide, -1, nullptr, 0, nullptr, nullptr);
@@ -64,17 +66,58 @@ inline xr_string WideToCP1251(const wchar_t* Wide)
 
 using xr_atomic_bool = std::atomic_bool;
 using xr_atomic_u32 = std::atomic<u32>;
+using xr_atomic_float = std::atomic<float>;
 template <typename T> using xr_shared_ptr = std::shared_ptr<T>;
 using RTokenVecIt = RTokenVec::iterator;
 using xr_task_group = concurrency::task_group; // IX-Ray: the same on Windows (xrCore/_thread_types.h)
+template <typename K, typename H = std::hash<K>> using xr_hash_set = std::unordered_set<K, H>; // IX-Ray xrCore
+template <typename T, typename... Args> xr_shared_ptr<T> xr_make_shared(Args&&... A) { return std::make_shared<T>(std::forward<Args>(A)...); }
+// IX-Ray xrCore: runs Fn on every element, in parallel
+template <typename Container, typename Fn> void xr_parallel_foreach(Container& C, Fn&& F)
+{
+    concurrency::parallel_for_each(std::begin(C), std::end(C), std::forward<Fn>(F));
+}
+template <typename I, typename Fn> void xr_parallel_for(I Begin, I End, Fn&& F) // IX-Ray: F(i) for i in [Begin, End)
+{
+    concurrency::parallel_for(Begin, End, std::forward<Fn>(F));
+}
+template <typename It, typename Fn> void xr_parallel_foreach(It Begin, It End, Fn&& F)
+{
+    concurrency::parallel_for_each(Begin, End, std::forward<Fn>(F));
+}
+// IX-Ray xrCore: starts a detached thread (Name and StackSize are for the debugger; Windows picks the stack)
+inline void thread_spawn(void (*Entry)(void*), const char* Name, unsigned StackSize, void* Arg)
+{
+    std::thread([Entry, Arg]() { Entry(Arg); }).detach();
+}
+// IX-Ray xrCore: "a2" before "a10" (runs of digits compare by value), otherwise case-insensitive
+inline bool NaturalCompare(const char* A, const char* B)
+{
+    while (*A && *B)
+    {
+        if (isdigit((unsigned char)*A) && isdigit((unsigned char)*B))
+        {
+            char* EndA = nullptr; char* EndB = nullptr;
+            const unsigned long long NA = strtoull(A, &EndA, 10), NB = strtoull(B, &EndB, 10);
+            if (NA != NB)
+                return NA < NB;
+            A = EndA; B = EndB;
+            continue;
+        }
+        const int CA = tolower((unsigned char)*A), CB = tolower((unsigned char)*B);
+        if (CA != CB)
+            return CA < CB;
+        ++A; ++B;
+    }
+    return *A == 0 && *B != 0;
+}
 using LPCSTRVec = xr_vector<LPCSTR>; // IX-Ray xrCore containers
 using LPCSTRIt = LPCSTRVec::iterator;
 using LPU32Vec = xr_vector<u32*>;
 using LPU32It = LPU32Vec::iterator;
-inline LPCSTRIt FindLPCSTR(LPCSTRVec& Vec, LPCSTR Key)
-{
-    return std::find_if(Vec.begin(), Vec.end(), [Key](LPCSTR Item) { return 0 == xr_strcmp(Item, Key); });
-}
+template <typename T> using xr_optional = std::optional<T>; // IX-Ray xrCore
+using xr_stack_string256 = xr_string;                      // IX-Ray xrCore (a fixed buffer there)
+#define IVERIFY(expr) R_ASSERT(expr)                       // IX-Ray xrCore
 
 // Borland calling-convention marker, empty in IX-Ray xrCore; GSC-era editor declarations still carry it.
 #ifndef _BCL
@@ -225,6 +268,14 @@ bool operator==(const _flags<T>& Left, const _flags<T>& Right)
 // SharedStrVec.
 using SharedStrVec = xr_vector<shared_str>;
 using SharedStrVecIt = SharedStrVec::iterator;
+inline void _SequenceToList(SharedStrVec& List, LPCSTR In, char Separator = ',') // IX-Ray's RStringVec form
+{
+    SStringVec Items;
+    _SequenceToList(Items, In, Separator);
+    List.clear();
+    for (const xr_string& Item : Items)
+        List.push_back(Item.c_str());
+}
 
 inline shared_str _ListToSequence(const SharedStrVec& List)
 {

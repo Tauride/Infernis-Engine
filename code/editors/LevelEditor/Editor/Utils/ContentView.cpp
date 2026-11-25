@@ -1,8 +1,9 @@
 #include "stdafx.h"
+#include <shellapi.h> // ShellExecuteA
 #include "ContentView.h"
 
 // Infernis: no dialog editor yet (Nodes/UIDialogsView uses IX-Ray's tinyxml2-based XML API)
-#include "../../../../utils/xrDXT/xrDXT.h"
+#include "xrECore/Editor/DXTUtils.h" // Infernis: xrECore's DXTUtils (IX-Ray: utils/xrDXT)
 #include "xrECore/Editor/ParticleEffectActions.h"
 
 #include "Viewports/ViewportMesh.h"
@@ -130,7 +131,7 @@ void CContentView::DrawFolderNode(FolderNode& Node)
 		CurrentDir = Node.FullPath;
 		ClearFileList();
 
-		IsSpawnElement = Node.FullPath.StartWith("spawn elements");
+		IsSpawnElement = (Node.FullPath.rfind("spawn elements", 0) == 0);
 		if (IsSpawnElement)
 		{
 			xr_string OutPath;
@@ -238,7 +239,7 @@ void CContentView::DrawLayout()
 
 	DrawFormContext();
 
-	if ((!RootDir.Contains(CurrentDir) && !IsSpawnElement) || IsFindResult)
+	if ((!xr_string_contains(RootDir, CurrentDir) && !IsSpawnElement) || IsFindResult)
 	{
 		DrawOtherDir(HorBtnIter, IterCount, NextDir);
 	}
@@ -407,7 +408,7 @@ void CContentView::DrawHeader()
 
 		auto DrawByPathLambda = [&](const xr_string& ViewDir)
 		{
-			auto Pathes = ViewDir.Split('\\');
+			auto Pathes = xr_string_split(ViewDir, '\\');
 
 			u16 Iter = 0;
 			for (const xr_string& Path : Pathes)
@@ -577,7 +578,7 @@ void CContentView::FindFile()
 					continue;
 
 				const xr_string& FName = file.path().filename().string().data();
-				if (FName.Contains(ParseStr) && CheckFile(FName))
+				if (xr_string_contains(FName, ParseStr) && CheckFile(FName))
 				{
 					Files.push_back({ file, false });
 				}
@@ -605,7 +606,7 @@ void CContentView::FindFile()
 					continue;
 
 				const xr_string& FName = xr_path(file.path()).xfilename();
-				if (FName.Contains(ParseStr) && CheckFile(FName))
+				if (xr_string_contains(FName, ParseStr) && CheckFile(FName))
 				{
 					Files.push_back({ file, false });
 				}
@@ -637,7 +638,7 @@ void CContentView::ScanConfigsRecursive(xr_map<xr_string, CContentView::FileOptD
 			ScanConfigsRecursive(RecFiles, ParseStr);
 		}
 
-		if (Name.Contains(ParseStr) && !DirOpt.IsDir)
+		if (xr_string_contains(Name, ParseStr) && !DirOpt.IsDir)
 		{
 			Files.push_back(DirOpt);
 		}
@@ -912,7 +913,7 @@ void CContentView::DrawOtherDir(size_t& HorBtnIter, const size_t IterCount, xr_s
 	if (!IsFindResult && DrawItem({ "..", true }, HorBtnIter, IterCount))
 	{
 		NextDir = FilePath.parent_path().string().data();
-		if (FilePath.parent_path().is_absolute() && !NextDir.Contains(RootDir) || NextDir.empty())
+		if (FilePath.parent_path().is_absolute() && !xr_string_contains(NextDir, RootDir) || NextDir.empty())
 		{
 			NextDir = RootDir;
 		}
@@ -1098,8 +1099,8 @@ void CContentView::Init()
 	LoadExtDest();
 
 	xr_string Files = pSettings->r_string("dialogs", "files");
-	Files.RemoveWhitespaces();
-	GameDialogs = Files.Split(',');
+	xr_string_remove_whitespaces(Files);
+	GameDialogs = xr_string_split(Files, ',');
 }
 
 void CContentView::LoadExtDest()
@@ -1190,7 +1191,7 @@ bool CContentView::BeginDragDropAction(xr_path& FilePath, xr_string& FileName, c
 		WeCanDrag = Extension == ".object" || Extension == ".group" || Extension == ".r16" || Extension == ".ise" || Extension == ".dti" || Extension == ".rai";
 		
 		bool IsGameLogicFile = false;
-		if (FilePath.xstring().Contains("scripts\\") && Extension == ".ltx")
+		if (xr_string_contains(FilePath.xstring(), "scripts\\") && Extension == ".ltx")
 		{
 			WeCanDrag = true;
 			IsGameLogicFile = true;
@@ -1263,7 +1264,7 @@ bool CContentView::BeginDragDropAction(xr_path& FilePath, xr_string& FileName, c
 	xr_string LabelText = FilePath.has_extension() ? FileName.substr(0, FileName.length() - FilePath.extension().string().length()).c_str() : FileName.c_str();
 	if (SelectedObjects.size() == 1) 
 	{
-		ImGui::ImageButton(FilePath.xfilename().c_str(), IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_surface_noref() : nullptr, BtnSize);
+		ImGui::ImageButton(FilePath.xfilename().c_str(), IconPtr->Icon->get_surface_noref() ? IconPtr->Icon->get_surface_noref() : nullptr, BtnSize);
 		ImGui::TextUnformatted(LabelText.data());
 	}
 	else 
@@ -1428,7 +1429,7 @@ bool CContentView::DrawItemN(const FileOptData& InitFileName, size_t& HorBtnIter
 				IconColor.w = 0.3;
 			}
 
-			ImGui::Image(IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_surface_noref()  : nullptr, ImageSize, ImVec2(0, 0), ImVec2(1, 1), IconColor, ImVec4(0,0,0,0));
+			ImGui::Image(IconPtr->Icon->get_surface_noref() ? IconPtr->Icon->get_surface_noref()  : nullptr, ImageSize, ImVec2(0, 0), ImVec2(1, 1), IconColor, ImVec4(0,0,0,0));
 
 			/*
 				Два варианта
@@ -1483,7 +1484,7 @@ bool CContentView::DrawItemN(const FileOptData& InitFileName, size_t& HorBtnIter
 				else if (FilePath.extension().string() == ".ltx")
 				{
 					xr_string PathName = FilePath;
-					ExtDescription = (PathName.Contains("scripts\\") ? ExtDesc["_script_ltx"] : ExtDesc[".ltx"]) ;
+					ExtDescription = (xr_string_contains(PathName, "scripts\\") ? ExtDesc["_script_ltx"] : ExtDesc[".ltx"]) ;
 				}
 				else
 					ExtDescription = ExtDesc[FilePath.extension().string().c_str()];
@@ -1624,7 +1625,7 @@ bool CContentView::CheckFile(const xr_path& File) const
 		xr_string Ext = File.extension().string().c_str();
 
 		bool TestTHM = IsThmMode   || Ext != ".thm";
-		bool TestTemp = IsTempMode || !Ext.StartWith(".~");
+		bool TestTemp = IsTempMode || !(Ext.rfind(".~", 0) == 0);
 		bool TestWinTrash = File.xfilename() != "desktop.ini";
 
 		return TestTemp && TestTHM && TestWinTrash;
@@ -1724,7 +1725,7 @@ bool CContentView::DrawContext(const xr_path& Path)
 			{
 				UI->SetStatus("Level loading...");
 				ExecCommand(COMMAND_CLEAR);
-				FS.TryLoad(Path.xstring());
+				FS.TryLoad(Path.xstring().c_str());
 				IReader* R = FS.r_open(Path.xstring().c_str());
 				if (!R)
 				{
@@ -1892,7 +1893,7 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 	if (Icons.contains(IconPath))
 		return Icons[IconPath];
 
-	if (IconPath.Contains(".~"))
+	if (xr_string_contains(IconPath, ".~"))
 		return Icons["backup"];
 
 	if (IconPath.ends_with(".ltx"))
@@ -1935,7 +1936,7 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 		IconPath.ends_with(".bat"))
 		return Icons["cmd"];
 	
-	if (IconPath.Contains(LogsDir))
+	if (xr_string_contains(IconPath, LogsDir))
 		return Icons["logs"];
 
 	if (!Icons.contains(IconPath))
@@ -1975,9 +1976,9 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 
 				IRHISurface* Texture = nullptr;
 				m_Thm->Update(Texture);
-				TempTexture->surface_set(Texture);
+				TempTexture->surface_set(Texture ? Texture->GetD3D() : nullptr);
 
-				if(TempTexture->pSurface != nullptr && TempTexture->get_SRView() != nullptr)
+				if(TempTexture->get_surface_noref() != nullptr) // Infernis: CTexture::pSurface is private
 				{
 					Icons[IconPath] = {TempTexture, false};
 					Texture->Release();
@@ -2003,9 +2004,9 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 
 				IRHISurface* Texture = nullptr;
 				m_Thm->Update(Texture);
-				TempTexture->surface_set(Texture);
+				TempTexture->surface_set(Texture ? Texture->GetD3D() : nullptr);
 
-				if (TempTexture->pSurface != nullptr && TempTexture->get_surface_noref() != nullptr)
+				if (TempTexture->get_surface_noref() != nullptr && TempTexture->get_surface_noref() != nullptr)
 				{
 					Icons[IconPath] = { TempTexture, false };
 					Texture->Release();
@@ -2041,7 +2042,7 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 				SubResource.Data = Pixels.data();
 
 				IRHISurface* Surf = GRHI->CreateTexture2D(Desc, SubResource);
-				TempTexture->surface_set(Surf);
+				TempTexture->surface_set(Surf ? Surf->GetD3D() : nullptr);
 				Surf->Release();
 			}
 			else if (IconPath.ends_with(".tga"))
@@ -2056,7 +2057,7 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 			Icons[IconPath] = {EDevice->Resources->_CreateTexture(NewPath.c_str()), false};
 			Icons[IconPath].Icon->Load();
 
-			if(!Icons[IconPath].Icon->pSurface)
+			if(!Icons[IconPath].Icon->get_surface_noref())
 			{
 				Icons[IconPath] = Icons["image"];
 			}
@@ -2073,9 +2074,10 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 xr_map<xr_string, CContentView::FileOptData> CContentView::ScanConfigs(const xr_string& StartPath)
 {
 	xr_map<xr_string, FileOptData> TempPath;
-	CInifile::Root& sections = pSettings->sections();
-	for (CInifile::Sect& sect : sections)
+	const CInifile::Root& sections = pSettings->sections();
+	for (CInifile::Sect* SectPtr : sections) // Infernis: the root holds pointers
 	{
+		CInifile::Sect& sect = *SectPtr;
 		const char* val;
 		if (sect.line_exist("$spawn", &val))
 		{
@@ -2085,7 +2087,7 @@ xr_map<xr_string, CContentView::FileOptData> CContentView::ScanConfigs(const xr_
 			{
 				xr_string FileName = caption.c_str();
 
-				if (!FileName.Contains(StartPath) && !StartPath.empty())
+				if (!xr_string_contains(FileName, StartPath) && !StartPath.empty())
 					continue;
 
 				if (FileName == StartPath)

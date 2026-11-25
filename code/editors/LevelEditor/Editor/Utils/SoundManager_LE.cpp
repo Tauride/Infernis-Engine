@@ -32,9 +32,9 @@ bool CLevelSoundManager::MakeEnvGeometry(CMemoryWriter& F, bool bErrMsg)
     	return false;
     }
     
-	RStringVec env_names;
+	SharedStrVec env_names;
 
-    CDB::Collector CP; CP.reserve(snd_envs.size() * DU_BOX_NUMFACES);
+    CDB::Collector CP;
 	Fbox aabb; aabb.invalidate();
     for (ObjectIt it = snd_envs.begin(); it != snd_envs.end(); it++) {
         ESoundEnvironment* E = smart_cast<ESoundEnvironment*>(*it); R_ASSERT(E);

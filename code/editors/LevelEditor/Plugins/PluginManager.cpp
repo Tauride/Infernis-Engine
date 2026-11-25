@@ -2,8 +2,12 @@
 #include "PluginManager.h"
 
 // Subsystems
+// Infernis: no script plugins yet: IX-Ray runs Lua plugins in its own script engine and Python ones through an
+// installed interpreter (EDITOR_SCRIPT_PLUGINS)
+#ifdef EDITOR_SCRIPT_PLUGINS
 #include "PluginLua.h"
 #include "PluginPython.h"
+#endif
 
 CPluginsManagers* GPluginManager = nullptr;
 CPluginsManagers& CPluginsManagers::Instance()
@@ -58,6 +62,7 @@ void CPluginsManagers::Init()
 
 		IPluginBase* Plug = nullptr;
 
+#ifdef EDITOR_SCRIPT_PLUGINS
 		if (Ext.xstring().ends_with("lua"))
 		{
 			Plug = Plugins.emplace_back(new CPluginLua);
@@ -66,6 +71,7 @@ void CPluginsManagers::Init()
 		{
 			Plug = Plugins.emplace_back(new CPluginPython);
 		}
+#endif
 
 		if (Plug == nullptr)
 			continue;

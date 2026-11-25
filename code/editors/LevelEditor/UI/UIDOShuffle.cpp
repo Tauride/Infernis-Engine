@@ -74,7 +74,7 @@ void UIDOShuffle::Draw()
 			m_RealTexture.destroy();
 			m_RealTexture = m_Texture;
 		}
-		bool HaveTexture = m_RealTexture != nullptr && m_RealTexture->get_SRView() != nullptr;
+		bool HaveTexture = m_RealTexture != nullptr && m_RealTexture->get_surface_noref() != nullptr;
 		ImGui::Image(HaveTexture ? m_RealTexture->get_surface_noref() : m_TextureNull->get_surface_noref(), ImVec2(256, 256));
 
 		{
@@ -279,7 +279,7 @@ void UIDOShuffle::FillData(bool ReloadTex)
 					R_CHK(pTexture->UnlockRect(0));
 
 					IRHISurface* Surf = GRHI->CreateTextureFromMemory(pTexture, 0, {});
-					m_MaskTexture->surface_set(Surf);
+					m_MaskTexture->surface_set(Surf ? Surf->GetD3D() : nullptr);
 					Surf->Release();
 				}
 			}
@@ -348,7 +348,7 @@ void UIDOShuffle::OnItemFocused(const char* name)
 		}
 		else
 		{
-			m_Texture->surface_set(Surface);
+			m_Texture->surface_set(Surface ? Surface->GetD3D() : nullptr);
 			Surface->Release();
 		}
 	}

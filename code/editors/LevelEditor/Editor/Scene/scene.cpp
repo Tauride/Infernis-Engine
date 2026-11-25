@@ -2,7 +2,9 @@
 #include "LEPhysics.h"
 #include "xrEngine/xr_input.h"
 #include "xrEngine/xr_object.h"
+#ifdef EDITOR_PLAY_IN_EDITOR
 #include "xrEngine/IGame_Actor.h"
+#endif
 #include "xrEngine/CameraBase.h"
 #include "xrServerEntities/clsid_game.h"
 #include "xrECore/Editor/UILogForm.h"
@@ -235,6 +237,7 @@ void EScene::OnFrame( float dT )
 	if(m_RTFlags.test(flUpdateSnapList))
 		UpdateSnapListReal();
 
+#ifdef EDITOR_PLAY_IN_EDITOR
 	if(IsPlayInEditor()) 
 	{
 		if(pInput->iGetAsyncKeyState(SDL_SCANCODE_LALT)) 
@@ -268,6 +271,7 @@ void EScene::OnFrame( float dT )
 			UI->RedrawScene();
 		}
 	}
+#endif
 }
 
 void EScene::Reset()
@@ -292,10 +296,18 @@ void EScene::Unload(bool bEditableOnly)
 	Clear(bEditableOnly);
 }
 
-ECORE_API xrGUID generate_guid();
+// Infernis: IX-Ray's xrECore has it
+static xrGUID generate_guid()
+{
+	static_assert(sizeof(GUID) == sizeof(xrGUID));
+	GUID Guid = {};
+	CoCreateGuid(&Guid);
+	xrGUID Result;
+	std::memcpy(&Result, &Guid, sizeof(Result));
+	return Result;
+}
 void EScene::Clear(bool bEditableToolsOnly)
 {
-	Device.details_task.wait();
 
 	// clear snap
 	ClearSnapList(false);
@@ -325,9 +337,11 @@ void EScene::Clear(bool bEditableToolsOnly)
 	m_CreateTime = time(NULL);
 
 	m_SaveCache.free();
+#ifdef EDITOR_PLAY_IN_EDITOR
 	m_cform_builder.clear();
 	m_level_graph.clear();
 	m_game_graph.clear();
+#endif
 	m_RTFlags.set(flIsBuildedAIMap | flIsBuildedGameGraph | flIsBuildedCForm, false);
 
 	if (!bEditableToolsOnly)
@@ -667,7 +681,11 @@ void EScene::OnRTFlagsChange	(PropValue* sender)
 
 void EScene::OnNameChange(PropValue* sender)
 {
-	m_RTFlags.set(flIsBuildedGameGraph, false); m_game_graph.clear();
+	m_RTFlags.set(flIsBuildedGameGraph, false);
+#ifdef EDITOR_PLAY_IN_EDITOR
+	m_game_graph.clear();
+#endif
+
 	UI->RedrawScene();
 }
 
@@ -745,6 +763,7 @@ void EScene::FillPropObjects(const char* pref, PropItemVec& items, ObjClassID cl
 	}
 }
 
+#ifdef EDITOR_PLAY_IN_EDITOR // play in editor, and the in-memory AI graphs, spawn and collision it plays
 void EScene::Play()
 {
 	if (IsPlayInEditor())
@@ -899,6 +918,8 @@ bool EScene::BuildCForm()
 }
 
 
+#endif
+
 bool EScene::RayPick(const Fvector& start, const Fvector& dir, float& dis ,Fvector* pt, Fvector* n)
 {
 	return Tools->RayPick(start, dir, dis, pt, n);
@@ -944,6 +965,7 @@ bool EScene::GetSubstObjectName(const xr_string& _from, xr_string& _to) const
 
 void EScene::OnFrame()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	if (!IsAppliedPos)
 	{
 		if (MainForm->GetTopBarForm()->UseCameraPosForActor)
@@ -962,4 +984,5 @@ void EScene::OnFrame()
 			IsAppliedPos = true;
 		}
 	}
+#endif
 }

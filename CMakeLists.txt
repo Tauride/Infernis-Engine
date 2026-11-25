@@ -270,7 +270,8 @@ if (${BUILD_EDITORS})
     if (NOT ${BUILD_UTILS})
         add_subdirectory(code/utils/xrQSlim) # the editors' mesh simplifier
         add_subdirectory(code/utils/xrDXT)   # the editors' texture compressor (loaded by DXTUtils)
-        set_target_properties(xrQSlim xrDXT PROPERTIES FOLDER utils)
+        add_subdirectory(code/utils/ETools)  # GSC's editor tools (collision queries; the Level Editor)
+        set_target_properties(xrQSlim xrDXT ETools PROPERTIES FOLDER utils)
     endif()
     add_subdirectory(code/editors)
     # The server entity factory as the Level Editor needs it (editor property types, linked to xrEProps); the

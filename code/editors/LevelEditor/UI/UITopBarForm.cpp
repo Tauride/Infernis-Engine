@@ -112,10 +112,12 @@ void UITopBarForm::Draw()
 				{
 					IMGUI_HINT_BUTTON("StopPIE", m_tTerminated, "Stop Play in Editor", ImDrawFlags_RoundCornersLeft, ClickTerminated);
 				}
+#ifdef EDITOR_PLAY_IN_EDITOR
 				else if (Scene->IsPlayInEditor())
 				{
 					IMGUI_HINT_BUTTON("StopPIE", m_tTerminated, "Stop Play in Editor", ImDrawFlags_RoundCornersLeft, Scene->Stop);
 				}
+#endif
 				else
 				{
 					IMGUI_HINT_BUTTON("StartPIE", Icons["play_in_editor"], "Start Play in Editor", ImDrawFlags_RoundCornersLeft, ClickPlayInEditor);
@@ -259,7 +261,11 @@ void UITopBarForm::ClickSave()
 }
 void UITopBarForm::ClickReloadConfigs()
 {
-	xr_delete(pSettings);
+	{
+		CInifile* OldSettings = const_cast<CInifile*>(pSettings); // Infernis: pSettings is const
+		xr_delete(OldSettings);
+		pSettings = nullptr;
+	}
 	string_path 			si_name;
 	FS.update_path(si_name, "$game_config$", "system.ltx");
 	pSettings = new CInifile(si_name, true);// false,true,true);
@@ -281,22 +287,38 @@ void UITopBarForm::ClickOpenGameData()
 }
 void UITopBarForm::ClickCForm()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	Scene->BuildCForm();
+#else
+	ELog.DlgMsg(mtInformation, "Play in editor is not ported to Infernis: build the level and run it in the game.");
+#endif
 
 }
 void UITopBarForm::ClickAIMap()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	Scene->BuildAIMap();
+#else
+	ELog.DlgMsg(mtInformation, "Play in editor is not ported to Infernis: build the level and run it in the game.");
+#endif
 
 }
 void UITopBarForm::ClickGGraph()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	Scene->BuildGameGraph();
+#else
+	ELog.DlgMsg(mtInformation, "Play in editor is not ported to Infernis: build the level and run it in the game.");
+#endif
 
 }
 void UITopBarForm::ClickPlayInEditor()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	Scene->Play();
+#else
+	ELog.DlgMsg(mtInformation, "Play in editor is not ported to Infernis: build the level and run it in the game.");
+#endif
 }
 void UITopBarForm::ClickBuildAndMake()
 {
@@ -311,8 +333,13 @@ void UITopBarForm::ClickTerminated()
 }
 void UITopBarForm::ClickPlayPC()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR
 	if (!Scene->BuildForPCPlay())
 		return;
+#else
+	// Infernis: IX-Ray builds the level's AI graph, spawn and collision in the editor for this; with Infernis the
+	// compilers (xrLC, xrAI) build them, so run the game on what they built last.
+#endif
 
 	string_path params;
 	xr_sprintf(params, "-r4 -start server(%s/single/alife/new) client(localhost) -noprefetch -nointro -fsltx fsgame_editor.ltx", Scene->m_LevelOp.m_FNLevelPath.c_str());

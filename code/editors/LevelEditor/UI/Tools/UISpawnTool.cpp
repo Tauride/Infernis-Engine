@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <random> // std::shuffle (IX-Ray: random_shuffle, gone in C++17)
 
 UISpawnTool::UISpawnTool()
 {
@@ -114,7 +115,7 @@ void UISpawnTool::MultiSelByRefObject(bool clear_prev)
 		}
 		std::sort(sellist.begin(), sellist.end());
 		sellist.erase(std::unique(sellist.begin(), sellist.end()), sellist.end());
-		random_shuffle(sellist.begin(), sellist.end());
+		std::shuffle(sellist.begin(), sellist.end(), std::mt19937{std::random_device{}()});
 
 		int max_k = iFloor(float(sellist.size()) / 100.f * float(m_selPercent) + 0.5f);
 		int k = 0;
@@ -130,9 +131,10 @@ void UISpawnTool::RefreshList()
 	ListItemsVec items;
 	LHelper().CreateItem(items, RPOINT_CHOOSE_NAME, 0, 0, 0);
 	LHelper().CreateItem(items, ENVMOD_CHOOSE_NAME, 0, 0, 0);
-	CInifile::Root& sections = pSettings->sections();
-	for (CInifile::Sect& sect : sections)
+	const CInifile::Root& sections = pSettings->sections();
+	for (CInifile::Sect* SectPtr : sections) // Infernis: the root holds pointers
 	{
+		CInifile::Sect& sect = *SectPtr;
 		shared_str& sect_name = sect.Name;
 		const char* val;
 		if (sect.line_exist("$spawn", &val))

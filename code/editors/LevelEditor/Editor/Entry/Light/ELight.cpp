@@ -160,7 +160,7 @@ void CLight::Render(int priority, bool strictB2F)
 bool CLight::FrustumPick(const CFrustum& frustum)
 {
 //    return (frustum.testSphere(m_Position,m_Range))?true:false;
-    return (frustum.testSphere_dirty(GetPosition(),VIS_RADIUS))?true:false;
+    return (frustum.testSphere_dirty(const_cast<Fvector&>(GetPosition()),VIS_RADIUS))?true:false;
 }
 
 bool CLight::RayPick(float& distance, const Fvector& start, const Fvector& direction, SRayPickInfo* pinf)
@@ -197,7 +197,7 @@ const char* CLight::GetLControlName()
 {
     ESceneLightTool* lt		= smart_cast<ESceneLightTool*>(FParentTools); VERIFY(lt);
     xr_rtoken* lc			= lt->FindLightControl(m_LControl);
-	return lc?*lc->name:0;
+	return lc?lc->name.c_str():0;
 }
 
 

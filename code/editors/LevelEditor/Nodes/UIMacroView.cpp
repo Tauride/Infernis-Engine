@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "magic_enum/magic_enum.hpp" // Infernis: IX-Ray's xrCore includes it everywhere
 #include "UIMacroView.h"
 
 #include "xrEUI/ImNodeEditor/imnodes.h"

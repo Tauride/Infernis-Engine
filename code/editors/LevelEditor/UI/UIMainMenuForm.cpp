@@ -418,10 +418,10 @@ void UIMainMenuForm::Draw()
 				}
 				ImGui::Separator();
 				{
-					bool selected = !Caps.bForceGPU_SW;
+					bool selected = !HW.Caps.bForceGPU_SW;
 					if (ImGui::MenuItem("RenderHW", "", &selected))
 					{
-						Caps.bForceGPU_SW = !selected;
+						HW.Caps.bForceGPU_SW = !selected;
 						UI->Resize();
 					}
 				}
@@ -818,7 +818,7 @@ void UIMainMenuForm::ExportLevelAsArchive()
 	
 	auto ParseObject = [&](auto Obj, xr_path FilePath, xr_path DirFilePath)
 	{
-		auto Dirs = FilePath.xstring().Split('\\');
+		auto Dirs = xr_string_split(FilePath.xstring(), '\\');
 		for (size_t Iter = 0; Iter < Dirs.size() - 1; Iter++)
 		{
 			DirFilePath += ("\\" + Dirs[Iter]).data();
@@ -839,7 +839,7 @@ void UIMainMenuForm::ExportLevelAsArchive()
 			xr_string TextureName = Surface->m_Texture.c_str();
 			TextureName += ".dds";
 
-			auto Dirs = TextureName.Split('\\');
+			auto Dirs = xr_string_split(TextureName, '\\');
 
 			for (size_t Iter = 0; Iter < Dirs.size() - 1; Iter++)
 			{

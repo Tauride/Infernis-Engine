@@ -22,8 +22,8 @@ void CPluginUIRun::Draw()
 			}
 
 			xr_string TestPath = Desc;
-			TestPath = TestPath.RemoveWhitespaces();
-			if (FS.pathes.contains(TestPath.c_str()))
+			TestPath = xr_string_remove_whitespaces(TestPath);
+			if (FS.path_exist(TestPath.c_str())) // Infernis: FS.pathes is private
 			{
 				string_path FullPath = {};
 				FS.update_path(FullPath, TestPath.c_str(), "");
@@ -41,7 +41,7 @@ void CPluginUIRun::Draw()
 			ImGui::InputText(("##" + Arg).c_str(), InputPlugin->InputArgsValues[Arg], 256);
 
 			ImGui::SameLine();
-			if (ImGui::ImageButton(("##Open" + Arg).c_str(), OpenImage->get_SRView() ? OpenImage->get_surface_noref() : nullptr, { 10, 14 }))
+			if (ImGui::ImageButton(("##Open" + Arg).c_str(), OpenImage->get_surface_noref() ? OpenImage->get_surface_noref() : nullptr, { 10, 14 }))
 			{
 				xr_string TempPath;
 				EFS.GetOpenName("$fs_root$", TempPath, false, nullptr, -1, "*.*");

@@ -166,18 +166,24 @@ bool CScenePhysics::CreateObjectSpace(bool b_selected_only)
 	}
 
 	CDB::Collector CL;
-	CL.reserve(build_data.l_face_cnt);
 	for (u32 i = 0; i < build_data.l_face_cnt; ++i)
 	{
 		CDB::TRI& F = build_data.l_faces[i];
 		CL.add_face_D(build_data.l_verts[F.verts[0]], build_data.l_verts[F.verts[1]], build_data.l_verts[F.verts[2]], i);
 	}
 
-	XRay::CForm::CFormatVanilla CForm;
-	CForm.AddStaticGeom(CL.getVSpan(), CL.getTSpan());
+	// Infernis: the physics takes GSC's form, vertices and triangles with a level collision header (IX-Ray: its
+	// CForm object)
+	hdrCFORM H;
+	H.version = CFORM_CURRENT_VERSION;
+	H.vertcount = (u32)CL.getVS();
+	H.facecount = (u32)CL.getTS();
+	H.aabb.invalidate();
+	for (size_t v = 0; v < CL.getVS(); ++v)
+		H.aabb.modify(CL.getV()[v]);
 
 	VERIFY(!m_object_space);
-	m_object_space = mesh_create_object_space(CForm, nullptr);
+	m_object_space = mesh_create_object_space(CL.getV(), CL.getT(), H, nullptr);
 
 	xr_free(build_data.l_faces);
 	xr_free(build_data.l_verts);
@@ -204,6 +210,7 @@ void  CScenePhysics::DestroyWorld()
 
 }
 
+#ifdef EDITOR_PLAY_IN_EDITOR // the level collision the game level plays on
 void CScenePhysics::GenerateCForm(CObjectSpace* To, CDB::build_callback cb)
 {
 	bool bResult = true;
@@ -245,11 +252,13 @@ void CScenePhysics::GenerateCForm(CObjectSpace* To, CDB::build_callback cb)
 	b_update_level_collision = false;
 }
 
+#endif
+
 void  CScenePhysics::CreateWorld()
 {
 	VERIFY(!physics_world());
 	VERIFY(m_object_space);
-	create_physics_world(false, m_object_space, 0);
+	create_physics_world(false, m_object_space, 0, &Device); // Infernis: the world takes the device
 }
 
 void CreatePhysicsShellsSelected()

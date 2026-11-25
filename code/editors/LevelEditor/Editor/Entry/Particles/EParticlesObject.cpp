@@ -110,7 +110,7 @@ void EParticlesObject::RenderSingle()
 
 bool EParticlesObject::FrustumPick(const CFrustum& frustum)
 {
-    return (frustum.testSphere_dirty(GetPosition(),PSOBJECT_SIZE))?true:false;
+    return (frustum.testSphere_dirty(const_cast<Fvector&>(GetPosition()),PSOBJECT_SIZE))?true:false;
 }
 
 bool EParticlesObject::RayPick(float& distance, const Fvector& start, const Fvector& direction, SRayPickInfo* pinf)

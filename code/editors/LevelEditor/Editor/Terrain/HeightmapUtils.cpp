@@ -1,6 +1,47 @@
 #include "stdafx.h"
 #include "HeightmapUtils.h"
-#include <RedImage/RedImage.hpp>
+// Infernis: IX-Ray writes the heightmap preview with its RedImage library; this stands in for the two calls it
+// makes, writing the PNG through D3DX (which the editors link).
+namespace RedImageTool
+{
+struct RedColor
+{
+	float R, G, B, A;
+	RedColor(float r, float g, float b, float a = 1.f) : R(r), G(g), B(b), A(a) {}
+};
+
+class RedImage
+{
+	u32 Width, Height;
+	xr_vector<u32> Pixels;
+
+public:
+	RedImage(size_t W, size_t H) : Width(u32(W)), Height(u32(H)), Pixels(W * H, 0) {}
+
+	void SetPixel(const RedColor& C, size_t X, size_t Y)
+	{
+		if (X < Width && Y < Height)
+			Pixels[Y * Width + X] = color_rgba_f(C.R, C.G, C.B, C.A);
+	}
+
+	bool SaveToPng(const char* FileName) const
+	{
+		IDirect3DSurface9* Surface = nullptr;
+		if (FAILED(HW.pDevice->CreateOffscreenPlainSurface(Width, Height, D3DFMT_A8R8G8B8, D3DPOOL_SCRATCH, &Surface, nullptr)))
+			return false;
+		D3DLOCKED_RECT Locked = {};
+		if (SUCCEEDED(Surface->LockRect(&Locked, nullptr, 0)))
+		{
+			for (u32 Y = 0; Y < Height; ++Y)
+				std::memcpy(static_cast<u8*>(Locked.pBits) + Y * Locked.Pitch, &Pixels[Y * Width], Width * 4);
+			Surface->UnlockRect();
+		}
+		const bool Saved = SUCCEEDED(D3DXSaveSurfaceToFileA(FileName, D3DXIFF_PNG, Surface, nullptr, nullptr));
+		Surface->Release();
+		return Saved;
+	}
+};
+} // namespace RedImageTool
 
 void XRay::Editor::HeightmapUtils::GenerateMeshByHeightmap(const SHeightMap& Heightmap, CEditableObject* OutMesh, int ScaleY)
 {

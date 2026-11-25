@@ -217,7 +217,7 @@ void TClipMaker::UpdateProperties(bool)
     V = PHelper().CreateFloat(p_items, "Zoom", &m_Zoom, 1.f, 1000.f, 0.1f, 1);
    // V->OnChangeEvent.bind(this, &TClipMaker::OnZoomChange);
     if (sel_clip) {
-        ListItem* l_owner = nullptr;// m_ClipList->FindItem(*sel_clip->name); VERIFY(l_owner);
+        ListItem* l_owner = nullptr;// m_ClipList->FindItem(sel_clip->name.c_str()); VERIFY(l_owner);
         V = PHelper().CreateName(p_items, "Current Clip\\Name", &sel_clip->name, l_owner);
         //V->OnChangeEvent.bind(this, &TClipMaker::OnNameChange);
         V = PHelper().CreateFloat(p_items, "Current Clip\\Length", &sel_clip->length, 0.f, 10000.f, 0.1f, 2);

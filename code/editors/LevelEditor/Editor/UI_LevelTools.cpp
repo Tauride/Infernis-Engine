@@ -282,6 +282,7 @@ bool CLevelTool::Pick(TShiftState Shift)
 
 bool CLevelTool::UpdateCamera()
 {
+#ifdef EDITOR_PLAY_IN_EDITOR // the game's HUD camera while playing
 	if (Scene->IsPlayInEditor())
 	{
 		extern ENGINE_API float psHUD_FOV;
@@ -292,6 +293,7 @@ bool CLevelTool::UpdateCamera()
 
 		return true;
 	}
+#endif
 
 	return false;
 }

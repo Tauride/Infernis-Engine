@@ -1,27 +1,19 @@
-// LevelEditor.cpp : Определяет точку входа для приложения.
-//
+// Level Editor entry point.
 #include "stdafx.h"
-
-#include "Engine/XrGameManager.h"
-#include "Engine/XRayEditor.h"
 
 #include "Editor/Utils/ContentView.h"
 #include "Editor/Scene/LEPhysics.h"
 
-// Infernis: not in Infernis (#include "../../xrPlay/Splash.h")
-
-#include "xrEngine/std_classes.h"
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/XR_IOConsole.h"
-#include "xrEngine/IGame_Level.h"
-#include "xrGame/string_table.h"
-#include "xrEngine/x_ray.h"
 #include "xrEngine/xr_input.h"
-#include "xrEngine/FPSCounter.h"
 
 ECORE_API extern bool bIsLevelEditor;
 void DragDrop(const xr_string&, int);
 
+// Infernis: written like the other ported editors' entry points. IX-Ray's also shows its launcher's splash screen,
+// loads the game DLL (xrGame) for the game persistent object and play in editor (EDITOR_PLAY_IN_EDITOR), and counts
+// FPS with its own counter; the editor core (xrECore) gives the editors their game persistent object here.
 int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLine, int nCmdShow)
 {
 	bIsLevelEditor = true;
@@ -32,32 +24,25 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 		return 0;
 	}
 
-	splash::SetBackground(IDB_LE);
-	std::jthread s(splash::Show);
-
-	splash::SetProgressStatus(5, "Initializing Debugger");
-
-	Debug._initialize(false);
-	
-	splash::SetProgressStatus(10, "Initializing Core System");
+	Debug._initialize();
 
 	const char* FSName = "fs.ltx";
-	const char* fsgame_ltx_name = "-fsltx ";
 	string_path fsgame = "";
+	ReadCommandLineValue(pCmdLine, "-fsltx ", fsgame); // Infernis: bounded, quotes allowed (IX-Ray: sscanf)
 
-	if (strstr(pCmdLine, fsgame_ltx_name)) {
-		int						sz = xr_strlen(fsgame_ltx_name);
-		sscanf(strstr(pCmdLine, fsgame_ltx_name) + sz, "%[^ ] ", fsgame);
-	}
+	CoInitialize(nullptr);
 
-	Core._initialize("LevelEditor", ELogCallback, 1, fsgame[0] ? fsgame : FSName);
+	Core._initialize("Level", ELogCallback, true, fsgame[0] ? fsgame : FSName);
 
-	splash::SetProgressStatus(20, "Initializing Level Tools");
+	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h), before the tools and the main
+	// form are created, so that dialogs during start-up are covered.
+	CEditorCheckRun CheckRun;
+	CheckRun.Parse(pCmdLine);
+
+	psDeviceFlags.set(rsFullscreen, false);
 
 	Tools = new CLevelTool();
 	LTools = static_cast<CLevelTool*>(Tools);
-
-	splash::SetProgressStatus(25, "Registering UI Commands");
 
 	UI = new CLevelMain();
 	UI->RegisterCommands();
@@ -65,65 +50,31 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
 	LUI = static_cast<CLevelMain*>(UI);
 
-	splash::SetProgressStatus(30, "Creating Editor Scene");
-
 	Scene = new EScene();
-	EditorScene = Scene;
-
-	splash::SetProgressStatus(25, "Initializing Content View");
 
 	GContentView = new CContentView;
 
-	splash::SetProgressStatus(30, "Creating Main UI Form");
-
 	UIMainForm* MainForm = new UIMainForm();
 
-	pApp = new XRayEditor();
-	g_XrGameManager = new XrGameManager();
+	// The server entity factory, Infernis's built for the editors (xrSE_Factory_Editor)
 	g_SEFactoryManager = new XrSEFactoryManager();
 
-	splash::SetProgressStatus(40, "Loading Game Materials");
-
-	// Initialize APP
 	PGMLib->Load();
-
-	splash::SetProgressStatus(55, "Initializing Game Persistent Objects");
-
-	g_pGamePersistent = static_cast<IGame_Persistent*>(g_XrGameManager->Create(CLSID_GAME_PERSISTANT));
-	EDevice->seqAppStart.Process<&pureAppStart::OnAppStart>();
-
-	splash::SetProgressStatus(65, "Setting Up Console");
-
-	Console->Execute("default_controls");
-
-	xr_strcpy(Console->ConfigFile, "user_editor.ltx");
-
-	if (strstr(Core.Params, "-ltx ")) {
-		string64 c_name;
-		sscanf(strstr(Core.Params, "-ltx ") + 5, "%[^ ] ", c_name);
-		xr_strcpy(Console->ConfigFile, c_name);
-	}
-
-	Console->ExecuteScript(Console->ConfigFile);
-
-	Console->Hide();
-
-	splash::SetProgressStatus(75, "Performing Final UI Setup");
 
 	::MainForm = MainForm;
 	UI->Push(MainForm, false);
 
-	pFPSCounter = new XRay::Hardware::FPSCounter();
-
-	bool NeedExit = false;
-	splash::SetProgressStatus(85, "Performing Final Checks");
 	MainForm->GetRenderForm()->DragFunctor = DragDrop;
-	
-	splash::SetProgressStatus(90, "Finalizing UI Setup");
+
 	GContentView->Init();
 	UI->PushBegin(GContentView);
-	splash::SetProgressStatus(100, "Finalizing");
-	splash::Close();
+
+	// A level named on the command line (-level <name>, as in the level list, e.g. "jupiter").
+	string_path LevelName = "";
+	if (ReadCommandLineValue(pCmdLine, "-level ", LevelName))
+		ExecCommand(COMMAND_LOAD, xr_string(LevelName));
+
+	bool NeedExit = false;
 	while (!NeedExit)
 	{
 		SDL_Event Event;
@@ -147,7 +98,10 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 				SDL_WindowID MainWndID = SDL_GetWindowID(g_AppInfo.Window);
 				if (UI && REDevice && Event.window.windowID == MainWndID)
 				{
-					UI->Resize(Event.window.data1, Event.window.data2, true);
+					// Infernis: the device takes the window's size in pixels (the event's size is in points)
+					int PixelsW = 0, PixelsH = 0;
+					SDL_GetWindowSizeInPixels(g_AppInfo.Window, &PixelsW, &PixelsH);
+					UI->Resize(PixelsW, PixelsH, true);
 					EPrefs->SaveConfig();
 				}
 				break;
@@ -155,13 +109,10 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 			case SDL_EVENT_WINDOW_SHOWN:
 			case SDL_EVENT_WINDOW_MOUSE_ENTER:
 				Device.b_is_Active = true;
-				//if (UI) UI->OnAppActivate();
-
 				break;
 			case SDL_EVENT_WINDOW_HIDDEN:
 			case SDL_EVENT_WINDOW_MOUSE_LEAVE:
-				Device.b_is_Active = !!psDeviceFlags.test(rsDeviceActive);
-				//if (UI)UI->OnAppDeactivate();
+				Device.b_is_Active = false;
 				break;
 
 			case SDL_EVENT_KEY_DOWN:
@@ -169,87 +120,35 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 				{
 					UI->KeyDown(Event.key.scancode, UI->GetShiftState());
 					UI->ApplyShortCutInput(Event.key.scancode);
-
-					if (UI->IsPlayInEditor())
-					{
-						if (pInput->IsAcquire)
-						{
-							pInput->KeyboardButtonUpdate(Event.key.scancode, true);
-						}
-						else if (Event.key.scancode == SDL_SCANCODE_LALT)
-						{
-							pInput->acquire();
-							UI->IsEnableInput = false;
-							ShowCursor(false);
-						}
-					}
-				}break;
-			case SDL_EVENT_KEY_UP:
-				if (UI) {
-					UI->KeyUp(Event.key.scancode, UI->GetShiftState());
-					if(UI->IsPlayInEditor() && pInput->IsAcquire) 
-					{
-						if (pInput->IsAcquire)
-						{
-							pInput->KeyboardButtonUpdate(Event.key.scancode, false);
-						}
-					}
 				}
 				break;
-			case SDL_EVENT_MOUSE_MOTION:
-			{
-				if (UI->IsPlayInEditor() && !pInput->IsAcquire)
-					break;
+			case SDL_EVENT_KEY_UP:
+				if (UI)
+					UI->KeyUp(Event.key.scancode, UI->GetShiftState());
+				break;
 
-				pInput->MouseMotion(Event.motion.xrel, Event.motion.yrel);
-			} break;
-			case SDL_EVENT_MOUSE_WHEEL:
-			{
-				if (UI->IsPlayInEditor() && !pInput->IsAcquire)
-					break;
-
-				pInput->MouseScroll(Event.wheel.y);
-			}break;
-			case SDL_EVENT_MOUSE_BUTTON_DOWN:
-			case SDL_EVENT_MOUSE_BUTTON_UP:
-			{
-				if (UI->IsPlayInEditor() && !pInput->IsAcquire)
-					break;
-
-				int mouse_button = 0;
-				if (Event.button.button == SDL_BUTTON_LEFT) { mouse_button = 0; }
-				if (Event.button.button == SDL_BUTTON_RIGHT) { mouse_button = 1; }
-				if (Event.button.button == SDL_BUTTON_MIDDLE) { mouse_button = 2; }
-				if (Event.type == SDL_EVENT_MOUSE_BUTTON_DOWN) {
-					pInput->MousePressed(mouse_button);
-				}
-				else {
-					pInput->MouseReleased(mouse_button);
-				}
-			}
-			break;
+			// Infernis: the mouse reaches the viewport through the engine's DirectInput device (CInput polls it each
+			// frame, as in GSC's editors); IX-Ray fed SDL mouse events into its own CInput instead.
 			}
 
 			if (!UI->ProcessEvent(&Event))
 				break;
 		}
 
+		CheckRun.BeforeFrame();
 		MainForm->Frame();
 
-		if (g_pGamePersistent)
-			g_pGamePersistent->UpdateParticles();
+		if (CheckRun.AfterFrame())
+		{
+			GContentView->Destroy();
+			NeedExit = true;
+		}
 	}
-	s.join();
-	xr_delete(g_FontManager);
 
 	g_scene_physics.DestroyAll();
 	g_scene_physics.DestroyObjectSpace();
 
 	xr_delete(MainForm);
-	//очищение памяти таблицы строк
-	CStringTable::Destroy();
-	xr_delete(pApp);
-	xr_delete(g_XrGameManager);
 	xr_delete(g_SEFactoryManager);
 	Core._destroy();
 	return 0;

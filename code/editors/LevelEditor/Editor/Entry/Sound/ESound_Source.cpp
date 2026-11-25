@@ -1,5 +1,6 @@
 #include "stdafx.h"
-#include "..\XrSound\SoundRender_Source.h"
+#include <mmreg.h> // WAVEFORMATEX (xrSound's header expects it)
+#include "xrSound/SoundRender_Source.h"
 
 #define VIS_RADIUS 0.25f
 #define SOUND_SEL0_COLOR 	0x00A0A0F0
@@ -82,7 +83,7 @@ void ESoundSource::Render(int priority, bool strictB2F)
 
 bool ESoundSource::FrustumPick(const CFrustum& frustum)
 {
-	return (frustum.testSphere_dirty(m_Params.position,VIS_RADIUS))?true:false;
+	return (frustum.testSphere_dirty(const_cast<Fvector&>(m_Params.position),VIS_RADIUS))?true:false;
 }
 
 bool ESoundSource::RayPick(float& distance, const Fvector& start, const Fvector& direction, SRayPickInfo* pinf)
@@ -277,7 +278,7 @@ void ESoundSource::SaveStream(IWriter& F)
 
 void ESoundSource::OnChangeWAV	(PropValue* prop)
 {
-	bool bPlay 		= m_Source.is_playing();
+	bool bPlay 		= (m_Source._feedback() != nullptr);
 	ResetSource		();
 	if (bPlay) 		Play();
 }
@@ -363,7 +364,7 @@ void ESoundSource::OnFrame()
 			((g_pGamePersistent->Environment().GetGameTime() > m_ActiveTime.x) &&
 			 (g_pGamePersistent->Environment().GetGameTime() < m_ActiveTime.y)))
 		{
-			if (!m_Source.is_playing())
+			if (!(m_Source._feedback() != nullptr))
 			{
 				if (fis_zero(m_RandomPause.x) && fis_zero(m_RandomPause.y))
 				{
@@ -401,7 +402,7 @@ void ESoundSource::OnFrame()
 		}
 		else
 		{
-			if (m_Source.is_playing())
+			if ((m_Source._feedback() != nullptr))
 				m_Source.stop_deffered();
 		}
 	}

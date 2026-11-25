@@ -18,12 +18,12 @@ namespace ChoseEvents
     void   FillEntity(ChooseItemVec& items, void* param)
     {
         //.    AppendItem	   					(RPOINT_CHOOSE_NAME);
-        CInifile::Root& sections = pSettings->sections();
-        for (CInifile::Sect& sect : sections)
+        // Infernis: CInifile::Root holds section pointers, and pSettings is const.
+        for (CInifile::Sect* sect : const_cast<CInifile*>(pSettings)->sections())
         {
             const char* val;
-            if (sect.line_exist("$spawn", &val))
-                items.push_back(SChooseItem(*sect.Name, ""));
+            if (sect->line_exist("$spawn", &val))
+                items.push_back(SChooseItem(*sect->Name, ""));
         }
     }
     //---------------------------------------------------------------------------
@@ -253,9 +253,7 @@ namespace ChoseEvents
     void   FillEShader(ChooseItemVec& items, void* param)
     {
         CResourceManager::map_Blender& blenders = EDevice->Resources->_GetBlenders();
-        CResourceManager::map_BlenderIt _S = blenders.begin();
-        CResourceManager::map_BlenderIt _E = blenders.end();
-        for (; _S != _E; _S++)			items.push_back(SChooseItem(_S->first, ""));
+        for (const auto& blender : blenders)	items.push_back(SChooseItem(blender.first, ""));
     }
     //---------------------------------------------------------------------------
     void   FillCShader(ChooseItemVec& items, void* param)
@@ -295,9 +293,7 @@ namespace ChoseEvents
         for (PS::PGDIt G = ::RImplementation.PSLibrary.FirstPGD(); G != ::RImplementation.PSLibrary.LastPGD(); ++G)
         {
             PS::CPGDef* def = (*G);
-            PS::CPGDef::EffectIt pe_it = def->m_Effects.begin();
-            PS::CPGDef::EffectIt pe_it_e = def->m_Effects.end();
-            for (; pe_it != pe_it_e; ++pe_it)
+            for (auto pe_it = def->m_Effects.begin(); pe_it != def->m_Effects.end(); ++pe_it)
             {
                 if ((*pe_it)->m_EffectName == item->name)
                 {
@@ -318,9 +314,7 @@ namespace ChoseEvents
             PS::CPGDef* def = (*G);
             if (def->m_Name == item->name)
             {
-                PS::CPGDef::EffectIt pe_it = def->m_Effects.begin();
-                PS::CPGDef::EffectIt pe_it_e = def->m_Effects.end();
-                for (; pe_it != pe_it_e; ++pe_it)
+                for (auto pe_it = def->m_Effects.begin(); pe_it != def->m_Effects.end(); ++pe_it)
                 {
                     xr_sprintf(str, sizeof(str), "%d", ++i);
                     PHelper().CreateCaption(info_items, str, (*pe_it)->m_EffectName);
@@ -425,7 +419,7 @@ namespace ChoseEvents
             CKinematicsAnimated::accel::iterator _I, _E;
             _I = ll_bones->begin();
             _E = ll_bones->end();
-            for (; _I != _E; ++_I) 		items.push_back(SChooseItem(*_I->first, ""));
+            for (; _I != _E; ++_I) 		items.push_back(SChooseItem(_I->first.c_str(), "")); // Infernis: std::string names
         }
         ::Render->model_Delete(V);
     }

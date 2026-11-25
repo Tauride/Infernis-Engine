@@ -17,7 +17,7 @@
 
 #include "ui_main.h"
 #include "UI_ToolsCustom.h"
-#include "../Engine/XrGameMaterialLibraryEditors.h"
+#include "../../../engine/xrEngine/GameMtlLib.h"
 
 #include <DirectXMesh.h>
 
@@ -1583,7 +1583,7 @@ bool CBone::ExportOGF(IWriter& F)
 		return false;
 	}
 
-	SGameMtl* M = GameMaterialLibraryEditors->GetMaterial(game_mtl.c_str());
+	SGameMtl* M = GMLib.GetMaterial(game_mtl.c_str());
 	if (!M)
 	{
 		ELog.Msg(mtError, "Bone '%s' has invalid game material.", *Name());

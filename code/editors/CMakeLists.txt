@@ -80,8 +80,6 @@ list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/(WildMagic/|Editor/EditObjectS
 # Not built yet: the particle editor's library code (Particle Editor stage) and the image editor form, which uses
 # IX-Ray's RedImage (comes with the DXTUtils work).
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/(ParticleEditorImpl|UIImageEditorForm)[.]cpp$")
-# The material library editing subclass (Shader Editor stage); the core uses the plain library (GMLib).
-list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Engine/XrGameMaterialLibraryEditors[.](cpp|h)$")
 # The material library itself is Infernis's (format authority), compiled here in its editor layout (GM_NON_GAME:
 # sounds, particles and marks as names) instead of IX-Ray's copy.
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Engine/GameMtlLib[.]cpp$")
@@ -204,3 +202,11 @@ target_compile_definitions(xrECore PRIVATE XRECORE_EXPORTS _WINDOWS _USRDLL PUBL
 target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xrSound xrPhysics xrParticles
                                      xrAPI luabind lunasvg xrQSlim d3d9 d3dx9 dinput8 dxguid)
 set_target_properties(xrECore PROPERTIES FOLDER editors)
+
+# --- Shader Editor (stage 3): shaders.xr, gamemtl.xr and shaders_xrlc.xr (sound environments not yet) -----
+file(GLOB SHADER_EDITOR_SOURCES CONFIGURE_DEPENDS ShaderEditor/*.cpp ShaderEditor/*.h)
+add_executable(ShaderEditor WIN32 ${SHADER_EDITOR_SOURCES} ShaderEditor/ShaderEditor.rc)
+target_precompile_headers(ShaderEditor PRIVATE ShaderEditor/stdafx.h)
+target_compile_definitions(ShaderEditor PRIVATE _SHADER_EDITOR _WINDOWS)
+target_link_libraries(ShaderEditor PRIVATE xrECore)
+set_target_properties(ShaderEditor PROPERTIES FOLDER editors)

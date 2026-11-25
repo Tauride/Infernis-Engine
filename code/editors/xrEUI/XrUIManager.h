@@ -51,8 +51,13 @@ public:
 
 protected:
 	virtual void OnDrawUI();
+	// Infernis: called once, before the main dock space is first drawn, when the saved layout (the editor's
+	// *_imgui.ini) has no docked windows, i.e. on a first run. An editor docks its windows into DockSpaceId here.
+	// IX-Ray has no default layout: every window opens small and undocked.
+	virtual void BuildDefaultLayout(unsigned int DockSpaceId) {}
 
 private:
+	bool m_DefaultLayoutChecked = false;
 	float m_MenuBarHeight;
 	float m_MenuBarButtonHeight;
 	TShiftState m_ShiftState;

@@ -111,34 +111,54 @@ public:
     BOOL Load2(CInifile& ini);
 
 #ifdef _EDITOR
+    // Editor only (the IX-Ray Particle Editor's declarations; implemented in code/editors/xrECore/Editor/
+    // ParticleEditorImpl.cpp). The game never defines _EDITOR.
 public:
-    DEFINE_VECTOR(EParticleAction*, EPAVec, EPAVecIt);
+    using EPAVec = xr_vector<EParticleAction*>;
+    using EPAVecIt = EPAVec::iterator;
     EPAVec m_EActionList;
 
 public:
-    void __stdcall FindActionByName(LPCSTR new_name, bool& res);
-    bool __stdcall NameOnAfterEdit(PropValue* sender, shared_str& edit_val);
-    bool __stdcall CollisionFrictionOnAfterEdit(PropValue* sender, float& edit_val);
-    void __stdcall CollisionFrictionOnBeforeEdit(PropValue* sender, float& edit_val);
-    void __stdcall CollisionFrictionOnDraw(PropValue* sender, xr_string& draw_val);
-    bool __stdcall CollisionCutoffOnAfterEdit(PropValue* sender, float& edit_val);
-    void __stdcall CollisionCutoffOnBeforeEdit(PropValue* sender, float& edit_val);
-    void __stdcall CollisionCutoffOnDraw(PropValue* sender, xr_string& draw_val);
-    void __stdcall OnActionEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    void __stdcall OnFrameResize(PropValue* sender);
-    void __stdcall OnShaderChange(PropValue* sender);
-    void __stdcall OnFlagChange(PropValue* sender);
-    void __stdcall OnControlClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    void __stdcall OnActionsClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    bool __stdcall OnAfterActionNameEdit(PropValue* sender, shared_str& edit_val);
-    void FillProp(LPCSTR pref, ::PropItemVec& items, ::ListItem* owner);
+    void FindActionByName(LPCSTR new_name, bool& res);
+    bool NameOnAfterEdit(PropValue* sender, shared_str& edit_val);
+    bool CollisionFrictionOnAfterEdit(PropValue* sender, float& edit_val);
+    void CollisionFrictionOnBeforeEdit(PropValue* sender, float& edit_val);
+    void CollisionFrictionOnDraw(PropValue* sender, xr_string& draw_val);
+    bool CollisionCutoffOnAfterEdit(PropValue* sender, float& edit_val);
+    void CollisionCutoffOnBeforeEdit(PropValue* sender, float& edit_val);
+    void CollisionCutoffOnDraw(PropValue* sender, xr_string& draw_val);
+    void OnActionEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    bool RemoveAction(EParticleAction* action);
+    bool RemoveAction(int idx);
+    bool MoveUpAction(EParticleAction* action);
+    bool MoveDownAction(EParticleAction* action);
+    bool MoveUpAction(int idx);
+    bool MoveDownAction(int idx);
+    void OnFrameResize(PropValue* sender);
+    void OnShaderChange(PropValue* sender);
+    void OnFlagChange(PropValue* sender);
+    void OnControlClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    void OnActionsClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    bool OnAfterActionNameEdit(PropValue* sender, shared_str& edit_val);
+    void FillProp(LPCSTR pref, ::PropItemVec& items, void* owner);
+
+    void OnSpriteFrameClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnSpriteAnimatedClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnTimeLimitClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnSpriteClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnSpriteCullingClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnMovementAlignClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnMovementVelocityClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+    void OnMovementCollisionClicked(ButtonValue* value, bool& bModif, bool& bSafe);
+
     void Copy(const CPEDef& src);
-    BOOL Equal(const CPEDef* pe);
+    bool Equal(const CPEDef* pe);
     void Render(const Fmatrix& parent);
     static PFunction* FindCommandPrototype(LPCSTR src, LPCSTR& dest);
-    void __stdcall FillActionList(ChooseItemVec& items, void* param);
+    void FillActionList(ChooseItemVec& items, void* param);
     bool Validate(bool bMsg);
-    void Compile(EPAVec& v);
+    void OnDrawUI();
+    void Compile(EPAVec& v); // engine side (ParticleEffectDef.cpp)
 #endif
 };
 }; // namespace PS

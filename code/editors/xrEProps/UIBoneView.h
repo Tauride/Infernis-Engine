@@ -1,7 +1,9 @@
 #pragma once
 #include "NodeBuilder/Builder.h"
+#include "NodeBuilder/BoneNodes.h"
 
-class XREPROPS_API CUIBoneView:
+// Infernis: built and exported by xrECore, which has CBone's editor layout (IX-Ray: XREPROPS_API)
+class ECORE_API CUIBoneView:
 	public CNodeViewport
 {
 	xr_hash_map<CBone*, CNodeBone*> BonesData;

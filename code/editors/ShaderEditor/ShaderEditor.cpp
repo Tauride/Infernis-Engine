@@ -19,6 +19,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
     Core._initialize("Shader", ELogCallback, true, fsgame[0] ? fsgame : FSName);
 
+	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h), before the tools and the main
+	// form are created, so that dialogs during start-up are covered.
+	CEditorCheckRun CheckRun;
+	CheckRun.Parse(pCmdLine);
+
 	Tools = new CShaderTool();
 	STools = (CShaderTool*)Tools;
 
@@ -29,15 +34,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	::MainForm = MainForm;
 	UI->Push(MainForm, false);
 
-
-	// Infernis: unattended checks. -frames <n> closes the editor after n frames; -shot <file.png|bmp> saves the
-	// last of them (a path relative to the working folder).
-	int FrameLimit = 0;
-	string_path ShotPath = "";
-	if (const char* Arg = strstr(pCmdLine, "-frames "))
-		FrameLimit = atoi(Arg + 8);
-	ReadCommandLineValue(pCmdLine, "-shot ", ShotPath);
-	int FrameCount = 0;
 
 	bool NeedExit = false;
 	while (!NeedExit)
@@ -62,7 +58,10 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 				SDL_WindowID MainWndID = SDL_GetWindowID(g_AppInfo.Window);
 				if (UI && REDevice && Event.window.windowID == MainWndID)
 				{
-					UI->Resize(Event.window.data1, Event.window.data2, true);
+					// Infernis: the device takes the window's size in pixels (the event's size is in points)
+					int PixelsW = 0, PixelsH = 0;
+					SDL_GetWindowSizeInPixels(g_AppInfo.Window, &PixelsW, &PixelsH);
+					UI->Resize(PixelsW, PixelsH, true);
 					EPrefs->SaveConfig();
 				}
 				break;
@@ -93,19 +92,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 			if (!UI->ProcessEvent(&Event))
 				break;
 		}
-		if (FrameLimit > 0)
-		{
-			// The editor only draws while active (the pointer over the window); a timed run draws every frame.
-			Device.b_is_Active = true;
-			if (ShotPath[0] && FrameCount == FrameLimit - 1)
-				EDevice->RequestScreenshot(ShotPath);
-		}
+		CheckRun.BeforeFrame();
 		MainForm->Frame();
-		if (FrameLimit > 0 && ++FrameCount >= FrameLimit)
+		if (CheckRun.AfterFrame())
 			NeedExit = true;
 	}
-	if (EDevice && EDevice->m_ScreenshotPath[0])
-		Msg("! screenshot %s: not saved (no frame was drawn)", EDevice->m_ScreenshotPath);
 	xr_delete(MainForm);
 	Core._destroy();
 	return 0;

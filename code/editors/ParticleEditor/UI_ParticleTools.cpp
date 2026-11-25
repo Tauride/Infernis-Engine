@@ -908,6 +908,28 @@ void CParticleTool::SetCurrentPG(PS::CPGDef* P, PS::CPGDef::SEffect* Ef)
     }
 }
 
+// Infernis: the preview group (one item per effect) follows the group it shows when slots are added, removed or
+// pointed at another effect. IX-Ray left it as compiled, and Play on a new slot read past its items.
+void CParticleTool::OnPGEffectsChanged(PS::CPGDef* P, const void* RemovedEffect)
+{
+    if (!m_bReady || !P || m_LibPGD != P)
+        return;
+    if (RemovedEffect && m_CurrentEf == RemovedEffect)
+    {
+        m_CurrentEf = nullptr;
+        m_EditPE->Compile(0);
+        m_EditMode = emGroup;
+    }
+    bool Same = m_EditPG->items.size() == P->m_Effects.size();
+    for (size_t i = 0; Same && i < P->m_Effects.size(); ++i)
+    {
+        auto* Def = m_EditPG->items[i]._effect ? ((PS::CParticleEffect*)m_EditPG->items[i]._effect)->GetDefinition() : nullptr;
+        Same = Def ? Def->m_Name == P->m_Effects[i]->m_EffectName : !RImplementation.PSLibrary.FindPED(*P->m_Effects[i]->m_EffectName);
+    }
+    if (!Same)
+        m_EditPG->Compile(P);
+}
+
 void CParticleTool::DrawReferenceList()
 {
     switch (m_EditMode)
@@ -1097,7 +1119,11 @@ void CParticleTool::PlayCurrent(int idx)
     case emGroup:
         {
             if (idx>-1){
-                VERIFY(idx<(int)m_EditPG->items.size());
+                if (idx >= (int)m_EditPG->items.size()) // Infernis: IX-Ray only verified it (debug builds)
+                {
+                    ELog.Msg(mtError, "The preview has no effect %d.", idx);
+                    break;
+                }
                 m_LibPED = ((PS::CParticleEffect*)m_EditPG->items[idx]._effect)->GetDefinition();
                 if (m_LibPED)
                 {

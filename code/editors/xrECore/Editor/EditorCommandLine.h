@@ -32,14 +32,15 @@ bool ReadCommandLineValue(const char* CmdLine, const char* Option, char (&Out)[S
     return ReadCommandLineValue(CmdLine, Option, Out, Size);
 }
 
-// True when the command line has Option as a whole word ("-save", not "-saved" or "pre-save.png").
+// True when the command line has Option as a whole word ("-save" or "\"-save\"", not "-saved" or "pre-save.png").
 inline bool HasCommandLineOption(const char* CmdLine, const char* Option)
 {
+    const auto IsBoundary = [](char c) { return c == 0 || c == ' ' || c == '	' || c == '"'; };
     const size_t Length = xr_strlen(Option);
     for (const char* Found = CmdLine ? strstr(CmdLine, Option) : nullptr; Found; Found = strstr(Found + 1, Option))
     {
-        const bool StartsWord = Found == CmdLine || Found[-1] == ' ';
-        const bool EndsWord = Found[Length] == 0 || Found[Length] == ' ';
+        const bool StartsWord = Found == CmdLine || IsBoundary(Found[-1]);
+        const bool EndsWord = IsBoundary(Found[Length]);
         if (StartsWord && EndsWord)
             return true;
     }

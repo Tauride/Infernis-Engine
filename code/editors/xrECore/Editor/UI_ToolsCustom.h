@@ -245,6 +245,8 @@ public:
     virtual void SelectEffect(const char* name) {};
     virtual void RemoveAction(u32 idx, bool bForced = false) {};
     virtual void SetCurrentPG(PS::CPGDef* P) {};
+    // Infernis: a group's effect list or effect names changed; RemovedEffect is the slot taken out (not dereferenced)
+    virtual void OnPGEffectsChanged(PS::CPGDef* P, const void* RemovedEffect) {};
 	// Infernis: no particle animation curves (IX-Ray: EditPAC)
 
     ETAxis GetAxis() const

@@ -359,7 +359,7 @@ void UIEditLibrary::DrawRightBar()
 {
 	if (ImGui::BeginChild("Right", ImVec2(0, 0)))
 	{
-		ImGui::Image(m_RealTexture ? m_RealTexture->get_SRView()->GetRawSRV() : EDevice->texture_null->get_SRView()->GetRawSRV(), ImVec2(200, 200));
+		ImGui::Image(m_RealTexture ? m_RealTexture->get_surface_noref() : EDevice->texture_null->get_surface_noref(), ImVec2(200, 200));
 
 		PreviewProps->Draw();
 

@@ -427,7 +427,7 @@ void CSceneObject::OnShowHint(AStringVec& dest)
 			dest.push_back(xr_string("Game Mtl: ")+xr_string(surf->_GameMtlName()));
 			int gm_id			= surf->_GameMtl(); 
 			if (gm_id!=GAMEMTL_NONE_ID){ 
-				SGameMtl* mtl 	=  GameMaterialLibraryEditors->GetMaterialByID(gm_id);
+				SGameMtl* mtl 	=  PGMLib->GetMaterialByID(gm_id);
 				string256 Data = {};
 				sprintf(Data, "Occlusion Factor: %3.2f", mtl->fSndOcclusionFactor);
 

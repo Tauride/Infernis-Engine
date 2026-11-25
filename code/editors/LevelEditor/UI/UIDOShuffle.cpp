@@ -33,7 +33,7 @@ void UIDOShuffle::Draw()
 	{
 		ImVec2 StartPos = ImGui::GetCursorPos();
 
-		ImGui::Image(m_MaskTexture._get() ? m_MaskTexture->get_SRView()->GetRawSRV() : m_TextureNull->get_SRView()->GetRawSRV(), ImVec2(256, 256));
+		ImGui::Image(m_MaskTexture._get() ? m_MaskTexture->get_surface_noref() : m_TextureNull->get_surface_noref(), ImVec2(256, 256));
 		if (ImGui::IsItemClicked(ImGuiMouseButton_Left))
 		{
 			ImVec2 ClickPos = ImGui::GetMousePos();
@@ -75,7 +75,7 @@ void UIDOShuffle::Draw()
 			m_RealTexture = m_Texture;
 		}
 		bool HaveTexture = m_RealTexture != nullptr && m_RealTexture->get_SRView() != nullptr;
-		ImGui::Image(HaveTexture ? m_RealTexture->get_SRView()->GetRawSRV() : m_TextureNull->get_SRView()->GetRawSRV(), ImVec2(256, 256));
+		ImGui::Image(HaveTexture ? m_RealTexture->get_surface_noref() : m_TextureNull->get_surface_noref(), ImVec2(256, 256));
 
 		{
 			if (ImGui::Button("+", ImVec2(0, ImGui::GetFrameHeight()))) { UIChooseForm::SelectItem(smObject, 8); m_ChooseObject = true; }; ImGui::SameLine();

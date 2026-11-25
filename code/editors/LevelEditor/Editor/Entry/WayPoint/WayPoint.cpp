@@ -396,7 +396,7 @@ CWayPoint* CWayObject::AppendWayPoint()
 			xr_string temp = pref;
 			if (i != 0)
 			{
-				temp += "_" + xr_string::ToString(i - 1);
+				temp += "_" + xr_string_ToString(i - 1);
 			}
 			FindWPByName(temp.c_str(), result);
 			if (!result)
@@ -604,8 +604,8 @@ bool CWayObject::LoadLTX(CInifile& ini, const char* sect_name)
 	}
 
 	CInifile::Sect& S 		= ini.r_section(sect_name);
-	CInifile::SectCIt cit 	= S.Data.begin();
-	CInifile::SectCIt cit_e 	= S.Data.end();
+	auto cit 	= S.Data.begin();
+	auto cit_e 	= S.Data.end();
 	for( ;cit!=cit_e; ++cit)
 	{
 		if( cit->first.c_str() == strstr(cit->first.c_str(),"link_wp_") )
@@ -842,7 +842,7 @@ void CWayObject::FillProp(const char* pref, PropItemVec& items)
 					PHelper().CreateFloat	(items,	PrepareKey(pref,"Way Point\\Links",*(*l_it)->way_point->m_Name),&(*l_it)->probability);
 					
 				for (int k=0; k<32; k++)
-					PHelper().CreateFlag32(items,	PrepareKey(pref,"Way Point\\Flags",xr_string::ToString(k).c_str()),	&W->m_Flags,	1<<k);
+					PHelper().CreateFlag32(items,	PrepareKey(pref,"Way Point\\Flags",xr_string_ToString(k).c_str()),	&W->m_Flags,	1<<k);
 			}
 		}
 	}

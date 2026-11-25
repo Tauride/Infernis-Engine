@@ -56,7 +56,7 @@ void ESceneObjectTool::SaveLTX(CInifile& ini, int id)
     if (m_AppendRandomObjects.size())
     {
     	u32 i=0;
-    	for (RStringVecIt it=m_AppendRandomObjects.begin(); it!=m_AppendRandomObjects.end(); ++it, ++i)
+    	for (auto it=m_AppendRandomObjects.begin(); it!=m_AppendRandomObjects.end(); ++it, ++i)
         {
         	string128 			buff;
             sprintf				(buff,"object_name_%d",i);
@@ -117,7 +117,7 @@ void ESceneObjectTool::SaveStream(IWriter& F)
     F.w_fvector3	(m_AppendRandomMaxRotation);
     F.w_u32			(m_AppendRandomObjects.size());
     if (m_AppendRandomObjects.size()){
-    	for (RStringVecIt it=m_AppendRandomObjects.begin(); it!=m_AppendRandomObjects.end(); ++it)
+    	for (auto it=m_AppendRandomObjects.begin(); it!=m_AppendRandomObjects.end(); ++it)
             F.w_stringZ(*it);
     }
     F.close_chunk	();

@@ -403,7 +403,7 @@ const char* CLevelTool::GetInfo()
 {
 	static xr_string sel;
 	int cnt = Scene->SelectionCount(true,CurrentClassID());
-	sel = " Sel: " + xr_string::ToString(cnt);
+	sel = " Sel: " + xr_string_ToString(cnt);
 
 	return sel.c_str();
 }

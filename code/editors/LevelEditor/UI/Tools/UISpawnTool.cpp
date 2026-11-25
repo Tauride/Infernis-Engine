@@ -118,7 +118,7 @@ void UISpawnTool::MultiSelByRefObject(bool clear_prev)
 
 		int max_k = iFloor(float(sellist.size()) / 100.f * float(m_selPercent) + 0.5f);
 		int k = 0;
-		for (LPU32It o_it = sellist.begin(); k < max_k; o_it++, k++) {
+		for (auto o_it = sellist.begin(); k < max_k; o_it++, k++) {
 			CSpawnPoint* _O = (CSpawnPoint*)(*o_it);
 			_O->Select(true);
 		}

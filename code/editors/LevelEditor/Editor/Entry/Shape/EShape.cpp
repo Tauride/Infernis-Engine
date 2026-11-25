@@ -46,7 +46,7 @@ void CEditShape::ComputeBounds()
 {
 	m_Box.invalidate	();
 
-	for (ShapeIt it=shapes.begin(); it!=shapes.end(); it++){
+	for (auto it=shapes.begin(); it!=shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{
             Fsphere&	T		= it->data.sphere;
@@ -90,7 +90,7 @@ void CEditShape::SetScale(const Fvector& val)
 
 void CEditShape::ApplyScale()
 {
-	for (ShapeIt it=shapes.begin(); it!=shapes.end(); it++){
+	for (auto it=shapes.begin(); it!=shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{
             Fsphere&	T	= it->data.sphere;
@@ -134,7 +134,7 @@ void CEditShape::Attach(CEditShape* from)
     from->ApplyScale		();
 	Fmatrix M 				= from->_Transform();
     M.mulA_43				(_ITransform());
-	for (ShapeIt it=from->shapes.begin(); it!=from->shapes.end(); it++){
+	for (auto it=from->shapes.begin(); it!=from->shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{
             Fsphere& T		= it->data.sphere;
@@ -163,7 +163,7 @@ void CEditShape::Detach()
         ApplyScale		();
         // create scene shapes
         const Fmatrix& M = _Transform();
-        ShapeIt it=shapes.begin(); it++;
+        auto it=shapes.begin(); it++;
         for (; it!=shapes.end(); it++){
             string256 namebuffer;
             Scene->GenObjectName	(OBJCLASS_SHAPE, namebuffer, GetName());
@@ -210,7 +210,7 @@ bool CEditShape::RayPick(float& distance, const Fvector& start, const Fvector& d
 {
     float dist					= distance;
 
-	for (ShapeIt it=shapes.begin(); it!=shapes.end(); it++){
+	for (auto it=shapes.begin(); it!=shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{
             Fvector S,D;
@@ -256,7 +256,7 @@ bool CEditShape::RayPick(float& distance, const Fvector& start, const Fvector& d
 bool CEditShape::FrustumPick(const CFrustum& frustum)
 {
 	const Fmatrix& M	= _Transform();
-	for (ShapeIt it=shapes.begin(); it!=shapes.end(); it++){
+	for (auto it=shapes.begin(); it!=shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{
 		    Fvector 	C;
@@ -427,7 +427,7 @@ void CEditShape::Render(int priority, bool strictB2F)
             u32 clr 					= Selected()?subst_alpha(m_DrawTranspColor, color_get_A(m_DrawTranspColor)*2):m_DrawTranspColor;
                 
             Fvector zero				={0.f,0.f,0.f};
-            for (ShapeIt it=shapes.begin(); it!=shapes.end(); ++it)
+            for (auto it=shapes.begin(); it!=shapes.end(); ++it)
             {
                 switch(it->type)
                 {

@@ -3,7 +3,8 @@
 // Infernis: not in Infernis (#include "../../xrScripts/stdafx.h")
 
 #include "xrEngine/xrLevel.h"
-#include "xrServerEntities/xrServer_Objects_Abstract.h" // Infernis: server entity interfaces (ISE_Abstract, ISE_AbstractLEOwner)
+#include "xrServerEntities/xrServer_Objects_Abstract.h"
+#include "Editor/Utils/MPGameTypes.h" // Infernis: server entity interfaces (ISE_Abstract, ISE_AbstractLEOwner)
 
 #include "xrECore/Editor/device.h"
 #include "xrECore/Editor/UI_MainCommand.h"

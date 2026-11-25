@@ -867,8 +867,8 @@ bool EScene::LoadLTX(const char* map_name, bool bUndo)
 		if(ini.section_exist("snap_objects"))
 		{
 			CInifile::Sect& S 		= ini.r_section("snap_objects");
-			CInifile::SectCIt Si 	= S.Data.begin();
-			CInifile::SectCIt Se 	= S.Data.end();
+			auto Si 	= S.Data.begin();
+			auto Se 	= S.Data.end();
 			for(;Si!=Se; ++Si)
 			{
 				CCustomObject* 	O = FindObjectByName(Si->first.c_str(),OBJCLASS_SCENEOBJECT);

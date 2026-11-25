@@ -140,7 +140,7 @@ void CUIDialogView::Draw()
 				if (!Phrases.empty())
 				{
 					int NodeID = atoi(*Phrases.back().first) + 1;
-					std::memcpy(detail::input_buffer, xr_string::ToString(NodeID).c_str(), sizeof(detail::input_buffer));
+					std::memcpy(detail::input_buffer, xr_string_ToString(NodeID).c_str(), sizeof(detail::input_buffer));
 				}
 			}
 

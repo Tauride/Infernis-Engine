@@ -166,11 +166,11 @@ void EScene::GenObjectName(ObjClassID ClsID, char* Buffer, const char* Pref)
 	xr_string Result = Base;
 	if (!HasPrefix)
 	{
-		Result += "_" + xr_string::ToString(int(FreeSlot));
+		Result += "_" + xr_string_ToString(int(FreeSlot));
 	}
 	else if (FreeSlot != 0)
 	{
-		Result += "_" + xr_string::ToString(int(FreeSlot - 1));
+		Result += "_" + xr_string_ToString(int(FreeSlot - 1));
 	}
 
 	xr_strcpy(Buffer, 256, Result.c_str());

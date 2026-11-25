@@ -6,6 +6,37 @@
 #include "ui_main.h"
 #define POINTER_HEIGHT 35
 UIEditLightAnim* UIEditLightAnim::Form = nullptr;
+// Infernis: these were ELightAnimLibrary members compiled only into GSC's editors (_EDITOR); they need
+// xrEProps' EItemType, which the engine cannot see, so they live here and use the library's public members.
+static void LALibRemoveObject(LPCSTR fname, EItemType type, bool& res)
+{
+	res = false;
+	if (TYPE_FOLDER == type)
+	{
+		res = true;
+	}
+	else if (TYPE_OBJECT == type)
+	{
+		LAItemIt it = LALib.FindItemI(fname);
+		if (it != LALib.Items.end())
+		{
+			xr_delete(*it);
+			LALib.Items.erase(it);
+			res = true;
+		}
+	}
+}
+
+static void LALibRenameObject(LPCSTR nm0, LPCSTR nm1, EItemType type)
+{
+	if (TYPE_OBJECT == type)
+	{
+		CLAItem* I = LALib.FindItem(nm0);
+		R_ASSERT(I);
+		I->cName = nm1;
+	}
+}
+
 UIEditLightAnim::UIEditLightAnim()
 {
 	m_Modife = false;
@@ -250,7 +281,7 @@ void UIEditLightAnim::Draw()
 	   
 			RenderItem();
 		}
-		ImGui::Image(m_CurrentItem?m_ItemTexture:m_TextureNull->get_SRView()->GetRawSRV(), ImGui::CalcItemSize(ImVec2(-1, -1), 32, 32));
+		ImGui::Image(m_CurrentItem?m_ItemTexture:m_TextureNull->get_surface_noref(), ImGui::CalcItemSize(ImVec2(-1, -1), 32, 32));
 		if (!IsDocked)
 			IsDocked = ImGui::IsWindowDocked();
 		if (!IsFocused)
@@ -417,7 +448,7 @@ void UIEditLightAnim::OnRemoveItem(UIItemListForm::Node& node)
 	if (m_CurrentItem->cName == node.Name.c_str()) {
 		OnItemFocused(nullptr);
 	}
-	LALib.RemoveObject(node.Name.c_str(), type, res);
+	LALibRemoveObject(node.Name.c_str(), type, res);
 
 	OnModified();
 }
@@ -425,7 +456,7 @@ void UIEditLightAnim::OnRemoveItem(UIItemListForm::Node& node)
 void UIEditLightAnim::OnRenameItem(UIItemListForm::Node& node, const char* old_full_name, const char* new_full_name, EItemType type)
 {
 	bool res = false;
-	LALib.RenameObject(old_full_name, new_full_name,type);
+	LALibRenameObject(old_full_name, new_full_name, type);
 
 	OnModified();
 }
@@ -459,8 +490,8 @@ void UIEditLightAnim::RenderPointer()
 			CLAItem::KeyMap& Keys = m_CurrentItem->Keys;
 			int last = m_CurrentItem->iFrameCount;
 			Keys[last] = Keys.rbegin()->second;
-			CLAItem::KeyPairIt prev_key = Keys.begin();
-			CLAItem::KeyPairIt it = prev_key; it++;
+			CLAItem::KeyMap::iterator prev_key = Keys.begin();
+			CLAItem::KeyMap::iterator it = prev_key; it++;
 			float x_prev = (float(prev_key->first) / float(m_CurrentItem->iFrameCount)) * (m_PointerWeight - 2);
 			ImVec4 cb;
 			cb.y = 1;

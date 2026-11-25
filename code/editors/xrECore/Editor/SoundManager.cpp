@@ -30,13 +30,8 @@ int CSoundManager::GetGameSounds(FS_FileSet& files)
 
 int	CSoundManager::GetSoundEnvs(AStringVec& items)
 {
-    SoundEnvironment_LIB* Lib = Sound->get_env_library();
-
-    if (Lib)
-    {
-        for (SoundEnvironment_LIB::SE_IT it = Lib->Library().begin(); it != Lib->Library().end(); it++)
-            items.push_back(*(*it)->name);
-    }
+    // Infernis: the sound interface does not expose the environment library (GSC did so for Borland builds
+    // only); sound environment editing comes with a later stage.
 
     return items.size();
 }
@@ -89,7 +84,7 @@ void CSoundManager::RenameSound(const char* nm0, const char* nm1, EItemType type
         FS.update_path(fn0, _game_sounds_, nm0); strcat(fn0, ".ogg");
         FS.update_path(fn1, _game_sounds_, nm1); strcat(fn1, ".ogg");
         FS.file_rename(fn0, fn1, false);
-        Sound->refresh_sources();
+        // Infernis: no Sound->refresh_sources()
     }
 }
 
@@ -111,7 +106,7 @@ bool CSoundManager::RemoveSound(const char* fname, EItemType type)
             FS.file_delete		(_sounds_,thm_name.c_str());
             // game
             FS.file_delete		(_game_sounds_,game_name.c_str());
-		   Sound->refresh_sources();
+		   // Infernis: no Sound->refresh_sources()
             return true;
         }
     }
@@ -169,7 +164,7 @@ void CSoundManager::MakeGameSound(ESoundThumbnail* THM, const char* src_name, co
     }
     else
     {
-        FS.TryLoad(game_name);
+        EFS.TryLoad(game_name);
     }
 }
 
@@ -220,7 +215,7 @@ void CSoundManager::SynchronizeSounds(bool sync_thm, bool sync_game, bool bForce
         FS.update_path(PathInitial, _sounds_, "");
 
         xr_string base_name		= EFS.ChangeFileExt(it->name,"");
-        if (base_name.Contains(PathInitial))
+        if (xr_string_contains(base_name, PathInitial))
         {
             base_name = base_name.substr(strlen(PathInitial));
         }
@@ -387,7 +382,7 @@ void CSoundManager::RefreshSounds(bool bSync, bool IsSoft)
             CleanupSounds(IsSoft);
         }
 
-        Sound->refresh_sources();
+        // Infernis: no Sound->refresh_sources()
         UI->SetStatus("");
     }
     else 

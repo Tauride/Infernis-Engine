@@ -2,7 +2,7 @@
 #ifndef UI_CameraH
 #define UI_CameraH
 
-enum ECameraStyle{
+enum EEditorCameraStyle{
 	csPlaneMove=0,
 	cs3DArcBall,
     csFreeFly
@@ -11,7 +11,7 @@ enum ECameraStyle{
 using TShiftState = int;
 class ECORE_API CUI_Camera
 {
-	ECameraStyle	m_Style;
+	EEditorCameraStyle	m_Style;
     bool			m_bMoving;
     TShiftState	 	m_Shift;
     Ivector2		m_StartPos;
@@ -44,8 +44,8 @@ public:
 	void			BuildCamera	();
 	void			Reset		();
     void 			Update		(float dt);
-    void			SetStyle	(ECameraStyle style);
-	ECameraStyle	GetStyle	(){return m_Style;}
+    void			SetStyle	(EEditorCameraStyle style);
+	EEditorCameraStyle	GetStyle	(){return m_Style;}
 
     bool			MoveStart	(TShiftState Shift);
     bool			MoveEnd		(TShiftState Shift);

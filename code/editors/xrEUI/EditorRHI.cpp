@@ -9,16 +9,16 @@ namespace
 D3DFORMAT ToD3DFormat(ERHI_FORMAT Format)
 {
     // R8G8B8A8 is stored as A8R8G8B8 (red and blue swapped on upload).
-    return Format == ERHI_FORMAT::R8G8B8A8_UNORM ? D3DFMT_A8R8G8B8 : static_cast<D3DFORMAT>(Format);
+    return Format == ERHI_FORMAT::R8G8B8A8_UNORM ? D3DFMT_A8R8G8B8 : D3DFORMAT(Format);
 }
 
 u32 BytesPerPixel(ERHI_FORMAT Format)
 {
-    switch (Format)
+    switch (D3DFORMAT(Format))
     {
-    case ERHI_FORMAT::R16G16B16A16_FLOAT:
-    case ERHI_FORMAT::R32G32_FLOAT: return 8;
-    case ERHI_FORMAT::R32G32B32A32_FLOAT: return 16;
+    case D3DFMT_A16B16G16R16F:
+    case D3DFMT_G32R32F: return 8;
+    case D3DFMT_A32B32G32R32F: return 16;
     default: return 4;
     }
 }
@@ -69,7 +69,7 @@ IRHISurface* IRHISurface::Wrap(IDirect3DBaseTexture9* Texture)
     {
         D3DSURFACE_DESC Desc;
         if (SUCCEEDED(static_cast<IDirect3DTexture9*>(Texture)->GetLevelDesc(0, &Desc)))
-            Format = static_cast<ERHI_FORMAT>(Desc.Format);
+            Format = ERHI_FORMAT(Desc.Format);
     }
     return new IRHISurface(Texture, Format);
 }

@@ -69,7 +69,7 @@ public:
 			m_UIArray.begin(), m_UIArray.end(),
 			[](IEditorWnd* Form)
 			{
-				return smart_cast<T*>(Form);
+				return dynamic_cast<T*>(Form); // Infernis: no xrCore smart_cast here
 			}
 		);
 	}

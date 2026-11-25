@@ -3,9 +3,6 @@
 #ifndef LightAnimLibraryH
 #define LightAnimLibraryH
 //---------------------------------------------------------------------------
-#ifdef _EDITOR
-#include "../xrEProps/FolderLib.h"
-#endif
 
 class ENGINE_API CLAItem {
 public:
@@ -53,10 +50,7 @@ public:
 public:
     ELightAnimLibrary();
     ~ELightAnimLibrary();
-#ifdef _EDITOR
-    void RemoveObject(LPCSTR fname, EItemType type, bool& res);
-    void RenameObject(LPCSTR fn0, LPCSTR fn1, EItemType type);
-#endif
+    // (Editor item removal and renaming live in the editors: code/editors/xrECore/Editor/UIEditLightAnim.cpp)
 
     void OnCreate();
     void OnDestroy();

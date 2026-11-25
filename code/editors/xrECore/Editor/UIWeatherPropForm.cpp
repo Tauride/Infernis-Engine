@@ -7,10 +7,10 @@
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/Environment.h"
 #include "UI_ToolsCustom.h"
-#include "../xrEngine/Editor/XrEditorSceneInterface.h"
 
-extern ENGINE_API bool bIsSndOnRoof;
-extern ENGINE_API bool bIsRaindropCollision;
+// Infernis: IX-Ray-only rain options (sound on roofs, raindrop collision); kept so the form works, no effect.
+static bool bIsSndOnRoof = false;
+static bool bIsRaindropCollision = false;
 extern ECORE_API bool  bIsShowSun              = false;
 extern ECORE_API bool  bIsUseSunDir            = false;
 extern ECORE_API bool  bIsUseHemi              = false;
@@ -33,8 +33,8 @@ UIWeatherPropForm::~UIWeatherPropForm() {}
 void UIWeatherPropForm::Draw()
 {
 	auto& env = g_pGamePersistent->Environment();
-	float  time = g_pGameLevel ? g_pGameLevel->GetEnvironmentGameDayTimeSec() : env.GetGameTime();
-	float  time_factor = g_pGameLevel ? g_pGameLevel->GetEnvironmentTimeFactor() : env.fTimeFactor;
+	float  time = env.GetGameTime() /* Infernis */;
+	float  time_factor = env.fTimeFactor /* Infernis */;
 	ImVec2 sizeImage = ImVec2(454.0f, 250.0f);   // Размер изображения, которое мы хотим сделать видимым
 	ImVec2 sizeButton = ImVec2(100.0f, 22.0f);    // Размер кнопки, которое мы хотим сделать видимым
 
@@ -44,7 +44,7 @@ void UIWeatherPropForm::Draw()
 		ImVec2 image_pos = ImGui::GetCursorScreenPos();
 		m_weather_properties->Load();
 		ImGui::SameLine(0, 0);
-		ImGui::Image(m_weather_properties->get_SRView()->GetRawSRV(), ImVec2(sizeImage));
+		ImGui::Image(m_weather_properties->get_surface_noref(), ImVec2(sizeImage));
 
 		// Переводим секунды в часы (0-24)
 		float hours = std::fmod(time / 3600.0f, 24.0f);
@@ -89,7 +89,7 @@ void UIWeatherPropForm::Draw()
 		if (ImGui::CollapsingHeader("Environment time", ImGuiTreeNodeFlags_DefaultOpen))
 		{
 			u32 hours, minutes, seconds;
-			env.SplitTime(time, hours, minutes, seconds);
+			EditorSplitTime(time, hours, minutes, seconds);
 
 			string128 temp;
 			xr_sprintf(temp, "Current time: %02d:%02d:%02d###environment_time", hours, minutes, seconds);
@@ -143,12 +143,12 @@ void UIWeatherPropForm::Draw()
 				}
 				for (const auto& [Name, _] : env.WeatherCycles)
 				{
-					selectedWeather = psDeviceFlags.test(rsEnvironment) && Name == EPrefs->sWeather;
+					selectedWeather = psDeviceFlags.test(rsEnvironment) && Name == EPrefs->sWeather.c_str(); // Infernis: std::string names
 					if (ImGui::MenuItem(Name.c_str(), "", &selectedWeather))
 					{
 						psDeviceFlags.set(rsEnvironment, true);
 						env.SetWeather(Name.c_str(), true);
-						EPrefs->sWeather = env.CurrentCycleName;
+						EPrefs->sWeather = env.CurrentCycleName.c_str();
 						UI->RedrawScene();
 					}
 
@@ -358,7 +358,7 @@ void UIWeatherPropForm::Draw()
 		if (ImGui::Button("Apply", sizeButton))
 		{
 			if (selectedWeather)
-				env.SetWeather(EPrefs->sWeather, true);
+				env.SetWeather(EPrefs->sWeather.c_str(), true);
 			env.fTimeFactor = m_speed_time;
 			UI->RedrawScene();
 		}

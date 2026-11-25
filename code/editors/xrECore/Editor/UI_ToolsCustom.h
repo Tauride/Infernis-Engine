@@ -245,7 +245,7 @@ public:
     virtual void SelectEffect(const char* name) {};
     virtual void RemoveAction(u32 idx, bool bForced = false) {};
     virtual void SetCurrentPG(PS::CPGDef* P) {};
-	virtual void EditPAC(PS::CPACDef* PAC){}
+	// Infernis: no particle animation curves (IX-Ray: EditPAC)
 
     ETAxis GetAxis() const
     {

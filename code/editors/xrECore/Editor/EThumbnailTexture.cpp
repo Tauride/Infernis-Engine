@@ -89,7 +89,7 @@ bool ETextureThumbnail::Load(const char* src_name, const char* path)
 		FS.update_path(fn, _game_textures_, fn);
 	}
 
-	if (!FS.TryLoad(fn))
+	if (!EFS.TryLoad(fn))
 	{
 		return false;
 	}
@@ -164,7 +164,7 @@ void ETextureThumbnail::FillProp(PropItemVec& items, PropValue::TOnChange on_typ
 }
 //------------------------------------------------------------------------------
 
-extern ENGINE_API xr_token ttype_token[];
+// (ttype_token: ETextureParams.h)
 extern ECORE_API bool LoadRawImage(const char* full_name, U32Vec& data, u32& w, u32& h, u32& a);
 
 void ETextureThumbnail::FillInfo(PropItemVec& items)
@@ -172,8 +172,8 @@ void ETextureThumbnail::FillInfo(PropItemVec& items)
 	STextureParams& F			= m_TexParams;
     PHelper().CreateCaption		(items, "Format",					get_token_name(tfmt_token,F.fmt));
     PHelper().CreateCaption		(items, "Type",						get_token_name(ttype_token,F.type));
-    PHelper().CreateCaption		(items, "Width",					shared_str().printf("%d",_Width()));
-    PHelper().CreateCaption		(items, "Height",					shared_str().printf("%d",_Height()));
+    PHelper().CreateCaption		(items, "Width",					shared_str(std::to_string(_Width()).c_str()));
+    PHelper().CreateCaption		(items, "Height",					shared_str(std::to_string(_Height()).c_str()));
     PHelper().CreateCaption		(items, "Alpha",					_Alpha()?"on":"off");
 }
 

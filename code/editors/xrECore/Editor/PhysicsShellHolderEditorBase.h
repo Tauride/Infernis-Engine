@@ -32,6 +32,7 @@ private:
     virtual	CPhysicsShell*&				_BCL	ObjectPPhysicsShell					()				 { return m_physics_shell; }
 	virtual	void						_BCL	enable_notificate					()				 {}
 	virtual bool						_BCL	has_parent_object					()				 { return false; }
+	virtual void								on_physics_disable					()				 {} // Infernis interface
 	virtual	IPHCapture*					_BCL	PHCapture							()				 { return nullptr;}
 	virtual	bool						_BCL	IsInventoryItem						()				 { return false; }
 	virtual	bool						_BCL	IsActor								()				 { return false; }

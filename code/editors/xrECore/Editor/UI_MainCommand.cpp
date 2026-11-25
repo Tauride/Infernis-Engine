@@ -267,7 +267,7 @@ CCommandVar CommandInitialize(CCommandVar p1, CCommandVar p2)
 		FS.update_path(si_name, "$game_config$", "system.ltx");
 		pSettings = new CInifile(si_name, true);// false,true,true);
 
-		g_pStringTable = new CStringTable();
+		// Infernis: the string table lives in xrGame, which the editors do not load (IX-Ray: CStringTable here)
 
 		string_path					fname;
 		FS.update_path(fname, "$game_config$", "game.ltx");
@@ -297,13 +297,13 @@ CCommandVar CommandInitialize(CCommandVar p1, CCommandVar p2)
                     if (bWeather && EPrefs->sWeather.size())
                     {
                             psDeviceFlags.set(rsEnvironment, true);
-                            g_pGamePersistent->Environment().SetWeather(EPrefs->sWeather, true);
+                            g_pGamePersistent->Environment().SetWeather(EPrefs->sWeather.c_str(), true); // Infernis: std::string name
                     }
                     g_pGamePersistent->Environment().ed_from_time = EPrefs->env_from_time;
                     g_pGamePersistent->Environment().ed_to_time = EPrefs->env_to_time;
                     g_pGamePersistent->Environment().fTimeFactor = EPrefs->env_speed;
                 }
-				EDevice->seqAppStart.Process<&pureAppStart::OnAppStart>();
+				EDevice->seqAppStart.Process(rp_AppStart);
 				ExecCommand(COMMAND_CLEAR);
 				ExecCommand(COMMAND_RENDER_FOCUS);
 				ExecCommand(COMMAND_CHANGE_ACTION, etaSelect);
@@ -329,7 +329,7 @@ CCommandVar CommandDestroy(CCommandVar p1, CCommandVar p2)
 	EPrefs->env_speed = g_pGamePersistent->Environment().fTimeFactor;
 	EPrefs->OnDestroy();
 	ExecCommand(COMMAND_CLEAR);
-	EDevice->seqAppEnd.Process<&pureAppEnd::OnAppEnd>();
+	EDevice->seqAppEnd.Process(rp_AppEnd);
 	xr_delete(g_pGamePersistent);
 	LALib.OnDestroy();
 	Tools->OnDestroy();
@@ -339,8 +339,8 @@ CCommandVar CommandDestroy(CCommandVar p1, CCommandVar p2)
 	Lib.OnDestroy();
 	UI->OnDestroy();
 
-	xr_delete(pSettings);
-	xr_delete(pGameIni);
+	{ CInifile* ini = const_cast<CInifile*>(pSettings); xr_delete(ini); pSettings = nullptr; } // Infernis: const CInifile*, created by the editor above
+	{ CInifile* ini = const_cast<CInifile*>(pGameIni); xr_delete(ini); pGameIni = nullptr; } // Infernis: const CInifile*, created by the editor above
 
 	ELog.Close();
 

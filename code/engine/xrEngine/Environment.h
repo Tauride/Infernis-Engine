@@ -345,16 +345,14 @@ public:
     void OnDeviceDestroy();
 
 // editor-related
-#ifdef _EDITOR
+// Same layout with and without _EDITOR: the editors share this class with xrEngineCore.dll: both the editor time range and the game's pause flag.
 public:
-    float ed_from_time;
-    float ed_to_time;
+    float ed_from_time = 0.f;
+    float ed_to_time = DAY_LENGTH;
 
 public:
     void ED_Reload();
-#else // #ifdef _EDITOR
     bool m_paused;
-#endif // #ifdef _EDITOR
 
 private:
     bool m_weather_editor_active;

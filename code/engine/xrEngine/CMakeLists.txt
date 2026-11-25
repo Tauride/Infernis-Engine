@@ -476,6 +476,8 @@ if (BUILD_EDITORS)
     add_library(xrEngineCore SHARED ${XRENGINE_SOURCES})
     # Device is a pointer in this build (see device.h), so that an editor can install its own device class.
     target_compile_definitions(xrEngineCore PUBLIC ENGINE_DEVICE_PTR)
+    # The engine's editor-only functions (key editing, motion marks, ED_Reload), for the editors.
+    target_compile_definitions(xrEngineCore PRIVATE ENGINE_EDITOR_SUPPORT)
     target_include_directories(xrEngineCore PUBLIC ${DXSDK_INCLUDE_DIR}
                                             PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
     target_link_libraries(xrEngineCore vfw32 libogg libtheora d3dx9 d3d9 dinput8 dxguid

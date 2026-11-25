@@ -1,5 +1,5 @@
 #pragma once
-#include "..\XrEngine\IGame_Persistent.h"
+#include "xrEngine/IGame_Persistent.h"
 
 //-----------------------------------------------------------------------------------------------------------
 class ECORE_API XrGamePersistentEditors :public IGame_Persistent

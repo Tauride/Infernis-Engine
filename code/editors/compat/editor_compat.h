@@ -53,6 +53,11 @@ inline xr_string UTF8_to_CP1251(const xr_string& Utf8) { return ConvertCodePage(
 } // namespace Platform
 
 using xr_atomic_bool = std::atomic_bool;
+
+// Borland calling-convention marker, empty in IX-Ray xrCore; GSC-era editor declarations still carry it.
+#ifndef _BCL
+#define _BCL
+#endif
 using U8Vec = xr_vector<u8>; // IX-Ray xrCore; Infernis has U16Vec and U32Vec only
 using Fvector2Vec = xr_vector<Fvector2>; // IX-Ray xrCore
 // IX-Ray xrCore hashes shared_str for unordered containers. Equal shared_str share one interned value, so the
@@ -63,7 +68,86 @@ struct std::hash<shared_str>
     size_t operator()(const shared_str& Value) const noexcept { return std::hash<const void*>()(Value._get()); }
 };
 
+// IX-Ray xrCore helpers.
+using FS_FileSetIt = FS_FileSet::iterator;
+
+inline float _sqrt(float Value) { return std::sqrt(Value); }
+
+// Concatenates into a fixed buffer and returns it (IX-Ray xrCore's variadic xr_strconcat).
+template <size_t Size, class... Parts>
+char* xr_strconcat(char (&Destination)[Size], const Parts&... Text)
+{
+    Destination[0] = 0;
+    (xr_strcat(Destination, Size, Text), ...);
+    return Destination;
+}
+
+// IX-Ray profiler markers (Tracy); no profiler in the Infernis editors.
+#ifndef PROF_EVENT
+#define PROF_EVENT(...)
+#define PROF_THREAD(...)
+#define PROF_FRAME(...)
+#define PROF_EVENT_DYNAMIC(...)
+#endif
+
+// IX-Ray's static xr_string::ToString.
+inline xr_string xr_string_ToString(int Value) { return xr_string(std::to_string(Value).c_str()); }
+inline xr_string xr_string_ToString(unsigned int Value) { return xr_string(std::to_string(Value).c_str()); }
+inline xr_string xr_string_ToString(float Value) { return xr_string(std::to_string(Value).c_str()); }
+inline xr_string xr_string_ToString(double Value) { return xr_string(std::to_string(Value).c_str()); }
+
+// IX-Ray xrCore smart pointer helpers.
+template <class T>
+using xr_unique_ptr = std::unique_ptr<T>;
+template <class T, class... Args>
+xr_unique_ptr<T> xr_make_unique(Args&&... Arguments)
+{
+    return std::make_unique<T>(std::forward<Args>(Arguments)...);
+}
+
+// IX-Ray xrCore: make sure the folders of a file path exist.
+inline void VerifyPath(const char* Path)
+{
+    std::error_code Error;
+    std::filesystem::create_directories(std::filesystem::path(Path).parent_path(), Error);
+}
+
+// IX-Ray xrCore: file time to time_t.
+inline time_t xr_chrono_to_time_t(std::filesystem::file_time_type Time)
+{
+    using namespace std::chrono;
+    return system_clock::to_time_t(clock_cast<system_clock>(Time));
+}
+inline time_t xr_chrono_to_time_t(std::chrono::system_clock::time_point Time)
+{
+    return std::chrono::system_clock::to_time_t(Time);
+}
+
+// IX-Ray CEnvironment::SplitTime: seconds of the day to hours, minutes and seconds.
+inline void EditorSplitTime(float Time, u32& Hours, u32& Minutes, u32& Seconds)
+{
+    const u32 Total = u32(Time);
+    Hours = Total / 3600;
+    Minutes = (Total % 3600) / 60;
+    Seconds = Total % 60;
+}
+
+// Infernis's bones name themselves with std::string, IX-Ray's editor code compares them with shared_str.
+inline bool operator==(const std::string& Left, const shared_str& Right) { return Left == (Right.c_str() ? Right.c_str() : ""); }
+inline bool operator==(const shared_str& Left, const std::string& Right) { return Right == Left; }
+inline bool operator!=(const std::string& Left, const shared_str& Right) { return !(Left == Right); }
+inline bool operator!=(const shared_str& Left, const std::string& Right) { return !(Right == Left); }
+// Exact overloads for text literals, so the two above do not make `shared_str == "text"` ambiguous.
+inline bool operator==(const shared_str& Left, const char* Right) { return 0 == xr_strcmp(Left.c_str() ? Left.c_str() : "", Right ? Right : ""); }
+inline bool operator==(const char* Left, const shared_str& Right) { return Right == Left; }
+inline bool operator!=(const shared_str& Left, const char* Right) { return !(Left == Right); }
+inline bool operator!=(const char* Left, const shared_str& Right) { return !(Right == Left); }
+
 // More IX-Ray xrCore container aliases the editor code uses.
+template <class T, int dim>
+using FixedVector = svector<T, dim>; // IX-Ray xrCore/Containers/FixedVector.h; Infernis's equivalent is svector
+using PlaneVec = xr_vector<Fplane>;
+using PlaneIt = PlaneVec::iterator;
 using boolVec = xr_vector<bool>;
 using boolIt = boolVec::iterator;
 using U8It = U8Vec::iterator;
@@ -193,6 +277,13 @@ inline bool IsUTF8(const char* String)
 #ifndef _game_textures_
 #define _game_textures_ "$game_textures$"
 #endif
+
+// IX-Ray xrCore concepts used by editor templates.
+namespace XRay::Concepts
+{
+template <class T>
+concept Enum = std::is_enum_v<T>;
+}
 
 // IX-Ray RHI subset on Direct3D 9 (textures, cull mode, clears) shared by all editor modules.
 #include "editor_rhi.h"

@@ -128,7 +128,7 @@ void UISoundEditorForm::AppendModif(const char* nm)
     FS_File 		dest;
     string_path		fname;
     FS.update_path(fname, _sounds_, EFS.ChangeFileExt(nm, ".wav").c_str());
-    bool bFind = FS.file_find(fname, dest); R_ASSERT(bFind);
+    const auto* found = FS.exist(fname); R_ASSERT(found); dest.name = fname; dest.time_write = found->modif; dest.size = found->size_real; // Infernis: no FS.file_find
     modif_map.insert(dest);
 }
 
@@ -235,8 +235,8 @@ float UISoundEditorForm::GetOGGDurationInSeconds(const char* filename)
 
 size_t UISoundEditorForm::GetFileSizeInBytes(const char* filename)
 {
-    time_t t = {};
-    return Platform::Stat(filename, t);
+    std::error_code Error; // Infernis: no Platform::Stat
+    return size_t(std::filesystem::file_size(filename, Error));
 }
 
 void UISoundEditorForm::OnItemsFocused(ListItem* item)
@@ -308,10 +308,10 @@ void UISoundEditorForm::PlaySound(const char* name)
     string_path fname;
     FS.update_path(fname, _game_sounds_, EFS.ChangeFileExt(name, ".ogg").c_str());
     FS_File F;
-    if (FS.file_find(fname, F))
+    if (const auto* found = FS.exist(fname); found && ((F.name = fname), (F.time_write = found->modif), (F.size = found->size_real), true)) // Infernis: no FS.file_find
     {
         xr_string FileName = name;
-        if (FileName.Contains(".ogg"))
+        if (xr_string_contains(FileName, ".ogg"))
         {
             FileName += ".ogg";
         }

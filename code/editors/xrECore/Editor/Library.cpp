@@ -115,7 +115,7 @@ CEditableObject* ELibrary::LoadEditObject(const char* name)
 {
 	VERIFY(m_bReady);
     CEditableObject* m_EditObject = new CEditableObject(name);
-    if (FS.TryLoad(name))
+    if (EFS.TryLoad(name))
     {
         if (m_EditObject->Load(name))
             return m_EditObject;
@@ -124,7 +124,7 @@ CEditableObject* ELibrary::LoadEditObject(const char* name)
     {
         string_path fn;
         FS.update_path(fn, _objects_, EFS.ChangeFileExt(name, ".object").c_str());
-        if (FS.TryLoad(fn))
+        if (EFS.TryLoad(fn))
         {
             if (m_EditObject->Load(fn))
                 return m_EditObject;

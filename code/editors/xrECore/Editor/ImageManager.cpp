@@ -24,7 +24,7 @@ bool IsValidSize(u32 w, u32 h)
 
 ECORE_API bool LoadRawImage(const char* full_name, U32Vec& data, u32& w, u32& h, u32& a)
 {
-	FS.TryLoad(full_name);
+	EFS.TryLoad(full_name);
 	auto file = FS.exist(full_name);
 	if (!file)
 	{ 
@@ -33,7 +33,7 @@ ECORE_API bool LoadRawImage(const char* full_name, U32Vec& data, u32& w, u32& h,
 	}
 
 	//file->wrap
-	DXTUtils::ImageInfo Img = DXTUtils::GitPixels(file->wrap ? file->wrap : full_name);
+	DXTUtils::ImageInfo Img = DXTUtils::GitPixels(full_name); // Infernis: no FS wrap paths
 	w = Img.W;
 	h = Img.H;
 
@@ -334,7 +334,7 @@ void CImageManager::SynchronizeTextures(bool sync_thm, bool sync_game, bool bFor
 		xr_string base_name	= EFS.ChangeFileExt(it->name,""); xr_strlwr(base_name);
 		string_path				fn;
 		FS.update_path			(fn,_textures_,EFS.ChangeFileExt(base_name,".tga").c_str());
-		if (!FS.TryLoad(fn)) continue;
+		if (!EFS.TryLoad(fn)) continue;
 
 		FS_FileSetIt th 	= M_THUM.find(base_name);
 		bool bThm = ((th==M_THUM.end()) || ((th!=M_THUM.end())&&(th->time_write!=it->time_write)));
@@ -626,7 +626,7 @@ void FlipVertical(xr_vector<u32>& pixels, int width, int height)
 bool GetRTDataU32(ref_rt& RT, xr_vector<u32>& outPixels, int& width, int& height)
 {
 	IDirect3DSurface9* pSrc = nullptr;
-	((IDirect3DTexture9*)RT->pTexture->pSurface->GetRawTexture())->GetSurfaceLevel(0, &pSrc);
+	((IDirect3DTexture9*)RT->pTexture->get_surface_noref())->GetSurfaceLevel(0, &pSrc);
 	if (!pSrc)
 	{
 		return false;

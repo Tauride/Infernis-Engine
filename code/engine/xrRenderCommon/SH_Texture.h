@@ -33,6 +33,8 @@ public:
 
     void surface_set(ID3DBaseTexture* surf);
     ID3DBaseTexture* surface_get();
+    // The surface without a reference (the editors draw textures in their UI this way).
+    ID3DBaseTexture* get_surface_noref() const { return pSurface; }
 
     [[nodiscard]] IC BOOL isUser() const { return flags.bUser; }
     [[nodiscard]] IC u32 get_Width() {

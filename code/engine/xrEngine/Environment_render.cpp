@@ -283,7 +283,7 @@ void CEnvironment::OnDeviceDestroy() {
     CurrentEnv->destroy();
 }
 
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
 void CEnvironment::ED_Reload() {
     OnDeviceDestroy();
     OnDeviceCreate();

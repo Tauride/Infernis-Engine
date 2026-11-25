@@ -10,7 +10,6 @@
 #include "D3DUtils.h"
 #include "render.h"
 
-#include <FlexibleVertexFormat.h>
 
 struct VEditorVertex
 {

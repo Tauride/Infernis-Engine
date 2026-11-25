@@ -78,8 +78,7 @@ public:
 
 	ErrorCollector()
 	{
-		Debug.SilentErrorMode = true;
-		Debug.SendErrorCallback = AddErrorToCollector;
+		// Infernis: xrDebug has no silent mode or error callback (IX-Ray), so nothing is collected yet.
 	}
 
 	virtual void Draw() override
@@ -149,7 +148,7 @@ public:
 			for (ErrorEntry& Entry : Entries)
 			{
 				xr_string FilterStr = Filter;
-				if (!FilterStr.empty() && !Entry.ShortDesc.Contains(FilterStr) && !Entry.FileLine.Contains(FilterStr))
+				if (!FilterStr.empty() && !xr_string_contains(Entry.ShortDesc, FilterStr) && !xr_string_contains(Entry.FileLine, FilterStr))
 				{
 					continue;
 				}

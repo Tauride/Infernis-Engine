@@ -138,7 +138,7 @@ bool CEditableMesh::LoadMesh(IReader& F){
 	F.r					(m_Faces, m_FaceCount*sizeof(st_Face));
 
 	m_SmoothGroups		= xr_alloc<u32>(m_FaceCount);
-    Memory.mem_fill32	(m_SmoothGroups,m_Flags.is(flSGMask)?0:u32(-1),m_FaceCount);
+    std::fill_n(m_SmoothGroups, m_FaceCount, m_Flags.is(flSGMask) ? 0 : u32(-1)); // Infernis: no Memory.mem_fill32
 	u32 sg_chunk_size	= F.find_chunk(EMESH_CHUNK_SG);
 	if (sg_chunk_size){
 		VERIFY			(m_FaceCount*sizeof(u32)==sg_chunk_size);

@@ -8,7 +8,7 @@
 #include "xrRenderCommon/ResourceManager.h"
 #include "xrRenderCommon/ParticleEffect.h"
 #include "xrRenderCommon/ParticleGroup.h"
-#include "../../Layers/xrRender/ParticleAnimCurve.h"
+// Infernis: no particle animation curves (IX-Ray-only particle feature), so no curve chooser.
 #include "xrEngine/defines.h"
 #include "EditObject.h"
 ref_sound* choose_snd;
@@ -274,13 +274,6 @@ namespace ChoseEvents
         }
     }
     //---------------------------------------------------------------------------
-    void   FillPAC(ChooseItemVec& items, void* param)
-    {
-        for (auto elem : RImplementation.PSLibrary.VecPACDs())
-        {
-            items.push_back(SChooseItem(elem->getName(), "ANIM_CURVE"));
-        }
-    }
     //---------------------------------------------------------------------------
     void   FillParticles(ChooseItemVec& items, void* param)
     {
@@ -473,7 +466,6 @@ void FillChooseEvents()
     UIChooseForm::AppendEvents(smGameMaterial, "Select Game Material", ChoseEvents::FillGameMaterial, nullptr, nullptr, nullptr, 0);
     UIChooseForm::AppendEvents(smGameAnim, "Select Animation", ChoseEvents::FillGameAnim, nullptr, nullptr, nullptr, 0);
     UIChooseForm::AppendEvents(smGameSMotions, "Select Game Object Motions", ChoseEvents::FillGameObjectMots, ChoseEvents::SelectGameObjectMots, nullptr, nullptr, 0);
-    UIChooseForm::AppendEvents(smPAC, "Select Animation Curve", ChoseEvents::FillPAC, nullptr,nullptr, nullptr, 0);
     choose_snd = new ref_sound();
 }
 

@@ -43,7 +43,7 @@ bool EObjectThumbnail::Load(const char* src_name, const char* path)
     else if (path == nullptr)	
         FS.update_path(fn,_objects_,fn);
 
-    if (!FS.TryLoad(fn)) 
+    if (!EFS.TryLoad(fn)) 
         return false;
 
     IReader* F 		= FS.r_open(fn);

@@ -1,7 +1,6 @@
 #include "stdafx.h"
 
 
-#include "../Layers/xrRenderDX9/dx9ShaderUtils.h"
 #include "render.h"
 
 
@@ -11,8 +10,8 @@
 #include "xrEngine/xr_object.h"
 #include "xrEngine/CustomHUD.h"
 
-#include "..\Layers\xrRender\uber_deffer.h"
-#include "..\Layers\xrRender\uber_deffer.cpp"
+#include "xrRenderCommon/uber_deffer.h"
+#include "xrRenderCommon/uber_deffer.cpp"
 //#include "../../../Layers/xrRender/Light_Render_Direct_ComputeXFS.cpp"
 
 #include "xrRenderCommon/du_sphere_part.h"
@@ -28,6 +27,13 @@ ECORE_API float	g_fSCREEN;
 
 CRender RImplementation;
 
+// Infernis: these live in R1's own files (FStaticRender.cpp, r__screenshot.cpp), which the editor does not
+// compile; the shared renderer sources it does compile refer to them.
+float r_ssaGLOD_start = 0.f;
+float r_ssaGLOD_end = 0.f;
+void DoAsyncScreenshot() {}
+
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview (IX-Ray R2-style lights) comes with the Level Editor stage
 void CRenderTarget::draw_volume(light* L)
 {
 	switch(L->flags.type)
@@ -43,11 +49,15 @@ void CRenderTarget::draw_volume(light* L)
 	}
 }
 
+#else
+void CRenderTarget::draw_volume(light*) {}
+#endif // EDITOR_LIGHT_PREVIEW
 CRenderTarget::CRenderTarget()
 {
 	t_envmap_0 = DEV->_CreateTexture("$user$env_s0");
 	t_envmap_1 = DEV->_CreateTexture("$user$env_s1");
 
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview (IX-Ray R2-style lights) comes with the Level Editor stage
 	b_accum = new CBlender_accum();
 	s_accum.create(b_accum, "r2\\accum_spot_s", "lights\\lights_spot01");
 
@@ -62,6 +72,13 @@ CRenderTarget::CRenderTarget()
 		accum_spot_geom_create();
 		g_accum_spot.create(D3DFVF_XYZ, g_accum_spot_vb, g_accum_spot_ib);
 	}
+#else
+	b_accum = nullptr;
+	g_accum_point_vb = nullptr;
+	g_accum_point_ib = nullptr;
+	g_accum_spot_vb = nullptr;
+	g_accum_spot_ib = nullptr;
+#endif
 };
 
 CRenderTarget::~CRenderTarget() {
@@ -71,6 +88,7 @@ CRenderTarget::~CRenderTarget() {
 	xr_delete(b_accum);
 };
 
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview (IX-Ray R2-style lights) comes with the Level Editor stage
 void	light::xform_calc() {
 	if(Device.dwFrame == m_xform_frame)	return;
 	m_xform_frame = Device.dwFrame;
@@ -242,6 +260,10 @@ void CRenderTarget::accum_spot(light* L)
 }
 
 #include "xrRenderCommon/light.cpp"
+#else
+void CRenderTarget::accum_spot(light*) {}
+#include "xrRenderCommon/light.cpp"
+#endif // EDITOR_LIGHT_PREVIEW
 
 //---------------------
 //---------------------------------------------------------------------------
@@ -250,7 +272,6 @@ CRender::CRender()
 	val_bUI = false;
 	val_bInvisible = false;
 	::Render = &RImplementation;
-	Engine.External.SetSkinningMode();
 }
 
 CRender::~CRender()
@@ -279,18 +300,18 @@ void CRender::OnDeviceDestroy()
 
 ref_shader	CRender::getShader(int id) { return nullptr; }
 
-bool CRender::occ_visible(Fbox& B)
+BOOL CRender::occ_visible(Fbox& B)
 {
 	u32 mask = 0xff;
 	return ViewBase.testAABB(B.data(), mask);
 }
 
-bool CRender::occ_visible(sPoly& P)
+BOOL CRender::occ_visible(sPoly& P)
 {
 	return ViewBase.testPolyInside(P);
 }
 
-bool CRender::occ_visible(vis_data& P)
+BOOL CRender::occ_visible(vis_data& P)
 {
 	return occ_visible(P.box);
 }
@@ -325,7 +346,7 @@ void CRender::Calculate()
 		(
 			lstRenderables,
 			ISpatial_DB::O_ORDERED,
-			ESPATIAL_TYPE::RENDERABLE | ESPATIAL_TYPE::LIGHTSOURCE | ESPATIAL_TYPE::PARTICLE,
+			STYPE_RENDERABLE | STYPE_LIGHTSOURCE, // Infernis: particles are renderables
 			ViewBase
 		);
 
@@ -354,9 +375,10 @@ void CRender::Calculate()
 				if (R)		R->update(O);
 			}
 		}*/
-		for (ISpatialShared& pSpatial : lstRenderables)
+		for (ISpatial* pSpatial : lstRenderables)
 		{
-			if ((pSpatial->type & ESPATIAL_TYPE::LIGHTSOURCE) != ESPATIAL_TYPE::NONE)
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview (IX-Ray R2-style lights) comes with the Level Editor stage
+			if (pSpatial->spatial.type & STYPE_LIGHTSOURCE)
 			{
 				if(light* L = (light*)pSpatial->dcast_Light())
 				{
@@ -375,11 +397,12 @@ void CRender::Calculate()
 				}
 			}
 
+#endif // EDITOR_LIGHT_PREVIEW
 			IRenderable* renderable = pSpatial->dcast_Renderable();
 			if (!renderable)
 				continue;
 
-			if((pSpatial->type & ESPATIAL_TYPE::RENDERABLE) != ESPATIAL_TYPE::NONE || (pSpatial->type & ESPATIAL_TYPE::PARTICLE) != ESPATIAL_TYPE::NONE)
+			if (pSpatial->spatial.type & STYPE_RENDERABLE)
 			{
 				set_Object(renderable);
 				renderable->renderable_Render();
@@ -392,11 +415,8 @@ void CRender::Calculate()
 }
 
 #include "xrEngine/IGame_Persistent.h"
-#include "../../../Layers/xrRender/CHudInitializer.h"
-#include "../../../Layers/xrRender/CHudInitializer.cpp"
 #include "xrRenderCommon/dxEnvironmentRender.h"
 #include "xrEngine/IGame_Level.h"
-#include "../../../xrCore/git_version.h"
 
 void CRender::Render()
 {
@@ -408,10 +428,11 @@ void CRender::Render()
 			envdescren.sky_r_textures_env[0].second->Load();
 			envdescren.sky_r_textures_env[1].second->Load();
 
-			Target->t_envmap_0->surface_set(envdescren.sky_r_textures_env[0].second->pSurface);
-			Target->t_envmap_1->surface_set(envdescren.sky_r_textures_env[1].second->pSurface);
+			Target->t_envmap_0->surface_set(envdescren.sky_r_textures_env[0].second->get_surface_noref());
+			Target->t_envmap_1->surface_set(envdescren.sky_r_textures_env[1].second->get_surface_noref());
 		}
 
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview (IX-Ray R2-style lights) comes with the Level Editor stage
 		for(auto& light : m_spotlights) 
 		{
 			Target->accum_spot(light);
@@ -423,6 +444,7 @@ void CRender::Render()
 		}
 
 		Target->reset_light_marker(true);
+#endif
 
 		GRHI->StateManager->SetCullMode(ERHI_CULLMODE::BACK); // back
 		RCache.set_Stencil(false);
@@ -484,7 +506,7 @@ void 	CRender::set_Transform(Fmatrix* M)
 	current_matrix.set(*M);
 }
 
-void CRender::add_Visual(IRenderVisual* visual, bool)
+void CRender::add_Visual(IRenderVisual* visual)
 {
 	if(val_bInvisible) {
 		return;
@@ -503,7 +525,7 @@ void CRender::add_Visual(IRenderVisual* visual, bool)
 
 IRenderVisual* CRender::model_Create(const char* name, IReader* data) { return Models->Create(name, data); }
 IRenderVisual* CRender::model_CreateChild(const char* name, IReader* data) { return Models->CreateChild(name, data); }
-void CRender::model_Delete(IRenderVisual*& V, bool bDiscard) 
+void CRender::model_Delete(IRenderVisual*& V, BOOL bDiscard) 
 {
 	auto v = dynamic_cast<dxRender_Visual*>(V); 
 	if (Models != nullptr)
@@ -525,13 +547,11 @@ void CRender::reset_end() {
 	Target = new CRenderTarget();
 }
 
-void CRender::set_HUD(bool V)
+void CRender::set_HUD(BOOL V)
 {
-	static CHudInitializer initalizer(false);
-
+	// Infernis: IX-Ray's CHudInitializer (HUD field of view) is not ported; the editor only switches the
+	// render mode for HUD models.
 	if(!!V) {
-		initalizer = CHudInitializer(false);
-		initalizer.SetHudMode();
 
 		RCache.set_xform_view(Device.mView);
 		RCache.set_xform_project(Device.mProject);
@@ -539,7 +559,6 @@ void CRender::set_HUD(bool V)
 		RImplementation.rmNear();
 	}
 	else {
-		initalizer.SetDefaultMode();
 
 		RCache.set_xform_view(Device.mView);
 		RCache.set_xform_project(Device.mProject);
@@ -548,7 +567,7 @@ void CRender::set_HUD(bool V)
 	}
 }
 
-bool CRender::get_HUD() {
+BOOL CRender::get_HUD() {
 	return false;
 }
 
@@ -557,7 +576,7 @@ void CRender::set_UI(bool V)
 	val_bUI = V;
 }
 
-void CRender::set_Invisible(bool V)
+void CRender::set_Invisible(BOOL V)
 {
 	val_bInvisible = V;
 }
@@ -568,9 +587,9 @@ DWORD CRender::get_dx_level()
 }
 
 static class cl_lighting_enable : 
-	public RHIShaderConstant::Setup
+	public R_constant_setup // Infernis: R_constant (IX-Ray: RHIShaderConstant)
 {
-	virtual void setup(RHIShaderConstant* C)
+	virtual void setup(R_constant* C)
 	{
 		float is_lighting_enable = 0.0f;
 		if(g_pGamePersistent && psDeviceFlags.test(rsEnvironment))
@@ -709,7 +728,7 @@ public:
 IRender_Glow* CRender::glow_create() { return new RGlow(); }
 void CRender::glow_destroy(IRender_Glow* p_) {  }
 void CRender::models_Prefetch() {}
-void CRender::models_Clear(bool b_complete) {}
+void CRender::models_Clear(BOOL b_complete) {}
 void CRender::Screenshot(ScreenshotMode mode, const char* name) {}
 void CRender::Screenshot(ScreenshotMode mode, CMemoryWriter& memory_writer) {}
 void CRender::ScreenshotAsyncBegin() {}
@@ -721,7 +740,7 @@ u32 CRender::memory_usage() { return 0; }
 //--------------------------------------------------------------------------------------------------------------
 class includer : public ID3DInclude {
 public:
-	HRESULT __stdcall Open(D3D_INCLUDE_TYPE IncludeType, const char* pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) {
+	HRESULT __stdcall Open(D3DXINCLUDE_TYPE IncludeType, const char* pFileName, LPCVOID pParentData, LPCVOID* ppData, UINT* pBytes) {
 		string_path pname;
 		xr_strconcat(pname, ::Render->getShaderPath(), pFileName);
 		IReader* R = FS.r_open("$game_shaders$", pname);
@@ -825,7 +844,7 @@ HRESULT	CRender::shader_compile(
 		defines[def_it++] = m_ShaderOptions[i];
 	}
 
-	const int m_skinning = Engine.External.GetSkinningMode();
+	// Infernis: the skinning mode is IRender_interface::m_skinning, set by the skeleton code (shader_option_skinning)
 
 	if (m_skinning < 0) 
 	{
@@ -900,7 +919,7 @@ HRESULT	CRender::shader_compile(
 	}
 
 	u32 const RealCodeCRC = crc32(pSrcData, SrcDataLen);
-	if (FS.exist(file_name) && ps_r__common_flags.test(RFLAG_USE_CACHE)) {
+	if (FS.exist(file_name) && true /* Infernis: the editor always caches compiled shaders (R2 flag in IX-Ray) */) {
 #ifdef DEBUG
 		Msg("compilied shader library found %s", file_name);
 #endif // DEBUG
@@ -934,7 +953,7 @@ HRESULT	CRender::shader_compile(
 		{
 			const void* ShaderData = pShaderBuf->GetBufferPointer();
 			const u32 ShaderSize = pShaderBuf->GetBufferSize();
-			if (ps_r__common_flags.test(RFLAG_USE_CACHE))
+			if (true /* Infernis: the editor always caches compiled shaders (R2 flag in IX-Ray) */)
 			{
 				IWriter* file = FS.w_open(file_name);
 				u32 const crc = crc32(ShaderData, ShaderSize);

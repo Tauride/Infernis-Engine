@@ -3,15 +3,15 @@
 #include "xrEngine/Bone.h"
 #include "xrEngine/Motion.h"
 #if 1
-#	include "../editors/Public/PropertiesListTypes.h"
+#	include "Public/PropertiesListTypes.h"
 //	#include "PropertiesListHelper.h"
-#	include "..\Engine\XrGameMaterialLibraryEditors.h"
 #	include "pick_defs.h"
 #endif
-#	include "..\..\..\Include\xrRender\Kinematics.h"
+#	include "xrRender/Kinematics.h"
 
 #include "PhysicsShellHolderEditorBase.h"
 #include "Engine/GameMtlLib.h"
+
 
 //----------------------------------------------------
 struct 	SRayPickInfo;
@@ -461,8 +461,10 @@ private:
 	virtual		void			EnumBoneVertices	(SEnumVerticesCallback &C, u16 bone_id) 							{ VERIFY(false); }
 
 	// Low level interface
-	virtual u16			_BCL	LL_BoneID(const char*  B)																   	{ int id = FindBoneByNameIdx( B ); VERIFY(id<u16(-1)); return (u16)id; }
-	virtual u16			_BCL	LL_BoneID(const shared_str& B)                                                          { return LL_BoneID( B.c_str() ); }
+	// Infernis: IKinematics has one LL_BoneID(string_view); the other forms forward to it.
+	virtual u16					LL_BoneID(const std::string_view B) override											{ int id = FindBoneByNameIdx( xr_string(B).c_str() ); VERIFY(id<u16(-1)); return (u16)id; }
+	u16							LL_BoneID(const char*  B)																{ return LL_BoneID( std::string_view(B) ); }
+	u16							LL_BoneID(const shared_str& B)                                                          { return LL_BoneID( std::string_view(B.c_str()) ); }
 	virtual const char*		_BCL	LL_BoneName_dbg(u16 ID) 																;
 
 	virtual CInifile*	_BCL	LL_UserData() 																			{ return nullptr; }
@@ -486,20 +488,19 @@ virtual	const IBoneData&_BCL	GetBoneData(u16 bone_id) const 															{ ret
 	virtual u16			_BCL	LL_GetBoneRoot() 																		{ u16 root_id = (u16)GetRootBoneID(); VERIFY( root_id < u16(-1) ); return root_id; }
 	virtual void				LL_SetBoneRoot(u16 bone_id) 															{ VERIFY(false); }
 
-	virtual bool		_BCL	LL_GetBoneVisible(u16 bone_id) 															{ return true; }
-	virtual void				LL_SetBoneVisible(u16 bone_id, bool val, bool bRecursive) 								{ VERIFY(false); }
+	// Infernis: BOOL flags and a u64 bone mask (IX-Ray: bool and VisMask)
+	virtual BOOL				LL_GetBoneVisible(u16 bone_id) override													{ return TRUE; }
+	virtual void				LL_SetBoneVisible(u16 bone_id, BOOL val, BOOL bRecursive) override						{ VERIFY(false); }
 
-	virtual VisMask _BCL LL_GetBonesVisible() {
-		VisMask x; x.set_all(); return x;
-	}
+	virtual u64					LL_GetBonesVisible() override															{ return u64(-1); }
 
-	virtual void				LL_SetBonesVisibleAll() {};
+	void						LL_SetBonesVisibleAll() {};
 
-	virtual void				LL_SetBonesVisible(VisMask mask) 														{ VERIFY(false); }
-	virtual void				BonesHistory_Invalidate() override {}
+	virtual void				LL_SetBonesVisible(u64 mask) override													{ VERIFY(false); }
+	void						BonesHistory_Invalidate() {}
 
 	// Main functionality
-	virtual void				CalculateBones(bool bForceExact	= false) 												{ } // Recalculate skeleton
+	virtual void				CalculateBones(BOOL bForceExact	= FALSE) override										{ } // Recalculate skeleton
 	virtual void				CalculateBones_Invalidate()																{ }
 	virtual void				Callback(UpdateCallback C, void* Param) 												{ VERIFY(false); }
 

@@ -112,7 +112,7 @@ public:
 #ifdef _LW_EXPORT
     void ParseObjectMotion(LWItemID object);
 #endif
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
     void FindNearestKey(float t, float& min_k, float& max_k, float eps = EPS_L);
     void CreateKey(float t, const Fvector& P, const Fvector& R);
     void DeleteKey(float t);
@@ -141,7 +141,13 @@ enum ESMFlags {
 #if defined(_EDITOR) || defined(_MAX_EXPORT) || defined(_MAYA_EXPORT)
 #include "SkeletonMotions.h"
 
-class ENGINE_API CSMotion : public CCustomMotion {
+// Editor-only class, implemented in the editor core (code/editors/xrECore/Engine/EditorMotion.cpp).
+#ifdef XRECORE_EXPORTS
+#define CSMOTION_API __declspec(dllexport)
+#else
+#define CSMOTION_API __declspec(dllimport)
+#endif
+class CSMOTION_API CSMotion : public CCustomMotion {
     BoneMotionVec bone_mots;
 
 public:
@@ -186,7 +192,7 @@ public:
 };
 #endif
 
-struct ECORE_API SAnimParams {
+struct ENGINE_API SAnimParams { // implemented in the engine (GSC: ECORE_API)
     float t_current;
     float tmp;
     float min_t;

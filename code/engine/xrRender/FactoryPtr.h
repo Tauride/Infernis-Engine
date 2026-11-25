@@ -51,7 +51,7 @@ private:
     T* m_pObject;
 };
 
-#ifndef _EDITOR
+// Same in the game and the editors: the editors implement this interface for xrEngineCore.dll.
 FACTORY_PTR_INSTANCIATE(UISequenceVideoItem)
 FACTORY_PTR_INSTANCIATE(UIShader)
 FACTORY_PTR_INSTANCIATE(StatGraphRender)
@@ -63,9 +63,7 @@ FACTORY_PTR_INSTANCIATE(ObjectSpaceRender)
 FACTORY_PTR_INSTANCIATE(ApplicationRender)
 FACTORY_PTR_INSTANCIATE(WallMarkArray)
 FACTORY_PTR_INSTANCIATE(StatsRender);
-#endif // _EDITOR
 
-#ifndef _EDITOR
 FACTORY_PTR_INSTANCIATE(FlareRender)
 FACTORY_PTR_INSTANCIATE(ThunderboltRender)
 FACTORY_PTR_INSTANCIATE(ThunderboltDescRender)
@@ -74,7 +72,6 @@ FACTORY_PTR_INSTANCIATE(RainRender)
 FACTORY_PTR_INSTANCIATE(EnvironmentRender)
 FACTORY_PTR_INSTANCIATE(EnvDescriptorRender)
 FACTORY_PTR_INSTANCIATE(EnvDescriptorMixerRender)
-#endif // _EDITOR
 FACTORY_PTR_INSTANCIATE(FontRender)
 /*
 void FactoryPtr<IStatsRender>::CreateObject(void)

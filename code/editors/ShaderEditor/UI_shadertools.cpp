@@ -75,10 +75,9 @@ bool CShaderTool::OnCreate()
 
     OnChangeEditor(m_Current);
 
-    if (const char* Arg = strstr(Core.Params, "-ogf "))
+    string_path Name = "";
+    if (ReadCommandLineValue(Core.Params, "-ogf ", Name))
     {
-        string_path Name = "";
-        sscanf(Arg + 5, "%[^ ]", Name);
         m_CheckModel = Name;
         CreateCheckVisual();
     }

@@ -65,7 +65,7 @@ DXTCompressFunc GetDXTCompress()
         HMODULE Module = LoadLibraryA("xrDXT.dll");
         if (!Module)
         {
-            Msg("! DXTUtils: xrDXT.dll not found (it is built with BUILD_UTILS)");
+            Msg("! DXTUtils: xrDXT.dll not found (built with BUILD_EDITORS or BUILD_UTILS; it loads nvdxtwrap.dll)");
             return nullptr;
         }
         return reinterpret_cast<DXTCompressFunc>(GetProcAddress(Module, "DXTCompress"));

@@ -201,6 +201,9 @@ target_link_directories(xrECore PUBLIC ${DXSDK_LIB_DIR}) # d3dx9, as for the ren
 target_compile_definitions(xrECore PRIVATE XRECORE_EXPORTS _WINDOWS _USRDLL PUBLIC _EDITOR)
 target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xrSound xrPhysics xrParticles
                                      xrAPI luabind lunasvg xrQSlim d3d9 d3dx9 dinput8 dxguid)
+# Loaded at run time, so built with the core: the CPU pipeline (software skinning, bound by Engine.Initialize) and
+# the texture compressor (DXTUtils).
+add_dependencies(xrECore xrCPU_Pipe xrDXT)
 set_target_properties(xrECore PROPERTIES FOLDER editors)
 
 # --- Shader Editor (stage 3): shaders.xr, gamemtl.xr and shaders_xrlc.xr (sound environments not yet) -----

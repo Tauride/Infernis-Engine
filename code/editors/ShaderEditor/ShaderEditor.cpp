@@ -14,13 +14,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	Debug._initialize();
 
     const char* FSName = "fs.ltx";
-    const char* fsgame_ltx_name = "-fsltx ";
     string_path fsgame = "";
-
-    if (strstr(pCmdLine, fsgame_ltx_name)) {
-        int						sz = xr_strlen(fsgame_ltx_name);
-        sscanf(strstr(pCmdLine, fsgame_ltx_name) + sz, "%[^ ] ", fsgame);
-    }
+    ReadCommandLineValue(pCmdLine, "-fsltx ", fsgame); // Infernis: bounded, quotes allowed (IX-Ray: sscanf)
 
     Core._initialize("Shader", ELogCallback, true, fsgame[0] ? fsgame : FSName);
 
@@ -41,8 +36,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	string_path ShotPath = "";
 	if (const char* Arg = strstr(pCmdLine, "-frames "))
 		FrameLimit = atoi(Arg + 8);
-	if (const char* Arg = strstr(pCmdLine, "-shot "))
-		sscanf(Arg + 6, "%[^ ]", ShotPath);
+	ReadCommandLineValue(pCmdLine, "-shot ", ShotPath);
 	int FrameCount = 0;
 
 	bool NeedExit = false;
@@ -99,12 +93,19 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 			if (!UI->ProcessEvent(&Event))
 				break;
 		}
-		if (FrameLimit > 0 && ShotPath[0] && FrameCount == FrameLimit - 1)
-			EDevice->RequestScreenshot(ShotPath);
+		if (FrameLimit > 0)
+		{
+			// The editor only draws while active (the pointer over the window); a timed run draws every frame.
+			Device.b_is_Active = true;
+			if (ShotPath[0] && FrameCount == FrameLimit - 1)
+				EDevice->RequestScreenshot(ShotPath);
+		}
 		MainForm->Frame();
 		if (FrameLimit > 0 && ++FrameCount >= FrameLimit)
 			NeedExit = true;
 	}
+	if (EDevice && EDevice->m_ScreenshotPath[0])
+		Msg("! screenshot %s: not saved (no frame was drawn)", EDevice->m_ScreenshotPath);
 	xr_delete(MainForm);
 	Core._destroy();
 	return 0;

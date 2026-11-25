@@ -770,6 +770,45 @@ public:
 	}
 };
 
+// Infernis: the key of a cached shader. The CRC of the source, followed through every #include (resolved as the
+// includer above does), so that editing an included file such as common.h also recompiles the shaders using it.
+static u32 shader_source_crc(const char* Source, u32 Size, u32 Crc, xr_set<xr_string>& Seen, int Depth = 0)
+{
+	Crc = crc32(Source, Size, Crc);
+	if (Depth > 16)
+		return Crc;
+	const char* Cursor = Source;
+	const char* End = Source + Size;
+	while (Cursor < End)
+	{
+		const char* Line = Cursor;
+		while (Cursor < End && *Cursor != '\n')
+			++Cursor;
+		const char* LineEnd = Cursor++;
+		while (Line < LineEnd && (*Line == ' ' || *Line == '\t'))
+			++Line;
+		if (LineEnd - Line < 10 || 0 != strncmp(Line, "#include", 8))
+			continue;
+		const char* Open = std::find(Line + 8, LineEnd, '"');
+		const char* Close = Open < LineEnd ? std::find(Open + 1, LineEnd, '"') : LineEnd;
+		if (Close >= LineEnd)
+			continue;
+		xr_string Name(Open + 1, Close);
+		if (!Seen.insert(Name).second)
+			continue;
+		string_path Path;
+		xr_strconcat(Path, ::Render->getShaderPath(), Name.c_str());
+		IReader* R = FS.r_open("$game_shaders$", Path);
+		if (!R)
+			R = FS.r_open("$game_shaders$", Name.c_str());
+		if (!R)
+			continue;
+		Crc = shader_source_crc(static_cast<const char*>(R->pointer()), R->length(), Crc, Seen, Depth + 1);
+		FS.r_close(R);
+	}
+	return Crc;
+}
+
 static HRESULT create_shader(const char* const pTarget, DWORD const* buffer, u32 const buffer_size, const char* const file_name, void*& result)
 {
 	HRESULT _result = E_FAIL;
@@ -918,14 +957,15 @@ HRESULT	CRender::shader_compile(
 		FS.update_path(file_name, "$app_data_root$", file);
 	}
 
-	u32 const RealCodeCRC = crc32(pSrcData, SrcDataLen);
+	xr_set<xr_string> SeenIncludes;
+	u32 const RealCodeCRC = shader_source_crc(reinterpret_cast<const char*>(pSrcData), SrcDataLen, 0, SeenIncludes);
 	if (FS.exist(file_name) && true /* Infernis: the editor always caches compiled shaders (R2 flag in IX-Ray) */) {
 #ifdef DEBUG
 		Msg("compilied shader library found %s", file_name);
 #endif // DEBUG
 
 		IReader* file = FS.r_open(file_name);
-		if (file->length() > 4)
+		if (file->length() > 8) // two CRCs, then the compiled code
 		{
 			u32 ShaderCRC = file->r_u32();
 			u32 CodeSRC = file->r_u32();

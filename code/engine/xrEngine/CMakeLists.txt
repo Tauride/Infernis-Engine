@@ -468,3 +468,17 @@ target_include_directories(xrEngine PUBLIC ${DXSDK_INCLUDE_DIR}
 target_link_libraries(xrEngine vfw32 libogg libtheora d3dx9 d3d9 dinput8 dxguid
                                shlwapi xrCore xrCDB xrSound xrAPI xrNetServer winmm luabind DiscordRPC
                                imgui_win32)
+# Level editor SDK (code/editors): the same engine sources as a DLL, which the editors load. The game keeps
+# xrEngine.exe; xrGame and the renderers link against that, never against xrEngineCore.
+if (BUILD_EDITORS)
+    get_target_property(XRENGINE_SOURCES xrEngine SOURCES)
+    list(REMOVE_ITEM XRENGINE_SOURCES xrEngine.manifest)
+    add_library(xrEngineCore SHARED ${XRENGINE_SOURCES})
+    # Device is a pointer in this build (see device.h), so that an editor can install its own device class.
+    target_compile_definitions(xrEngineCore PUBLIC ENGINE_DEVICE_PTR)
+    target_include_directories(xrEngineCore PUBLIC ${DXSDK_INCLUDE_DIR}
+                                            PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(xrEngineCore vfw32 libogg libtheora d3dx9 d3d9 dinput8 dxguid
+                                       shlwapi xrCore xrCDB xrSound xrAPI xrNetServer winmm luabind DiscordRPC
+                                       imgui_win32)
+endif()

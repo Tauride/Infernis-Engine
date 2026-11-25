@@ -55,3 +55,121 @@ set_target_properties(xrEProps PROPERTIES FOLDER editors)
 add_executable(xrEditorUITest WIN32 test/xrEditorUITest.cpp)
 target_link_libraries(xrEditorUITest PRIVATE xrEProps)
 set_target_properties(xrEditorUITest PROPERTIES FOLDER editors)
+
+# lunasvg, for the editor icons (xrECore). Same release IX-Ray uses, pinned by hash.
+FetchContent_Declare(lunasvg
+    URL https://github.com/sammycage/lunasvg/archive/refs/tags/v3.4.0.tar.gz
+    URL_HASH SHA256=6ef03a7471fe4288def39e9fe55dfe2dbfb4041792d81a7e07e362f649cc7a0b
+    DOWNLOAD_EXTRACT_TIMESTAMP TRUE)
+set(LUNASVG_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(lunasvg)
+foreach(LUNASVG_TARGET lunasvg plutovg)
+    if (TARGET ${LUNASVG_TARGET})
+        set_target_properties(${LUNASVG_TARGET} PROPERTIES FOLDER editors/3rd-party)
+    endif()
+endforeach()
+
+# xrECore: the editor core (device, camera, scene objects, meshes, library, thumbnails). Built on Infernis's
+# engine (xrEngineCore.dll, the engine sources as a DLL) and on Infernis's DX9 renderer sources, compiled here
+# with _EDITOR as the renderer of the editor viewport.
+set(ENGINE_DIR ${CMAKE_SOURCE_DIR}/code/engine)
+file(GLOB_RECURSE ECORE_SOURCES CONFIGURE_DEPENDS xrECore/*.cpp xrECore/*.h)
+# Not built yet: skinned-mesh export and bone-shape fitting need MagicSoftware and DirectXMesh (Actor Editor stage).
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/(WildMagic/|Editor/EditObjectSkin[.]cpp|Editor/ExportSkeleton)")
+set(ECORE_RENDER_SOURCES
+    ${ENGINE_DIR}/xrRenderCommon/Animation.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_BmmD.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Editor_Selection.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Editor_Wire.cpp
+    "${ENGINE_DIR}/xrRenderCommon/Blender_Lm(EbB).cpp"
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Model_EbB.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Particle.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Recorder_R2.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Recorder_StandartBinding.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_Screen_SET.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_detail_still.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Blender_tree.cpp
+    ${ENGINE_DIR}/xrRenderCommon/DetailModel.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ETextureParams.cpp
+    ${ENGINE_DIR}/xrRenderCommon/FBasicVisual.cpp
+    ${ENGINE_DIR}/xrRenderCommon/FHierrarhyVisual.cpp
+    ${ENGINE_DIR}/xrRenderCommon/FProgressive.cpp
+    ${ENGINE_DIR}/xrRenderCommon/FSkinned.cpp
+    ${ENGINE_DIR}/xrRenderCommon/FVisual.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ModelPool.cpp
+    ${ENGINE_DIR}/xrRenderCommon/PSLibrary.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ParticleEffect.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ParticleEffectDef.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ParticleGroup.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend_DBG.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend_Runtime.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend_hemi.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend_tree.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_Backend_xform.cpp
+    ${ENGINE_DIR}/xrRenderCommon/R_DStreams.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ResourceManager.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Loader.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Reset.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SH_Atomic.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SH_Constant.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SH_Matrix.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SH_RT.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SH_Texture.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Shader.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SkeletonAnimated.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SkeletonCustom.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SkeletonRigid.cpp
+    ${ENGINE_DIR}/xrRenderCommon/SkeletonX.cpp
+    ${ENGINE_DIR}/xrRenderCommon/TextureDescrManager.cpp
+    ${ENGINE_DIR}/xrRenderCommon/blenders/Blender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/blenders/Blender_Palette.cpp
+    ${ENGINE_DIR}/xrRenderCommon/blenders/Blender_Recorder.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxApplicationRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxConsoleRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxDebugRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxEnvironmentRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxFontRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxLensFlareRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxObjectSpaceRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxRainRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxRenderDeviceRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxRenderFactory.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxStatGraphRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxStatsRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxThunderboltDescRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxThunderboltRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxUIRender.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxUISequenceVideoItem.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxUIShader.cpp
+    ${ENGINE_DIR}/xrRenderCommon/dxWallMarkArray.cpp
+    ${ENGINE_DIR}/xrRenderCommon/r_constants.cpp
+    ${ENGINE_DIR}/xrRenderCommon/stats_manager.cpp
+    ${ENGINE_DIR}/xrRenderCommon/tga.cpp
+    ${ENGINE_DIR}/xrRenderCommon/tss_def.cpp
+    ${ENGINE_DIR}/xrRenderCommon/xrRender_console.cpp
+    ${ENGINE_DIR}/xrRenderDX9/dx9r_constants_cache.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/BlenderDefault.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Blur.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_LaEmB.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Model.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Screen_GRAY.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Shadow_World.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Vertex.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_Vertex_aref.cpp
+    ${ENGINE_DIR}/xrRenderPC_R1/Blender_default_aref.cpp
+    ${ENGINE_DIR}/xrRenderCommon/HW.cpp
+    ${ENGINE_DIR}/xrRenderCommon/HWCaps.cpp
+    ${ENGINE_DIR}/xrRenderCommon/Texture.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Resources.cpp
+    ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Scripting.cpp)
+add_library(xrECore SHARED ${ECORE_SOURCES} ${ECORE_RENDER_SOURCES} Public/VIMP_Processor.cpp
+                           Public/object_sliding.cpp xrECore/xrECore.rc)
+# 3rd-party/nlohmann: json.hpp 3.11.2 (MIT), the single header IX-Ray downloads; editor settings use it.
+target_include_directories(xrECore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xrECore ${DXSDK_INCLUDE_DIR}
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party)
+target_precompile_headers(xrECore PRIVATE xrECore/stdafx.h)
+target_compile_definitions(xrECore PRIVATE XRECORE_EXPORTS _WINDOWS _USRDLL PUBLIC _EDITOR)
+target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xrSound xrPhysics xrParticles
+                                     xrAPI luabind lunasvg d3d9 d3dx9 dinput8 dxguid)
+set_target_properties(xrECore PROPERTIES FOLDER editors)

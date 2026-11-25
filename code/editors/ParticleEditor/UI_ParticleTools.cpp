@@ -266,6 +266,30 @@ void CParticleTool::Render()
 void CParticleTool::OnFrame()
 {
 	if (!m_bReady) return;
+
+	// Infernis: -pe <effect> selects that effect and plays it (unattended preview checks). Playback starts a few
+	// frames after the selection, once the property refresh that follows a selection has recompiled the effect.
+	static int CheckEffectFrame = 0;
+	if (CheckEffectFrame >= 0 && ++CheckEffectFrame <= 10)
+	{
+		string_path Name = "";
+		PS::CPEDef* Def = ReadCommandLineValue(Core.Params, "-pe ", Name) ? RImplementation.PSLibrary.FindPED(Name) : nullptr;
+		if (!Name[0])
+			CheckEffectFrame = -1; // no -pe
+		else if (CheckEffectFrame == 1)
+		{
+			Msg("* -pe %s: %s", Name, Def ? "selected" : "not found");
+			if (Def)
+				SetCurrentPE(Def);
+			else
+				CheckEffectFrame = -1;
+		}
+		else if (CheckEffectFrame == 10)
+		{
+			PlayCurrent();
+			Msg("* -pe %s: %s", Name, m_EditPE->IsPlaying() ? "playing" : "did not start");
+		}
+	}
 	if (m_EditObject)
     	m_EditObject->OnFrame();
 

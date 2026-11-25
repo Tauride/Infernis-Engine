@@ -61,7 +61,13 @@ BOOL CPGDef::Load(IReader& F) {
     else
         m_fTimeLimit = 0.0f;
 
+#ifdef _EDITOR
+    // The editors keep the stored value, so that saving gives it back: 0 means "the longest effect", which the game
+    // works out below when it loads the group.
+    const bool dont_calc_timelimit = true;
+#else
     bool dont_calc_timelimit = m_fTimeLimit > 0.0f;
+#endif
     if (F.find_chunk(PGD_CHUNK_EFFECTS)) {
         m_Effects.resize(F.r_u32());
         for (auto& effect : m_Effects) {

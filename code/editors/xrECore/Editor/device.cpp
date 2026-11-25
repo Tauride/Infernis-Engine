@@ -154,6 +154,14 @@ void CEditorRenderDevice::Initialize()
 	
 	SDL_ShowWindow(g_AppInfo.Window);
 	SDL_RaiseWindow(g_AppInfo.Window);
+	{
+		int PointsW = 0, PointsH = 0, PixelsW = 0, PixelsH = 0;
+		SDL_GetWindowSize(g_AppInfo.Window, &PointsW, &PointsH);
+		SDL_GetWindowSizeInPixels(g_AppInfo.Window, &PixelsW, &PixelsH);
+		Msg("* Editor window: %dx%d points, %dx%d pixels, display scale %.2f, UI scale %.2f, back buffer %ux%u",
+			PointsW, PointsH, PixelsW, PixelsH, SDL_GetWindowDisplayScale(g_AppInfo.Window), GUIManager->GetScaleDpi(),
+			dwRealWidth, dwRealHeight);
+	}
 	
 
 	if (psDeviceFlags.test(mtSound))
@@ -685,7 +693,11 @@ void CEditorRenderDevice::CreateWindow()
 	int DisplayX = GetSystemMetrics(SM_CXFULLSCREEN);
 	int DisplayY = GetSystemMetrics(SM_CYFULLSCREEN);
 
-	g_AppInfo.Window = SDL_CreateWindow("IX-Ray Editor", DisplayX, DisplayY, SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE);
+	// Infernis: high pixel density, so that window sizes are real pixels on a scaled display (150% and so on). Without
+	// it SDL reports scaled points, the back buffer was made that small and stretched onto the window, and the
+	// editor's own DPI scaling (XrUIManager) came on top of the stretch.
+	g_AppInfo.Window = SDL_CreateWindow("IX-Ray Editor", DisplayX, DisplayY,
+	                                    SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
 #if _WINDOWS
 	SetForegroundWindow(EDevice->GetHWND());
 #endif

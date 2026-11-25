@@ -134,7 +134,7 @@ struct EParticleAction
     };
 	Flags32				flags;
     PAPI::PActionEnum	type;
-	EVersion Version;
+	EVersion Version = EVersion::Original; // Infernis: GSC's layout (the editor reads and writes only that)
 
     xr_map<AnsiString, PDomain> domains;
 	xr_map<AnsiString, PBool> bools;

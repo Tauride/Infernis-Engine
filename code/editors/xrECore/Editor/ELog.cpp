@@ -47,6 +47,14 @@ void  ELogCallback(const char* txt)
 //----------------------------------------------------
 inline TMsgDlgButtons MessageDlg(const char*text, TMsgDlgType mt, int btn)
 {
+	if (ELog.Unattended)
+	{
+		Msg("~ dialog (unattended run, not shown): %s", text);
+		if (btn & mbCancel)	return mrCancel;
+		if (btn & mbNo)		return mrNo;
+		if (btn & mbSkip)	return mrSkip;
+		return mrOK;
+	}
 	int Flags = SDL_MESSAGEBOX_BUTTONS_LEFT_TO_RIGHT;
 	const char* Title = "";
 	switch (mt)

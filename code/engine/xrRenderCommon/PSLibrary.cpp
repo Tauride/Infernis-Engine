@@ -27,8 +27,15 @@ bool pgd_find_pred(const PS::CPGDef* a, LPCSTR b) { return xr_strcmp(a->m_Name, 
 //----------------------------------------------------
 void CPSLibrary::OnCreate() {
 #ifdef _EDITOR
+    // The editors edit the effect sources (.pe/.pg under $game_particles$) when the workspace has them, and the
+    // compiled particles.xr otherwise.
     if (pCreateEAction) {
         Load2();
+        if (m_PEDs.empty() && m_PGDs.empty()) {
+            string_path fn;
+            FS.update_path(fn, _game_data_, "particles.xr");
+            Load(fn);
+        }
     } else
 #endif
     {

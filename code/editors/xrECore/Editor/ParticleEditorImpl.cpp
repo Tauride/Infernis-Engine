@@ -5,7 +5,7 @@
 #include "xrRenderCommon/PSLibrary.h"
 #include "xrRenderCommon/ParticleEffect.h"
 #include "xrRenderCommon/ParticleGroup.h"
-#include "../../Layers/xrRender/ParticleAnimCurve.h"
+// Infernis: no particle animation curves (PAC, an IX-Ray extension of particles.xr).
 
 #include "ParticleEffectActions.h"
 #include "../xrEProps/FolderLib.h"
@@ -801,33 +801,22 @@ PS::CPGDef* CPSLibrary::AppendPGD(PS::CPGDef* src)
     return m_PGDs.back();
 }
 
-PS::CPACDef* CPSLibrary::AppendPACD(PS::CPACDef* src)
-{
-	m_PACDs.push_back(new PS::CPACDef());
-	if (src)
-	{
-		m_PACDs.back()->Clone(src);
-	}
-	return m_PACDs.back();
-}
-
-
 //------------------------------------------------------------------------------
+// Infernis: the library is saved where the game reads it ($game_data$\particles.xr, a backup copy kept), in the
+// layout CPSLibrary::Load reads (PSLibrary.cpp): version, second-generation effects, third-generation groups. IX-Ray
+// asks for a file name and writes its own chunks (with particle animation curves).
 bool CPSLibrary::Save()
 {
-    xr_string temp_fn;
-    if (EFS.GetSaveName("$game_data$", temp_fn))
-    {
-        return Save(temp_fn.c_str());
-    }
-
-    return false;
+    string_path fn;
+    FS.update_path(fn, _game_data_, "particles.xr");
+    EFS.MarkFile(fn, false);
+    return Save(fn);
 }
 //------------------------------------------------------------------------------
 bool CPSLibrary::Save2()
 {
     string_path fn;
-    SPBItem* pb = UI->ProgressStart(m_PEDs.size() + m_PGDs.size() + m_PACDs.size(), "Saving particles...");
+    SPBItem* pb = UI->ProgressStart(m_PEDs.size() + m_PGDs.size(), "Saving particles...");
 
     for (PS::PEDIt it = m_PEDs.begin(); it != m_PEDs.end(); ++it)
     {
@@ -838,7 +827,7 @@ bool CPSLibrary::Save2()
             continue;
 
         FS.update_path(fn, "$game_particles$", pe->m_Name.c_str());
-        strcat(fn, ".pe");
+        xr_strcat(fn, ".pe");
 
         FS.file_delete(fn);
 
@@ -856,7 +845,7 @@ bool CPSLibrary::Save2()
             continue;
 
         FS.update_path(fn, "$game_particles$", pg->m_Name.c_str());
-        strcat(fn, ".pg");
+        xr_strcat(fn, ".pg");
 
         FS.file_delete(fn);
 
@@ -865,25 +854,6 @@ bool CPSLibrary::Save2()
         ini.save_as(fn);
     }
 
-	for (auto elem : m_PACDs)
-	{
-		pb->Inc();
-
-		if (!elem->Validate(false))
-		{
-			continue;
-		}
-
-		FS.update_path(fn, "$game_particles$", elem->getName());
-		strcat(fn, ".pac");
-
-		FS.file_delete(fn);
-
-		CInifile ini(fn, false, false, false);
-		elem->Save2(ini);
-		ini.save_as(fn);
-	}
-	
     UI->ProgressEnd(pb);
     return true;
 }
@@ -892,13 +862,13 @@ bool CPSLibrary::Save(const char* nm)
 {
     CMemoryWriter F;
 
-    F.open_chunk(PS::Chunks::VERSION);
-    F.w_enum(PS::Version::Latest);
+    F.open_chunk(PS_CHUNK_VERSION);
+    F.w_u16(PS_VERSION);
     F.close_chunk();
 
-    F.open_chunk(PS::Chunks::EXTENDED_PE);
+    F.open_chunk(PS_CHUNK_SECONDGEN);
     u32 chunk_id = 0;
-    for (auto elem : m_PEDs)
+    for (PS::CPEDef* elem : m_PEDs)
     {
         F.open_chunk(chunk_id++);
         elem->Save(F);
@@ -906,27 +876,16 @@ bool CPSLibrary::Save(const char* nm)
     }
     F.close_chunk();
 
-    F.open_chunk(PS::Chunks::EXTENDED_PG);
+    F.open_chunk(PS_CHUNK_THIRDGEN);
     chunk_id = 0;
-    for (auto elem : m_PGDs)
+    for (PS::CPGDef* elem : m_PGDs)
     {
         F.open_chunk(chunk_id++);
         elem->Save(F);
         F.close_chunk();
     }
     F.close_chunk();
-
-	F.open_chunk(PS::Chunks::EXTENDED_PAC);
-    chunk_id = 0;
-	for (auto elem : m_PACDs)
-	{
-		F.open_chunk(chunk_id++);
-		elem->Save(F);
-		F.close_chunk();
-	}
-	F.close_chunk();
 
     return F.save_to(nm);
 }
 //------------------------------------------------------------------------------
-

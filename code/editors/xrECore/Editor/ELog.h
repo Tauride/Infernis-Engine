@@ -35,6 +35,9 @@ class ECORE_API CLog
 {
 public:
 	bool 		in_use;
+	// Infernis: set for timed check runs (-frames). Dialogs are logged instead of shown, and answered OK for
+	// information and Cancel (or No) for questions, so a run never waits and never agrees to anything.
+	bool 		Unattended = false;
 public:
 				CLog	(){in_use=false;}
 	void 		Msg   	(TMsgDlgType mt, const char* _Format, ...);

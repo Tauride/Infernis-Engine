@@ -34,6 +34,7 @@ void CPGDef::Clone(CPGDef* source) {
     m_Effects.resize(source->m_Effects.size(), nullptr);
     for (size_t i = 0; i < source->m_Effects.size(); ++i) {
         m_Effects[i] = xr_new<SEffect>(*source->m_Effects[i]);
+        m_Effects[i]->parent = this;
     }
 }
 #endif
@@ -65,6 +66,9 @@ BOOL CPGDef::Load(IReader& F) {
         m_Effects.resize(F.r_u32());
         for (auto& effect : m_Effects) {
             effect = xr_new<SEffect>();
+#ifdef _EDITOR
+            effect->parent = this;
+#endif
             F.r_stringZ(effect->m_EffectName);
             F.r_stringZ(effect->m_OnPlayChildName);
             F.r_stringZ(effect->m_OnBirthChildName);
@@ -88,6 +92,9 @@ BOOL CPGDef::Load2(CInifile& ini) {
     string256 buff;
     for (auto& effect : m_Effects) {
         effect = xr_new<SEffect>();
+#ifdef _EDITOR
+        effect->parent = this;
+#endif
 
         xr_sprintf(buff, sizeof(buff), "effect_%04d", counter);
 

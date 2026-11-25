@@ -77,9 +77,8 @@ set(ENGINE_DIR ${CMAKE_SOURCE_DIR}/code/engine)
 file(GLOB_RECURSE ECORE_SOURCES CONFIGURE_DEPENDS xrECore/*.cpp xrECore/*.h)
 # Not built yet: skinned-mesh export and bone-shape fitting need MagicSoftware and DirectXMesh (Actor Editor stage).
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/(WildMagic/|Editor/EditObjectSkin[.]cpp|Editor/ExportSkeleton)")
-# Not built yet: the particle editor's library code (Particle Editor stage) and the image editor form, which uses
-# IX-Ray's RedImage (comes with the DXTUtils work).
-list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/(ParticleEditorImpl|UIImageEditorForm)[.]cpp$")
+# Not built yet: the image editor form, which uses IX-Ray's RedImage (comes with the DXTUtils work).
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/UIImageEditorForm[.]cpp$")
 # The material library itself is Infernis's (format authority), compiled here in its editor layout (GM_NON_GAME:
 # sounds, particles and marks as names) instead of IX-Ray's copy.
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Engine/GameMtlLib[.]cpp$")
@@ -211,7 +210,7 @@ file(GLOB SHADER_EDITOR_SOURCES CONFIGURE_DEPENDS ShaderEditor/*.cpp ShaderEdito
 # The sound environment library is not exported from xrSound.dll (GSC exported it only for its Borland editors), so
 # the Shader Editor compiles that file itself; xrSound's headers want the Ogg Vorbis, OpenAL and (in _EDITOR mode)
 # ETools headers.
-add_executable(ShaderEditor WIN32 ${SHADER_EDITOR_SOURCES} ShaderEditor/ShaderEditor.rc
+add_executable(ShaderEditor WIN32 ${SHADER_EDITOR_SOURCES} ShaderEditor/ShaderEditor.rc ShaderEditor/ShaderEditor.manifest
                                   ${ENGINE_DIR}/xrSound/SoundRender_Environment.cpp)
 set_source_files_properties(${ENGINE_DIR}/xrSound/SoundRender_Environment.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 target_include_directories(ShaderEditor PRIVATE ${CMAKE_SOURCE_DIR}/code/3rd-party/openal/include
@@ -220,3 +219,15 @@ target_precompile_headers(ShaderEditor PRIVATE ShaderEditor/stdafx.h)
 target_compile_definitions(ShaderEditor PRIVATE _SHADER_EDITOR _WINDOWS)
 target_link_libraries(ShaderEditor PRIVATE xrECore libogg libvorbis libvorbisfile)
 set_target_properties(ShaderEditor PROPERTIES FOLDER editors)
+
+# --- Particle Editor (stage 3): particles.xr, or the effect sources (.pe/.pg) under $game_particles$ ------------
+# IX-Ray's particle animation curves (PAC, an IX-Ray extension of particles.xr) are left out: Infernis's particle
+# format has no place for them. Their code stays behind EDITOR_PARTICLE_ANIM_CURVES (off).
+file(GLOB PARTICLE_EDITOR_SOURCES CONFIGURE_DEPENDS ParticleEditor/*.cpp ParticleEditor/*.h)
+add_executable(ParticleEditor WIN32 ${PARTICLE_EDITOR_SOURCES} ParticleEditor/ParticleEditor.rc
+                              ParticleEditor/ParticleEditor.manifest) # the manifests make the editors DPI-aware
+target_precompile_headers(ParticleEditor PRIVATE ParticleEditor/stdafx.h)
+target_compile_definitions(ParticleEditor PRIVATE _PARTICLE_EDITOR _WINDOWS)
+target_include_directories(ParticleEditor PRIVATE ${ENGINE_DIR}/xrParticles) # the editor's action classes
+target_link_libraries(ParticleEditor PRIVATE xrECore)
+set_target_properties(ParticleEditor PROPERTIES FOLDER editors)

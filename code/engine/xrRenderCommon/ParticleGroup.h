@@ -34,22 +34,31 @@ public:
         SEffect() {
             m_Flags.zero(); 
         }
-#ifdef _EDITOR
-        BOOL Equal(const SEffect&);
+#ifdef _EDITOR // editor only (code/editors/xrECore/Editor/ParticleEditorImpl.cpp); the game never defines _EDITOR
+        // (a nested struct does not take CPGDef's export, so these are exported one by one)
+        CPGDef* parent = nullptr;
+        ECORE_API bool Equal(const SEffect&);
+        ECORE_API void FillProp(LPCSTR pref, PropItemVec& items, u32 clr);
+        ECORE_API void FillPropInit(PropItemVec& items, LPCSTR pref);
 #endif
     };
     using EffectVec = xr_vector<SEffect*>;
+    using EffectIt = EffectVec::iterator;
     EffectVec m_Effects;
 
-#ifdef _EDITOR
-    void __stdcall OnEffectsEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    void __stdcall OnEffectTypeChange(PropValue* sender);
-    void __stdcall OnEffectEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    void __stdcall OnControlClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
-    void __stdcall OnParamsChange(PropValue* sender);
-    void FillProp(LPCSTR pref, ::PropItemVec& items, ::ListItem* owner);
-    BOOL Equal(const CPGDef* pe);
+#ifdef _EDITOR // the IX-Ray Particle Editor's declarations
+    void OnEffectsEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    void OnEffectTypeChange(PropValue* sender);
+    void OnEffectEditClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    bool RemoveEffect(int idx, bool& safe);
+    bool RemoveEffect(SEffect* effect);
+    void OnControlClick(ButtonValue* sender, bool& bDataModified, bool& bSafe);
+    void OnParamsChange(PropValue* sender);
+    void OnParamsChangeInternal();
+    void FillProp(LPCSTR pref, PropItemVec& items, void* owner);
+    bool Equal(const CPGDef* pe);
     bool Validate(bool bMsg);
+    int FindEffect(SEffect* effect);
 #endif
 
 public:

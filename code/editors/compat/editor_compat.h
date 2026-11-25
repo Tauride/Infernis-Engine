@@ -72,6 +72,8 @@ struct std::hash<shared_str>
 using FS_FileSetIt = FS_FileSet::iterator;
 
 inline float _sqrt(float Value) { return std::sqrt(Value); }
+template <class T>
+constexpr T _sqr(T Value) { return Value * Value; } // GSC/IX-Ray xrCore
 
 // Concatenates into a fixed buffer and returns it (IX-Ray xrCore's variadic xr_strconcat).
 template <size_t Size, class... Parts>

@@ -15,7 +15,8 @@ public:
     void Render();
 
 private:
-    xr_map<shared_str, CGameFont*> Fonts;
+    // One font per section and flags: the same section created with other flags is another font.
+    xr_map<std::pair<shared_str, u32>, CGameFont*> Fonts;
 };
 
 extern ECORE_API CFontManager* g_FontManager;

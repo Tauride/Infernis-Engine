@@ -135,9 +135,10 @@ IRHISurface* CEditorRHI::CreateTexture2D(const RHITextureDesc& Desc, const RHISu
 {
     if (!Device)
         return nullptr;
-    // Managed pool: survives device resets, and LockRect works on it.
+    // Managed pool: survives device resets, and LockRect works on it. One level: only level 0 gets data here, and
+    // further levels would keep undefined contents (MipLevels 0 means a whole chain in D3D9).
     IDirect3DTexture9* Texture = nullptr;
-    if (FAILED(Device->CreateTexture(Desc.Width, Desc.Height, Desc.MipLevels, 0, ToD3DFormat(Desc.Format),
+    if (FAILED(Device->CreateTexture(Desc.Width, Desc.Height, 1, 0, ToD3DFormat(Desc.Format),
                                      D3DPOOL_MANAGED, &Texture, nullptr)))
         return nullptr;
 
@@ -201,6 +202,17 @@ void CEditorRHI::CopySurface(IDirect3DSurface9* Destination, IDirect3DSurface9* 
 
 void CEditorRHI::Present()
 {
+    // The device opens the scene in CEditorRenderDevice::Begin; D3D9 refuses Present inside a scene (IX-Ray's D3D9
+    // RHI ends it here as well).
     if (Device)
-        Device->Present(nullptr, nullptr, nullptr, nullptr);
+    {
+        Device->EndScene();
+        const HRESULT Result = Device->Present(nullptr, nullptr, nullptr, nullptr);
+        static bool Reported = false;
+        if (FAILED(Result) && Result != D3DERR_DEVICELOST && !Reported) // a lost device is handled by Begin
+        {
+            Msg("! Editor: Present failed, hr=0x%08x", u32(Result));
+            Reported = true;
+        }
+    }
 }

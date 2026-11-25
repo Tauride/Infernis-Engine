@@ -19,4 +19,5 @@
 #include "UILeftBarForm.h"
 #include "UITopBarForm.h"
 #include "UIMainForm.h"
+#include "CommandLine.h"
 

@@ -141,11 +141,14 @@ enum ESMFlags {
 #if defined(_EDITOR) || defined(_MAX_EXPORT) || defined(_MAYA_EXPORT)
 #include "SkeletonMotions.h"
 
-// Editor-only class, implemented in the editor core (code/editors/xrECore/Engine/EditorMotion.cpp).
-#ifdef XRECORE_EXPORTS
+// Editor-only class, implemented in the editor core (code/editors/xrECore/Engine/EditorMotion.cpp) and exported
+// from it. GSC's exporter plugins (_MAX_EXPORT, _MAYA_EXPORT) compile it in, so no DLL linkage there.
+#if defined(_EDITOR) && defined(XRECORE_EXPORTS)
 #define CSMOTION_API __declspec(dllexport)
-#else
+#elif defined(_EDITOR)
 #define CSMOTION_API __declspec(dllimport)
+#else
+#define CSMOTION_API
 #endif
 class CSMOTION_API CSMotion : public CCustomMotion {
     BoneMotionVec bone_mots;

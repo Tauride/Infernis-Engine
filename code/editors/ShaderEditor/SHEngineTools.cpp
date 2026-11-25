@@ -6,6 +6,36 @@
 #include "UI_shadertools.h"
 #include "ui_shadermain.h"
 #include "../xrECore/Editor/EditMesh.h"
+
+namespace
+{
+// Infernis: IX-Ray's CConstant/CMatrix::Copy. Only the values: an assignment would also copy the resource name,
+// flags and reference count (xr_resource_named).
+void CopyConstantData(CConstant& To, const CConstant& From)
+{
+    To.const_float = From.const_float;
+    To.const_dword = From.const_dword;
+    To.dwFrame = From.dwFrame;
+    To.dwMode = From.dwMode;
+    To._R = From._R;
+    To._G = From._G;
+    To._B = From._B;
+    To._A = From._A;
+}
+
+void CopyMatrixData(CMatrix& To, const CMatrix& From)
+{
+    To.xform = From.xform;
+    To.dwFrame = From.dwFrame;
+    To.dwMode = From.dwMode;
+    To.tcm = From.tcm;
+    To.scaleU = From.scaleU;
+    To.scaleV = From.scaleV;
+    To.rotate = From.rotate;
+    To.scrollU = From.scrollU;
+    To.scrollV = From.scrollV;
+}
+} // namespace
 //------------------------------------------------------------------------------
 class CCollapseBlender: public CParseBlender{
 public:
@@ -591,7 +621,7 @@ const char* CSHEngineTools::AppendConstant(CConstant* src, CConstant** dest)
 	CConstant* C = new CConstant();
 	if (src)
 	{
-		*C = *src; // Infernis: plain copy, as in GSC's editor (no Copy())
+		CopyConstantData(*C, *src);
 	}
 	C->dwReference = 1;
 	char name[128];
@@ -606,7 +636,7 @@ const char* CSHEngineTools::AppendMatrix(CMatrix* src, CMatrix** dest)
 	CMatrix* M = new CMatrix();
 	if (src)
 	{
-		*M = *src; // Infernis: plain copy, as in GSC's editor (no Copy())
+		CopyMatrixData(*M, *src);
 	}
 
 	M->dwReference = 1;
@@ -748,7 +778,7 @@ void CSHEngineTools::CollapseMatrix(LPSTR name)
 	}
 	// append new optimized matrix
 	CMatrix* N = new CMatrix();
-	*N = *M;
+	CopyMatrixData(*N, *M);
 	N->dwReference=1;
 	m_OptMatrices.insert(std::make_pair(xr_strdup(name),N));
 }
@@ -769,7 +799,7 @@ void CSHEngineTools::CollapseConstant(LPSTR name)
 
 	// append opt constant
 	CConstant* N = new CConstant();
-	*N = *C;
+	CopyConstantData(*N, *C);
 	N->dwReference=1;
 	m_OptConstants.insert(std::make_pair(xr_strdup(name),N));
 }

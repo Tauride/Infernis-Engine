@@ -702,9 +702,14 @@ void  PS::CPGDef::OnEffectEditClick(ButtonValue* B, bool& bDataModified, bool& b
 bool PS::CPGDef::RemoveEffect(int idx, bool& safe)
 {
 	if (ELog.DlgMsg(mtConfirmation, mbYes| mbNo,"Remove effect?") == mrYes){
+		// Infernis: the tool lets go of this group first and takes it back after, so that it recompiles its preview
+		// group (one item per effect) and drops its selected effect, which may be the one deleted here. IX-Ray left
+		// both pointing at the removed effect, and the next property refresh read freed memory.
+		Tools->SetCurrentPG(nullptr);
 		SEffect* eff	= *(m_Effects.begin()+idx);
 		xr_delete		(eff);
 		m_Effects.erase	(m_Effects.begin()+idx);
+		Tools->SetCurrentPG(this);
 		ExecCommand		(COMMAND_UPDATE_PROPERTIES);
 		OnParamsChangeInternal();
 		safe = true;

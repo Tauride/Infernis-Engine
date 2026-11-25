@@ -50,6 +50,15 @@ inline xr_string ConvertCodePage(const xr_string& Text, UINT From, UINT To)
 
 inline xr_string ANSI_TO_UTF8(const xr_string& Ansi) { return ConvertCodePage(Ansi, CP_ACP, CP_UTF8); }
 inline xr_string UTF8_to_CP1251(const xr_string& Utf8) { return ConvertCodePage(Utf8, CP_UTF8, 1251); }
+inline xr_string WideToCP1251(const wchar_t* Wide)
+{
+    const int Size = WideCharToMultiByte(1251, 0, Wide, -1, nullptr, 0, nullptr, nullptr);
+    if (Size <= 1)
+        return xr_string();
+    xr_string Result(Size - 1, '\0');
+    WideCharToMultiByte(1251, 0, Wide, -1, Result.data(), Size, nullptr, nullptr);
+    return Result;
+}
 } // namespace Platform
 
 using xr_atomic_bool = std::atomic_bool;
@@ -219,6 +228,21 @@ inline shared_str _ListToSequence(const SharedStrVec& List)
 // IX-Ray's xr_string is a class with extra members; Infernis's is a plain std::basic_string alias, so the editor
 // code calls these free functions instead (same behaviour as IX-Ray's xrCore/xrstring.cpp).
 inline bool xr_string_contains(const xr_string& Str, const xr_string& SubStr) { return Str.find(SubStr) != xr_string::npos; }
+
+// IX-Ray's CLocatorAPI::fix_path: a path the file system does not know, under $fs_root$, becomes relative to it;
+// lowercased either way.
+inline xr_string EditorFixPath(const xr_string& File)
+{
+    xr_string Path = File;
+    if (!FS.exist(File.c_str()))
+    {
+        const xr_string Root = FS.get_path("$fs_root$")->m_Path;
+        if (xr_string_contains(Path, Root))
+            Path = Path.substr(Root.length());
+    }
+    xr_strlwr(Path.data());
+    return Path;
+}
 
 inline xr_vector<xr_string> xr_string_split(const xr_string& Str, char Separator = ',')
 {

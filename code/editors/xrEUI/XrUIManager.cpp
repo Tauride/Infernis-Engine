@@ -339,6 +339,20 @@ void XrUIManager::Draw()
 		ImGui::PushStyleColor(ImGuiCol_Border, XRay::ImGui::GetEditorColor(XRay::ImGui::EEditorColors::BackgroundTint).Value);
 		ImGui::Begin("MyDockspace", NULL, window_flags);
 		ImGuiID dockMain = ImGui::GetID("MyDockspace");
+		if (!m_DefaultLayoutChecked)
+		{
+			m_DefaultLayoutChecked = true;
+			// Only when the saved layout has no dock space at all (a first run): an empty one may be the user's choice
+			// of floating windows.
+			if (!ImGui::DockBuilderGetNode(dockMain))
+			{
+				ImGui::DockBuilderRemoveNode(dockMain);
+				ImGui::DockBuilderAddNode(dockMain, ImGuiDockNodeFlags_DockSpace);
+				ImGui::DockBuilderSetNodeSize(dockMain, ImGui::GetContentRegionAvail());
+				BuildDefaultLayout(dockMain);
+				ImGui::DockBuilderFinish(dockMain);
+			}
+		}
 
 		////// Save off menu bar height for later.
 

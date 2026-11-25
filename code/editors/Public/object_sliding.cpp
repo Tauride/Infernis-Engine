@@ -12,10 +12,9 @@
 
 #pragma warning(push)
 #pragma warning(disable:4995)
-#include <DirectXMesh.h>
 #pragma warning(pop)
 
-#include "../../xrCore/Mesh/object.h"
+#include "object.h" // Infernis: utils/ETools
 #include "object_sliding.h"
 
 //bool g_bUseFastButBadOptimise = false;
@@ -29,11 +28,11 @@ void OptimiseVertexCoherencyTriList (WORD* pwList, int iHowManyTris, u32 optimiz
 	{
 		xr_vector<u32> remap(iHowManyTris);
 
-		HRESULT rhr = DirectX::OptimizeFacesLRU(
-			pwList,
-			iHowManyTris,
-			remap.data()
-		);
+		// Infernis: D3DX's vertex-cache face reordering (IX-Ray: DirectXMesh's OptimizeFacesLRU)
+		u32 vertex_count = 0;
+		for (int i = 0; i < iHowManyTris * 3; ++i)
+			vertex_count = std::max<u32>(vertex_count, pwList[i] + 1u);
+		HRESULT rhr = D3DXOptimizeFaces(pwList, iHowManyTris, vertex_count, FALSE, (DWORD*)remap.data());
 
 		R_CHK(rhr);
 

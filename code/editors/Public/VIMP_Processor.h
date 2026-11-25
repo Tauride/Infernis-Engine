@@ -1,7 +1,7 @@
 #pragma once
 
-#include "../../xrCore/Mesh/object.h"
-#include "../../xrCore/Containers/ArbitraryList.h"
+#include "object.h" // Infernis: utils/ETools (IX-Ray: xrCore/Mesh)
+#include "ArbitraryList.h" // Infernis: utils/ETools
 
 #pragma pack(push,1)
 struct VIPM_SWR

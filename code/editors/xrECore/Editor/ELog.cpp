@@ -3,6 +3,7 @@
 //----------------------------------------------------
 
 #include "stdafx.h"
+#include <SDL3/SDL_messagebox.h>
 
 #include "ELog.h"
 #include "UILogForm.h"

@@ -6,7 +6,8 @@
 #include "ImageManager.h"
 #include "ui_main.h"
 #include "render.h"
-#include "../Engine/XrGameMaterialLibraryEditors.h"
+#include "../Engine/GameMtlLib.h"
+#include "EditorFonts.h"
 #include "xrRenderCommon/ResourceManager.h"
 #include "xrRenderCommon/dxRenderDeviceRender.h"
 #include "UI_ToolsCustom.h"
@@ -18,7 +19,7 @@ bool g_bIsEditor;
 void CEditorRenderDevice::AddSeqFrame(pureFrame* f, bool mt) { seqFrame.Add(f, REG_PRIORITY_LOW); }
 void CEditorRenderDevice::RemoveSeqFrame(pureFrame* f) { seqFrame.Remove(f); }
 
-ENGINE_API xr_atomic_bool g_bRendering;
+extern ENGINE_API BOOL g_bRendering; // Infernis: the engine's flag (device.cpp)
 //---------------------------------------------------------------------------
 #include <luabind/luabind.hpp>
 void EditorFillPropTextureParams(STextureParams* ThisCall, const char* base_name, xr_vector<PropItem*>& items, PropValue::TOnChange OnChangeEvent);
@@ -85,27 +86,27 @@ CEditorRenderDevice::CEditorRenderDevice()
 	fASPECT 		= 1.f;
 	fFOV 			= 60.f;
     dwPrecacheFrame = 0;
-	GameMaterialLibraryEditors = new XrGameMaterialLibraryEditors();
-	PGMLib = GameMaterialLibraryEditors;
+	// Infernis: the plain material library (GMLib, Engine/GameMtlLib.cpp). IX-Ray's editing subclass
+	// (XrGameMaterialLibraryEditors) comes with the Shader Editor stage.
+	PGMLib = &GMLib;
 
 	DevicePtr = this;
 	g_bIsEditor = true;
 
 	setup_luabind_allocator();
-	STextureParams::FillPropImpl = EditorFillPropTextureParams;
+	// Infernis: STextureParams fills its own properties (no IX-Ray FillPropImpl hook)
 }
 
 CEditorRenderDevice::~CEditorRenderDevice()
 {
 	VERIFY(!b_is_Ready);
-	GameMaterialLibraryEditors = nullptr;
 }
 
 #include "xrAPI/xrAPI.h"
 #include "xrRenderCommon/dxRenderFactory.h"
 #include "xrRenderCommon/dxUIRender.h"
 #include "xrRenderCommon/dxDebugRender.h"
-#include "../xrCore/appinfo.h"
+// (IX-Ray appinfo.h: g_AppInfo is in compat/editor_compat.h)
 
 typedef void __cdecl ttapi_Done_func(void);
 
@@ -139,6 +140,7 @@ void CEditorRenderDevice::Initialize()
 
 	Resize(EPrefs->start_w, EPrefs->start_h, EPrefs->start_maximized);
 
+	int Width = 0, Height = 0, PosX = 0, PosY = 0; // Infernis: IX-Ray keeps these in the engine
 	SDL_GetWindowSizeInPixels(g_AppInfo.Window, &Width, &Height);
 	SDL_GetWindowPosition(g_AppInfo.Window, &PosX, &PosY);
 
@@ -240,7 +242,10 @@ bool CEditorRenderDevice::Create()
 		if (!FS.exist(ini_path))
 			UI->ResetUI();
 		
-		InitRenderDeviceEditor();
+		// Infernis: the renderer's HW creates the D3D9 device on the editor window
+		// (IX-Ray: InitRenderDeviceEditor through its RHI); the editor RHI shim draws with it.
+		HW.CreateDevice(hwnd, false);
+		GRHI->SetDevice(HW.pDevice);
 		UI->Initialize(hwnd, RDevice, ini_path);
 	}
 	
@@ -296,8 +301,8 @@ void CEditorRenderDevice::Destroy()
 //---------------------------------------------------------------------------
 void CEditorRenderDevice::_SetupStates()
 {
-	//Caps.Update();
-	for (u32 i=0; i<Caps.raster.dwStages; i++){
+	//HW.Caps.Update();
+	for (u32 i=0; i<HW.Caps.raster.dwStages; i++){
 		float fBias = -1.f;
 		CHK_DX(REDevice->SetSamplerState( i, D3DSAMP_MIPMAPLODBIAS, *((LPDWORD) (&fBias))));
 	}
@@ -335,7 +340,7 @@ void CEditorRenderDevice::_Create(IReader* F)
 
 	texture_null.create("ed\\ed_nodata");
 	texture_null->Load();
-	UIChooseForm::SetNullTexture(texture_null->get_SRView()->GetRawSRV());
+	UIChooseForm::SetNullTexture(texture_null->get_surface_noref());
 
 	// signal another objects
     UI->OnDeviceCreate			();       
@@ -378,11 +383,13 @@ void CEditorRenderDevice::Reset(bool)
 	SearchIcon.destroy();
 
 	Resources->reset_begin();
-	Resources->DeferredUnload();
 	UI->ResetBegin();
 
 	Memory.mem_compact();
-	ResizeBuffers(dwRealWidth, dwRealHeight);
+	// Infernis: HW resets the D3D9 device at psCurrentVidMode (IX-Ray: ResizeBuffers through its RHI)
+	psCurrentVidMode[0] = dwRealWidth;
+	psCurrentVidMode[1] = dwRealHeight;
+	HW.Reset(GetHWND());
 	SDL_SetWindowSize(g_AppInfo.Window, dwRealWidth, dwRealHeight);
 
 	Resources->reset_end();
@@ -391,14 +398,14 @@ void CEditorRenderDevice::Reset(bool)
 	UI->ResetEnd(RDevice);
 	_SetupStates();
 
-	R_ASSERT(texture_null->get_SRView(), "Null texture not found!");
-	UIChooseForm::SetNullTexture(texture_null->get_SRView()->GetRawSRV());
+	R_ASSERT(texture_null->get_surface_noref(), "Null texture not found!");
+	UIChooseForm::SetNullTexture(texture_null->get_surface_noref());
 
 	SearchIcon = EDevice->Resources->_CreateTexture("ed\\content_browser_search");
 	if (SearchIcon)
 	{
 		SearchIcon->Load();
-		GUIManager->SearchIcon = SearchIcon->get_SRView()->GetRawSRV();
+		GUIManager->SearchIcon = SearchIcon->get_surface_noref();
 	}
 	u32 tm_end = TimerAsync();
 	Msg("*** RESET [%d ms]", tm_end - tm_start);
@@ -520,7 +527,7 @@ void CEditorRenderDevice::FrameMove()
 	}
 
     // process objects
-	seqFrame.Process<&pureFrame::OnFrame>();
+	seqFrame.Process(rp_Frame);
 }
 
 #if _WINDOWS
@@ -605,7 +612,7 @@ void CEditorRenderDevice::DP(ERHI_PRIMITIVE_TOPOLOGY pt, ref_geom geom, u32 vBas
     RCache.set_Geometry		(geom);
     for (u32 dwPass = 0; dwPass<dwRequired; dwPass++){
     	RCache.set_Shader	(S,dwPass);
-		RCache.Render		(pt,vBase,pc);
+		RCache.Render		(ToD3DPrimitive(pt),vBase,pc);
     }
 }
 
@@ -616,7 +623,7 @@ void CEditorRenderDevice::DIP(ERHI_PRIMITIVE_TOPOLOGY pt, ref_geom geom, u32 bas
     RCache.set_Geometry		(geom);
     for (u32 dwPass = 0; dwPass<dwRequired; dwPass++){
     	RCache.set_Shader	(S,dwPass);
-		RCache.Render		(pt,baseV,startV,countV,startI,PC);
+		RCache.Render		(ToD3DPrimitive(pt),baseV,startV,countV,startI,PC);
     }
 }
 

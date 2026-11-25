@@ -13,17 +13,33 @@
 
 // Formats by IX-Ray name. R8G8B8A8_UNORM data is uploaded as D3DFMT_A8R8G8B8 with red and blue swapped, since
 // D3D9 drivers rarely support A8B8G8R8 textures.
-enum class ERHI_FORMAT : u32
+// A struct rather than an enum class so that it converts to D3DFORMAT wherever Infernis's renderer wants one
+// (render targets: CRT::create).
+struct ERHI_FORMAT
 {
-    UNKNOWN = D3DFMT_UNKNOWN,
-    R8G8B8A8_UNORM = D3DFMT_A8B8G8R8,
-    B8G8R8A8_UNORM = D3DFMT_A8R8G8B8,
-    B8G8R8X8_UNORM = D3DFMT_X8R8G8B8,
-    R16G16B16A16_FLOAT = D3DFMT_A16B16G16R16F,
-    R32G32B32A32_FLOAT = D3DFMT_A32B32G32R32F,
-    R32G32_FLOAT = D3DFMT_G32R32F,
-    D24_UNORM_S8_UINT = D3DFMT_D24S8,
+    D3DFORMAT Value = D3DFMT_UNKNOWN;
+
+    constexpr ERHI_FORMAT() = default;
+    constexpr ERHI_FORMAT(D3DFORMAT Format) : Value(Format) {}
+    constexpr operator D3DFORMAT() const { return Value; }
+
+    static const ERHI_FORMAT UNKNOWN;
+    static const ERHI_FORMAT R8G8B8A8_UNORM;
+    static const ERHI_FORMAT B8G8R8A8_UNORM;
+    static const ERHI_FORMAT B8G8R8X8_UNORM;
+    static const ERHI_FORMAT R16G16B16A16_FLOAT;
+    static const ERHI_FORMAT R32G32B32A32_FLOAT;
+    static const ERHI_FORMAT R32G32_FLOAT;
+    static const ERHI_FORMAT D24_UNORM_S8_UINT;
 };
+inline constexpr ERHI_FORMAT ERHI_FORMAT::UNKNOWN{D3DFMT_UNKNOWN};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::R8G8B8A8_UNORM{D3DFMT_A8B8G8R8};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::B8G8R8A8_UNORM{D3DFMT_A8R8G8B8};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::B8G8R8X8_UNORM{D3DFMT_X8R8G8B8};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::R16G16B16A16_FLOAT{D3DFMT_A16B16G16R16F};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::R32G32B32A32_FLOAT{D3DFMT_A32B32G32R32F};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::R32G32_FLOAT{D3DFMT_G32R32F};
+inline constexpr ERHI_FORMAT ERHI_FORMAT::D24_UNORM_S8_UINT{D3DFMT_D24S8};
 
 enum class ERHI_USAGE : u32
 {

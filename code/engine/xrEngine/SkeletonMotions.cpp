@@ -94,7 +94,7 @@ BOOL motions_value::load(LPCSTR N, IReader* data, vecBones* bones) {
                 MP->r_stringZ(buf, sizeof(buf));
                 u16 m_idx = u16(MP->r_u32());
                 *b_it = find_bone_id(bones, buf);
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
                 if (*b_it == BI_NONE) {
                     bRes = false;
                     Msg("!Can't find bone: '%s'", buf);
@@ -113,7 +113,7 @@ BOOL motions_value::load(LPCSTR N, IReader* data, vecBones* bones) {
             part_bone_cnt = u16(part_bone_cnt + (u16)PART.bones.size());
         }
 
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
         if (part_bone_cnt != (u16)bones->size()) {
             bRes = false;
             Msg("!Different bone count[%s] [Object: '%d' <-> Motions: '%d']", N, bones->size(),
@@ -410,7 +410,7 @@ void ENGINE_API motion_marks::Load(IReader* R) {
         item.second = R->r_float();
     }
 }
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
 void motion_marks::Save(IWriter* W) {
     W->w_string(name.c_str());
     u32 cnt = intervals.size();

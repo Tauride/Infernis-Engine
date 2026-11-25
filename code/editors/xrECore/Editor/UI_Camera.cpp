@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <SDL3/SDL.h>
 
 
 #include "UI_Camera.h"
@@ -29,7 +30,7 @@ CUI_Camera::~CUI_Camera()
 {
 }
 
-void CUI_Camera::SetStyle(ECameraStyle new_style)
+void CUI_Camera::SetStyle(EEditorCameraStyle new_style)
 {
   	if (new_style==cs3DArcBall){
 	    Fvector dir;

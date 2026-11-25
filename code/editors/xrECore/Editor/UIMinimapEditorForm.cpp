@@ -988,7 +988,7 @@ void UIMinimapEditorForm::ReloadMapInfo(const xr_string& fn)
 {
 	elements.clear();
 
-	FS.TryLoad(fn.c_str());
+	EFS.TryLoad(fn.c_str());
 
 	xr_unique_ptr<CInifile> ltxFile = xr_make_unique<CInifile>(fn.c_str(), true);
 
@@ -998,15 +998,10 @@ void UIMinimapEditorForm::ReloadMapInfo(const xr_string& fn)
 		{
 			auto tx = ltxFile->r_string("global_map", "texture");
 			
-			xr_stack_string_path texturePath;
+			string_path texturePath; // Infernis: plain buffer (IX-Ray: xr_stack_string_path)
 			xr_sprintf(texturePath, "%s%s.dds", FS.get_path("$game_textures$")->m_Path, tx);
-			auto data = FS.exist(texturePath.c_str());
-			if (data)
-			{
-				texturePath = data->wrap;
-			}
 			
-			LoadBGClick(texturePath.c_str());
+			LoadBGClick(texturePath);
 		}
 		if (ltxFile->line_exist("global_map", "bound_rect"))
 		{
@@ -1034,8 +1029,8 @@ void UIMinimapEditorForm::ReloadMapInfo(const xr_string& fn)
 		}
 	}
 	CInifile::Sect& S = ltxFile->r_section(SectName);
-	CInifile::SectCIt it = S.Data.begin();
-	CInifile::SectCIt it_e = S.Data.end();
+	CInifile::Items::const_iterator it = S.Data.begin();
+	CInifile::Items::const_iterator it_e = S.Data.end();
 
 	for (; it != it_e; ++it)
 	{
@@ -1057,7 +1052,7 @@ void UIMinimapEditorForm::ReloadMapInfo(const xr_string& fn)
 		el.RenderSize.x = tmp.z - tmp.x;
 		el.RenderSize.y = tmp.w - tmp.y;
 
-		xr_stack_string_path texturePath = "";
+		string_path texturePath = {}; // Infernis: plain buffer
 		string_path levelLtx;
 		sprintf(levelLtx, "%s%s\\level.ltx", FS.get_path("$level$")->m_Path, levelName.c_str());
 
@@ -1072,25 +1067,20 @@ void UIMinimapEditorForm::ReloadMapInfo(const xr_string& fn)
 				el.TexturePath = textureFile;
 
 				xr_sprintf(texturePath, "%s%s.dds", FS.get_path("$game_textures$")->m_Path, textureFile);
-				auto data = FS.exist(texturePath.c_str());
-				if (data)
-				{
-					texturePath = data->wrap;
-				}
 			}
 		}
 
-		if (texturePath == "")
+		if (!texturePath[0])
 		{
 			xr_sprintf(texturePath, "%smap\\map_%s.dds", FS.get_path("$game_textures$")->m_Path, levelName.c_str());
 		}
 
-		LoadTexture(el, texturePath.c_str());
+		LoadTexture(el, texturePath);
 		elements.push_back(el);
 	}
 
 	ActiveFile = fn;
-	ActiveFileShort = FS.fix_path(fn);
+	ActiveFileShort = EFS.FixPath(fn);
 
 	isEdited = false;
 }
@@ -1110,10 +1100,10 @@ void UIMinimapEditorForm::SaveFile(bool saveCurrent)
 	if (!saveCurrent) 
 	{
 		ActiveFile = fn.c_str();
-		ActiveFileShort = FS.fix_path(fn.c_str());
+		ActiveFileShort = EFS.FixPath(fn.c_str());
 	}
 
-	FS.TryLoad(fn.c_str());
+	EFS.TryLoad(fn.c_str());
 	auto ltxFile = new CInifile(fn.c_str(), false, true, true);
 
 	{
@@ -1128,8 +1118,8 @@ void UIMinimapEditorForm::SaveFile(bool saveCurrent)
 	shared_str sect_name = m_mp_mode ? "level_maps_mp" : "level_maps_single";
 	{
 		CInifile::Sect& S = ltxFile->r_section(sect_name);
-		CInifile::SectCIt it = S.Data.begin();
-		CInifile::SectCIt it_e = S.Data.end();
+		CInifile::Items::const_iterator it = S.Data.begin();
+		CInifile::Items::const_iterator it_e = S.Data.end();
 
 		for (; it != it_e; ++it)
 		{
@@ -1281,7 +1271,7 @@ int UIMinimapEditorForm::LoadTexture(Element& el, const xr_string texture)
 
 	if (texture == "")
 	{
-		el.TexturePath = FS.fix_path(fn);
+		el.TexturePath = EFS.FixPath(fn);
 	}
 
 	//el.path = fn;
@@ -1323,7 +1313,7 @@ void UIMinimapEditorForm::LoadBGClick(const xr_string texture)
 	}
 
 	if (texture == "")
-		fn = FS.fix_path(fn.c_str());
+		fn = EFS.FixPath(fn.c_str());
 
 	u32 m_ImageW, m_ImageH, m_ImageA;
 

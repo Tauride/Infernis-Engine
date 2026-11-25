@@ -1,6 +1,5 @@
 #include "stdafx.h"
 #include "xrEngine/xr_input.h"
-#include "../xrEngine/IGame_Actor.h"
 #include "UI_ToolsCustom.h"
 
 #include "ui_main.h"
@@ -21,7 +20,7 @@
 
 #include "imgui_EditorEx_Icons.h"
 
-#define TRelease(x) if (x) x->pSurface->Release()
+#define TRelease(x) if (x) x->surface_set(nullptr) // Infernis: CTexture::pSurface is private
 
 ECORE_API extern bool bIsLevelEditor;
 namespace ImGui
@@ -90,18 +89,18 @@ ImTextureID TUI::LoadTexture(const char* Texture) const
 
 	if (TextureStack.contains(Texture))
 	{
-		return TextureStack[Texture]->get_SRView()->GetRawSRV();
+		return TextureStack[Texture]->get_surface_noref();
 	}
 
 	TextureStack[Texture] = EDevice->Resources->_CreateTexture(Texture);
 	ref_texture& Tex = TextureStack[Texture];
 
-	if (Tex->pSurface == nullptr)
+	if (Tex->get_surface_noref() == nullptr)
 	{
 		Tex->apply_load(0);
 	}
 
-	return (void*)Tex->get_SRView()->GetRawSRV();
+	return (void*)Tex->get_surface_noref();
 }
 
 void TUI::OnDeviceCreate()
@@ -293,7 +292,7 @@ void TUI::OnAppActivate()
 	if (pInput){
 		m_ShiftState = ssNone;
 		pInput->OnAppActivate();
-		EDevice->seqAppActivate.Process<&pureAppActivate::OnAppActivate>();
+		EDevice->seqAppActivate.Process(rp_AppActivate);
 	}
 }
 //---------------------------------------------------------------------------
@@ -305,7 +304,7 @@ void TUI::OnAppDeactivate()
 	if (pInput){
 		pInput->OnAppDeactivate();
 		m_ShiftState = ssNone;
-		EDevice->seqAppDeactivate.Process<&pureAppDeactivate::OnAppDeactivate>();
+		EDevice->seqAppDeactivate.Process(rp_AppDeactivate);
 	}
 	HideHint();
 }
@@ -349,13 +348,14 @@ void TUI::ShowHint()
 
 //---------------------------------------------------------------------------
 
-#include "..\xrEngine\IGame_Persistent.h"
+#include "xrEngine/IGame_Persistent.h"
+static Fvector2 HalfTarget{}; // Infernis: IX-Ray keeps this on the device; only the editor UI uses it
+
 void TUI::PrepareRedraw()
 {
 	VERIFY(m_bReady);
 	if (m_Flags.is(flResize))
 	{
-		Device.secondary_tasks.wait();
 		RealResize();
 	}
 // set render state
@@ -367,7 +367,7 @@ void TUI::PrepareRedraw()
 
 	EDevice->SetRS( D3DRS_FOGCOLOR,		fog_color			);
 	EDevice->SetRS( D3DRS_RANGEFOGENABLE,	false				);
-	if (Caps.bTableFog)	{
+	if (HW.Caps.bTableFog)	{
 		EDevice->SetRS( D3DRS_FOGTABLEMODE,	D3DFOG_LINEAR 	);
 		EDevice->SetRS( D3DRS_FOGVERTEXMODE,	D3DFOG_NONE	 	);
 	} else {
@@ -377,7 +377,7 @@ void TUI::PrepareRedraw()
 	EDevice->SetRS( D3DRS_FOGSTART,	*(DWORD *)(&fog_start)	);
 	EDevice->SetRS( D3DRS_FOGEND,		*(DWORD *)(&fog_end)	);
 	// filter
-	for (u32 k=0; k<Caps.raster.dwStages; k++){
+	for (u32 k=0; k<HW.Caps.raster.dwStages; k++){
 		if( psDeviceFlags.is(rsFilterLinear)){
 			EDevice->SetSS(k,D3DSAMP_MAGFILTER,D3DTEXF_LINEAR);
 			EDevice->SetSS(k,D3DSAMP_MINFILTER,D3DTEXF_LINEAR);
@@ -403,7 +403,7 @@ void TUI::Invalidate()
 	UI->RT.create("$user$rt_color", UI->GetRenderWidth(), UI->GetRenderHeight(), ERHI_FORMAT::B8G8R8X8_UNORM);
 }
 
-extern ENGINE_API xr_atomic_bool g_bRendering;
+extern ENGINE_API BOOL g_bRendering; // Infernis: the engine's flag
 void TUI::Redraw()
 {
 	PrepareRedraw();
@@ -414,7 +414,6 @@ void TUI::Redraw()
 	{
 		if (!ImGui::IsMouseDown(ImGuiMouseButton_Left))
 		{
-			Device.secondary_tasks.wait();
 			EDevice->dwWidth = View.RTSize.x * EDevice->m_ScreenQuality;
 			EDevice->dwHeight = View.RTSize.y * EDevice->m_ScreenQuality;
 
@@ -432,7 +431,7 @@ void TUI::Redraw()
 			RTDiffuse.create("$user$diffuse", GetRenderWidth(), GetRenderHeight(), ERHI_FORMAT::B8G8R8A8_UNORM);
 
 			RT.create("$user$rt_color", GetRenderWidth(), GetRenderHeight(), ERHI_FORMAT::B8G8R8X8_UNORM);
-			View.RTFreez.create(("$user$rt_freez" + xr_string::ToString((u32)UI->ViewID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
+			View.RTFreez.create(("$user$rt_freez" + xr_string_ToString((u32)UI->ViewID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
 			RTCopy.create("$user$rt_color_copy", GetRenderWidth(), GetRenderHeight(), ERHI_FORMAT::B8G8R8X8_UNORM);
 
 			ZB.create("$user$rt_depth", GetRenderWidth(), GetRenderHeight(), ERHI_FORMAT::D24_UNORM_S8_UINT);
@@ -444,8 +443,8 @@ void TUI::Redraw()
 			HalfTarget.y = float(View.RTSize.y) * 0.5f;
 			EDevice->fASPECT = float(HalfTarget.y) / float(HalfTarget.x);
 
-			EDevice->seqDeviceReset.Process<&pureDeviceReset::OnDeviceReset>();
-			EDevice->seqResolutionChanged.Process<&pureScreenResolutionChanged::OnScreenResolutionChanged>();
+			EDevice->seqDeviceReset.Process(rp_DeviceReset);
+			EDevice->seqResolutionChanged.Process(rp_ScreenResolutionChanged);
 			RCache.set_xform_project(EDevice->mProject);
 			RCache.set_xform_world(Fidentity);
 		}
@@ -481,7 +480,7 @@ void TUI::Redraw()
 			CHK_DX(REDevice->Clear(0, nullptr, D3DCLEAR_TARGET, 0x0, 1, 0));
 
 			RCache.set_RT(RT->pRT);
-			GRHI->SetDepthStencilView(ZB->pZRT);
+			GRHI->SetDepthStencilView(ZB->pRT); // Infernis DX9: the depth target's surface is pRT
 
 			EDevice->Clear();
 
@@ -495,7 +494,7 @@ void TUI::Redraw()
 
 			Tools->RenderEnvironment();
 
-			for (u32 k = 0; k < Caps.raster.dwStages; k++)
+			for (u32 k = 0; k < HW.Caps.raster.dwStages; k++)
 			{
 				if (psDeviceFlags.is(rsFilterLinear)) {
 					EDevice->SetSS(k, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
@@ -536,7 +535,7 @@ void TUI::Redraw()
 			g_FontManager->Render();
 
 			EDevice->SetRS(D3DRS_FILLMODE, EDevice->dwFillMode);
-			EDevice->seqRender.Process<&pureRender::OnRender>();
+			EDevice->seqRender.Process(rp_Render);
 
 			if (g_pGamePersistent->OnRenderPPUI_query())
 			{
@@ -547,15 +546,15 @@ void TUI::Redraw()
 			RCache.set_RT(nullptr, 2);
 			RCache.set_RT(nullptr, 3);
 
-			RCache.set_RT(RSwapchainTarget);
-			GRHI->SetDepthStencilView(RDepth);
+			RCache.set_RT(HW.pBaseRT);
+			GRHI->SetDepthStencilView(HW.pBaseZB);
 			
 			CHK_DX(REDevice->Clear(0, nullptr, D3DCLEAR_TARGET, D3DCOLOR_RGBA(0, 0, 0, 0), 1, 0));
 
-			RDevice->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, 0);
-			RDevice->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
-			RDevice->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
-			RDevice->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
+			HW.pDevice->SetTextureStageState(0, D3DTSS_TEXTURETRANSFORMFLAGS, 0);
+			HW.pDevice->SetTextureStageState(0, D3DTSS_TEXCOORDINDEX, 0);
+			HW.pDevice->SetTextureStageState(1, D3DTSS_ALPHAOP, D3DTOP_DISABLE);
+			HW.pDevice->SetTextureStageState(1, D3DTSS_COLOROP, D3DTOP_DISABLE);
 		}
 
 		EDevice->SetRS(D3DRS_FILLMODE, D3DFILL_SOLID);
@@ -638,19 +637,12 @@ bool TUI::Idle()
 
 	Sleep(1);
 
-	if (g_pGamePersistent)
-	{
-		g_pGamePersistent->UpdatePlayDestroyParticles();
-	}
-
 	OnFrame();
 
-	if (GActorInterface != nullptr)
-	{
-		GActorInterface->UpdatePlayerHud();
-	}
+	// Infernis: play-in-editor (IX-Ray GActorInterface) comes with the Level Editor stage.
 
-	Device.secondary_tasks.run([]()
+	// Infernis: no secondary task queue on the device; the work runs here, in order.
+	[]()
 	{
 		PROF_THREAD("Secondary async")
 		{
@@ -667,9 +659,9 @@ bool TUI::Idle()
 
 		{
 			PROF_EVENT("seqFrameMT")
-			EDevice->seqFrameMT.Process<&pureFrame::OnFrame>();
+			EDevice->seqFrameMT.Process(rp_Frame);
 		}
-	});
+	}();
 
 	if (EDevice->b_is_Active && !m_Flags.is(flNeedQuit) && !m_AppClosed)
 		RealRedrawScene();
@@ -678,7 +670,6 @@ bool TUI::Idle()
 	if (m_Flags.is(flNeedQuit))	
 		RealQuit();
 
-	Device.secondary_tasks.wait();
 
 	return !m_AppClosed;
 }
@@ -695,8 +686,8 @@ bool TUI::OnCreate()
 
 	EDevice->Initialize();
 	// Creation
-	extern CDB::COLLIDER XRC;
-	XRC.ray_options(CDB::OPT_ONLYNEAREST | CDB::OPT_CULL);
+	extern CDB::COLLIDER EditorXRC;
+	EditorXRC.ray_options(CDB::OPT_ONLYNEAREST | CDB::OPT_CULL);
 
 	pInput			= new CInput(false, all_device_key);
 
@@ -725,7 +716,7 @@ bool TUI::OnCreate()
 	for (auto& [ID, View] : Views)
 	{
 		View.RTSize = { (int)GetRenderWidth(), (int)GetRenderHeight() };
-		View.RTFreez.create(("$user$rt_freez" + xr_string::ToString((u32)UI->ViewID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
+		View.RTFreez.create(("$user$rt_freez" + xr_string_ToString((u32)UI->ViewID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
 	}
 
 	EDevice->fASPECT = (float)GetRenderWidth() / (float)GetRenderHeight();
@@ -839,7 +830,7 @@ void TUI::CreateViewport(int ID, UIRenderForm* Form)
 	MainView.ViewGlobalIDX = ID;
 
 	MainView.RTSize = { (int)GetRenderWidth(), (int)GetRenderHeight() };
-	MainView.RTFreez.create(("$user$rt_freez" + xr_string::ToString(ID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
+	MainView.RTFreez.create(("$user$rt_freez" + xr_string_ToString(ID)).c_str(), GetRenderWidth() * EDevice->m_ScreenQuality, GetRenderHeight() * EDevice->m_ScreenQuality, ERHI_FORMAT::B8G8R8X8_UNORM);
 }
 
 void TUI::DestroyViewport(int ID)
@@ -873,7 +864,7 @@ void TUI::OnDrawUI()
 	UIWeatherPropForm::Update();
 	UIIconPicker::Update();
 	UILogForm::Update();
-	EDevice->seqDrawUI.Process<&pureDrawUI::OnDrawUI>();
+	EDevice->seqDrawUI.Process(rp_DrawUI);
 }
 
 void TUI::RealResetUI()

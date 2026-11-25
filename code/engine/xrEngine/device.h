@@ -317,11 +317,7 @@ extern ENGINE_API CRenderDevice* DevicePtr;
 extern ENGINE_API CRenderDevice Device;
 #endif
 
-#ifndef _EDITOR
-#define RDEVICE Device
-#else
-#define RDEVICE EDevice
-#endif
+#define RDEVICE Device // the editors install their device behind Device (ENGINE_DEVICE_PTR)
 
 extern ENGINE_API bool g_bBenchmark;
 

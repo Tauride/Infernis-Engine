@@ -387,7 +387,7 @@ bool CEditableObject::Load(IReader& F)
                     for (SharedStrVecIt s_it=bp_it->bones.begin(); s_it!=bp_it->bones.end(); s_it++){
                         int idx		= F.r_u32();
                         if ((idx>=0)&&(idx<(int)m_Bones.size())){
-                            *s_it	= m_Bones[idx]->Name();
+                            *s_it	= m_Bones[idx]->Name().c_str();
                         }else{
 		                    Log		("!Invalid bone parts.",GetName());
                             bBPok = false;

@@ -30,8 +30,9 @@ list(APPEND EUI_SOURCES compat/editor_compat.h compat/xr_path.h compat/xr_delega
                         ${CMAKE_SOURCE_DIR}/code/3rd-party/imgui/imgui_impl_dx9.cpp)
 add_library(xrEUI SHARED ${EUI_SOURCES})
 target_include_directories(xrEUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xrEUI ${CMAKE_CURRENT_SOURCE_DIR})
-# IMGUI_IMPL_API empty: the backends (SDL3, DX9) are compiled into xrEUI, not imported from imgui_editor.dll.
-target_compile_definitions(xrEUI PRIVATE XREUI_EXPORTS _WINDOWS _USRDLL IMGUI_IMPL_API= PUBLIC XR_EDITOR_NEW
+# The ImGui backends (SDL3, DX9) are compiled into xrEUI and exported from it (IMGUI_IMPL_API).
+target_compile_definitions(xrEUI PRIVATE XREUI_EXPORTS _WINDOWS _USRDLL "IMGUI_IMPL_API=__declspec(dllexport)"
+                                 INTERFACE "IMGUI_IMPL_API=__declspec(dllimport)" PUBLIC XR_EDITOR_NEW
                            IMGUI_DEFINE_MATH_OPERATORS)
 target_link_libraries(xrEUI PUBLIC xrCore imgui_editor SDL3::SDL3 d3d9)
 set_target_properties(xrEUI PROPERTIES FOLDER editors)
@@ -76,6 +77,18 @@ set(ENGINE_DIR ${CMAKE_SOURCE_DIR}/code/engine)
 file(GLOB_RECURSE ECORE_SOURCES CONFIGURE_DEPENDS xrECore/*.cpp xrECore/*.h)
 # Not built yet: skinned-mesh export and bone-shape fitting need MagicSoftware and DirectXMesh (Actor Editor stage).
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/(WildMagic/|Editor/EditObjectSkin[.]cpp|Editor/ExportSkeleton)")
+# Not built yet: the particle editor's library code (Particle Editor stage) and the image editor form, which uses
+# IX-Ray's RedImage (comes with the DXTUtils work).
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/(ParticleEditorImpl|UIImageEditorForm)[.]cpp$")
+# The material library editing subclass (Shader Editor stage); the core uses the plain library (GMLib).
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Engine/XrGameMaterialLibraryEditors[.](cpp|h)$")
+# The material library itself is Infernis's (format authority), compiled here in its editor layout (GM_NON_GAME:
+# sounds, particles and marks as names) instead of IX-Ray's copy.
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Engine/GameMtlLib[.]cpp$")
+# Texture parameter properties: Infernis's ETextureParams.cpp has them (GSC editor code), not IX-Ray's copy.
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/EditorTextureParams[.]cpp$")
+# The light preview (EDITOR_LIGHT_PREVIEW, Level Editor stage).
+list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Render/LightSpot[.](cpp|h)$")
 set(ECORE_RENDER_SOURCES
     ${ENGINE_DIR}/xrRenderCommon/Animation.cpp
     ${ENGINE_DIR}/xrRenderCommon/Blender_BmmD.cpp
@@ -158,18 +171,36 @@ set(ECORE_RENDER_SOURCES
     ${ENGINE_DIR}/xrRenderPC_R1/Blender_Vertex.cpp
     ${ENGINE_DIR}/xrRenderPC_R1/Blender_Vertex_aref.cpp
     ${ENGINE_DIR}/xrRenderPC_R1/Blender_default_aref.cpp
+    ${ENGINE_DIR}/xrEngine/GameMtlLib.cpp
+    ${CMAKE_SOURCE_DIR}/code/utils/common/NvMender2003/NVMeshMender.cpp
+    ${CMAKE_SOURCE_DIR}/code/utils/ETools/object.cpp
+    ${ENGINE_DIR}/xrEngine/ai_script_lua_debug.cpp
+    ${ENGINE_DIR}/xrEngine/ai_script_lua_extension.cpp
+    ${ENGINE_DIR}/xrRenderCommon/xr_effgamma.cpp
     ${ENGINE_DIR}/xrRenderCommon/HW.cpp
     ${ENGINE_DIR}/xrRenderCommon/HWCaps.cpp
     ${ENGINE_DIR}/xrRenderCommon/Texture.cpp
     ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Resources.cpp
     ${ENGINE_DIR}/xrRenderCommon/ResourceManager_Scripting.cpp)
 add_library(xrECore SHARED ${ECORE_SOURCES} ${ECORE_RENDER_SOURCES} Public/VIMP_Processor.cpp
-                           Public/object_sliding.cpp xrECore/xrECore.rc)
+                           Public/object_sliding.cpp)
+# (IX-Ray's xrECore.rc only embeds IX-Ray splash images for its launcher; not used here.)
 # 3rd-party/nlohmann: json.hpp 3.11.2 (MIT), the single header IX-Ray downloads; editor settings use it.
+# Infernis's renderer sources include editor headers by bare name in _EDITOR mode (GSC style: fmesh.h,
+# ParticleEffectActions.h, UI_ToolsCustom.h, ETools.h), hence the extra folders.
 target_include_directories(xrECore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xrECore ${DXSDK_INCLUDE_DIR}
-                                          ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party)
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party
+                                   PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Editor ${CMAKE_CURRENT_SOURCE_DIR}/xrECore/Engine
+                                           ${ENGINE_DIR}/xrEngine ${CMAKE_SOURCE_DIR}/code/utils/ETools
+                                           ${CMAKE_SOURCE_DIR}/code/utils/xrQSlim/src
+                                           ${CMAKE_SOURCE_DIR}/code/utils/common/NvMender2003)
 target_precompile_headers(xrECore PRIVATE xrECore/stdafx.h)
+# The engine's Lua helpers are compiled the way Infernis's R1 compiles them (its export define switches off the
+# game-only parts), without the editor's precompiled header.
+set_source_files_properties(${ENGINE_DIR}/xrEngine/ai_script_lua_debug.cpp ${ENGINE_DIR}/xrEngine/ai_script_lua_extension.cpp
+                            PROPERTIES SKIP_PRECOMPILE_HEADERS ON COMPILE_DEFINITIONS XRRENDER_R1_EXPORTS)
+target_link_directories(xrECore PUBLIC ${DXSDK_LIB_DIR}) # d3dx9, as for the renderers
 target_compile_definitions(xrECore PRIVATE XRECORE_EXPORTS _WINDOWS _USRDLL PUBLIC _EDITOR)
 target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xrSound xrPhysics xrParticles
-                                     xrAPI luabind lunasvg d3d9 d3dx9 dinput8 dxguid)
+                                     xrAPI luabind lunasvg xrQSlim d3d9 d3dx9 dinput8 dxguid)
 set_target_properties(xrECore PROPERTIES FOLDER editors)

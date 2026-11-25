@@ -11,7 +11,7 @@ static void SetBoneMaterials( IKinematics &K )
     for(u16 i = 0; i < count; ++i)
     {
 		CBoneData& bd =  K.LL_GetData( i );
-        if (*(bd.game_mtl_name))
+        if (!bd.game_mtl_name.empty()) // Infernis: std::string
 	        bd.game_mtl_idx = PGMLib->GetMaterialIdx( bd.game_mtl_name.c_str() );
         else
         	bd.game_mtl_idx = 0 ;

@@ -61,27 +61,27 @@ void IBlender::Destroy(IBlender*& B) { ::RImplementation.blender_destroy(B); }
 #else
 
 // Editor
-#include "../Layers/xrRenderPC_R1/blenderdefault.h"
-#include "../Layers/xrRenderPC_R1/blender_default_aref.h"
-#include "../Layers/xrRenderPC_R1/blender_vertex.h"
-#include "../Layers/xrRenderPC_R1/blender_vertex_aref.h"
-#include "blender_screen_set.h"
-#include "../Layers/xrRenderPC_R1/blender_screen_gray.h"
-#include "blender_editor_wire.h"
-#include "blender_editor_selection.h"
-#include "blender_light.h"
-#include "../Layers/xrRenderPC_R1/blender_LaEmB.h"
-#include "blender_Lm(EbB).h"
-#include "blender_BmmD.h"
-#include "blender_B.h"
-#include "blender_shadow_texture.h"
-#include "../Layers/xrRenderPC_R1/blender_shadow_world.h"
-#include "../Layers/xrRenderPC_R1/blender_blur.h"
-#include "../Layers/xrRenderPC_R1/blender_model.h"
-#include "blender_model_ebb.h"
-#include "blender_detail_still.h"
-#include "blender_tree.h"
-#include "blender_particle.h"
+#include "xrRenderPC_R1/blenderdefault.h"
+#include "xrRenderPC_R1/blender_default_aref.h"
+#include "xrRenderPC_R1/blender_vertex.h"
+#include "xrRenderPC_R1/blender_vertex_aref.h"
+#include "xrRenderCommon/Blender_Screen_SET.h"
+#include "xrRenderPC_R1/blender_screen_gray.h"
+#include "xrRenderCommon/Blender_Editor_Wire.h"
+#include "xrRenderCommon/Blender_Editor_Selection.h"
+// #include "blender_light.h" // not in Infernis (IX-Ray leaves it out too)
+#include "xrRenderPC_R1/blender_LaEmB.h"
+#include "xrRenderCommon/Blender_Lm(EbB).h"
+#include "xrRenderCommon/Blender_BmmD.h"
+// #include "blender_B.h" // not in Infernis (IX-Ray leaves it out too)
+// #include "blender_shadow_texture.h" // not in Infernis (IX-Ray leaves it out too)
+#include "xrRenderPC_R1/blender_shadow_world.h"
+#include "xrRenderPC_R1/blender_blur.h"
+#include "xrRenderPC_R1/blender_model.h"
+#include "xrRenderCommon/Blender_Model_EbB.h"
+#include "xrRenderCommon/Blender_detail_still.h"
+#include "xrRenderCommon/Blender_tree.h"
+#include "xrRenderCommon/Blender_Particle.h"
 
 IBlender* IBlender::Create(CLASS_ID cls) {
     switch (cls) {
@@ -101,14 +101,10 @@ IBlender* IBlender::Create(CLASS_ID cls) {
         return xr_new<CBlender_Editor_Wire>();
     case B_EDITOR_SEL:
         return xr_new<CBlender_Editor_Selection>();
-    case B_LIGHT:
-        return xr_new<CBlender_LIGHT>();
     case B_LaEmB:
         return xr_new<CBlender_LaEmB>();
     case B_LmEbB:
         return xr_new<CBlender_LmEbB>();
-    case B_B:
-        return xr_new<CBlender_B>();
     case B_BmmD:
         return xr_new<CBlender_BmmD>();
     case B_SHADOW_WORLD:

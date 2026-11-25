@@ -17,7 +17,9 @@
 // Infernis: no <d3dcompiler.h>; the DX9 renderer compiles shaders with D3DX, and d3dcompiler.h clashes with the
 // DX9 aliases in xrD3DDefs.h (ID3DBlob, D3D_SHADER_MACRO).
 #include "xrRenderCommon/light.h"
+#ifdef EDITOR_LIGHT_PREVIEW // Infernis: light preview comes with the Level Editor stage
 #include "../Render/LightSpot.h"
+#endif
 
 class ISpatial;
 
@@ -152,7 +154,9 @@ public:
 
 	xr_vector<light*> m_pointlights;
 	xr_vector<light*> m_spotlights;
+#ifdef EDITOR_LIGHT_PREVIEW
 	CLight_Compute_XFORM_and_VIS LR;
+#endif
 
 	xr_list<light*> v_all_lights_dque;
 	xrCriticalSection LightsDequeLock;

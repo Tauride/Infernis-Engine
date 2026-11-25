@@ -20,13 +20,17 @@ class fBoneNameEQ {
 	shared_str	name;
 public:
 	fBoneNameEQ(shared_str N) : name(N) {};
-	IC bool operator() (CBone* B) { return (xr_strcmp(B->Name(),name)==0); }
+	fBoneNameEQ(const std::string& N) : name(N.c_str()) {}; // Infernis: bone names are std::string
+	fBoneNameEQ(const char* N) : name(N) {};
+	IC bool operator() (CBone* B) { return (xr_strcmp(B->Name().c_str(),name.c_str())==0); }
 };
 class fBoneWMNameEQ {
 	shared_str	wm_name;
 public:
 	fBoneWMNameEQ(shared_str N) : wm_name(N) {};
-	IC bool operator() (CBone* B) { return (xr_strcmp(B->WMap(),wm_name)==0); }
+	fBoneWMNameEQ(const std::string& N) : wm_name(N.c_str()) {};
+	fBoneWMNameEQ(const char* N) : wm_name(N) {};
+	IC bool operator() (CBone* B) { return (xr_strcmp(B->WMap().c_str(),wm_name.c_str())==0); }
 };
 //----------------------------------------------------
 #if 1
@@ -490,7 +494,7 @@ int CEditableObject::PartIDByName(const char* name)
 shared_str CEditableObject::BoneNameByID(int id)
 {
 	VERIFY((id>=0)&&(id<(int)m_Bones.size()));
-	return m_Bones[id]->Name();
+	return m_Bones[id]->Name().c_str();
 }
 
 u16	CEditableObject::GetBoneIndexByWMap(const char* wm_name)
@@ -535,9 +539,9 @@ bool CEditableObject::CheckBoneCompliance(CSMotion* M)
 
 	for (BoneIt b_it = m_Bones.begin(); b_it != m_Bones.end(); b_it++)
 	{
-		if (!M->FindBoneMotion((*b_it)->Name()))
+		if (!M->FindBoneMotion((*b_it)->Name().c_str()))
 		{
-			M->add_empty_motion((*b_it)->Name());
+			M->add_empty_motion((*b_it)->Name().c_str());
 			continue;
 		}
 	}

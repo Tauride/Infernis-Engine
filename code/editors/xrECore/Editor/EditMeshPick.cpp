@@ -8,7 +8,7 @@
 static IntVec		sml_processed;
 static Fvector		sml_normal;
 static float		m_fSoftAngle;
-ECORE_API CDB::COLLIDER XRC;
+ECORE_API CDB::COLLIDER EditorXRC; // Infernis: renamed, xrCDB has its own XRC
 //----------------------------------------------------
 
 //----------------------------------------------------
@@ -21,7 +21,6 @@ void CEditableMesh::GenerateCFModel()
 	CL.clear();
 
 	// double sided
-	CL.reserve(m_FaceCount);
 	for (SurfFacesPairIt sp_it = m_SurfFaces.begin(); sp_it != m_SurfFaces.end(); sp_it++)
 	{
 		IntVec& face_lst = sp_it->second;
@@ -37,7 +36,7 @@ void CEditableMesh::GenerateCFModel()
 	}
 
 	m_CFModel = new CDB::MODEL();
-	m_CFModel->build(CL.getV(), CL.getVS(), CL.getT(), CL.getTS(), nullptr, nullptr, nullptr, false, false);
+	m_CFModel->build(CL.getV(), CL.getVS(), CL.getT(), CL.getTS()); // Infernis: synchronous build
 }
 
 void CEditableMesh::RayQuery(SPickQuery& pinf)
@@ -45,13 +44,12 @@ void CEditableMesh::RayQuery(SPickQuery& pinf)
 	if (!m_CFModel)
 	{
 		GenerateCFModel();
-		m_CFModel->wait_loading();
 	}
 
-	XRC.ray_query(m_CFModel, pinf.m_Start, pinf.m_Direction, pinf.m_Dist);
-	for (int r = 0; r < XRC.r_count(); r++)
+	EditorXRC.ray_query(m_CFModel, pinf.m_Start, pinf.m_Direction, pinf.m_Dist);
+	for (int r = 0; r < EditorXRC.r_count(); r++)
 	{
-		pinf.append(XRC.r_begin() + r, m_Parent, this);
+		pinf.append(EditorXRC.r_begin() + r, m_Parent, this);
 	}
 }
 
@@ -60,17 +58,16 @@ void CEditableMesh::RayQuery(const Fmatrix& parent, const Fmatrix& inv_parent, S
 	if (!m_CFModel)
 	{
 		GenerateCFModel();
-		m_CFModel->wait_loading();
 	}
 
 	Fvector S, D;
 	inv_parent.transform_tiny(S, pinf.m_Start);
 	inv_parent.transform_dir(D, pinf.m_Direction);
 
-	XRC.ray_query(m_CFModel, S, D, pinf.m_Dist);
-	for (int r = 0; r < XRC.r_count(); r++)
+	EditorXRC.ray_query(m_CFModel, S, D, pinf.m_Dist);
+	for (int r = 0; r < EditorXRC.r_count(); r++)
 	{
-		pinf.append_mtx(parent, XRC.r_begin() + r, m_Parent, this);
+		pinf.append_mtx(parent, EditorXRC.r_begin() + r, m_Parent, this);
 	}
 }
 
@@ -79,7 +76,6 @@ void CEditableMesh::BoxQuery(const Fmatrix& parent, const Fmatrix& inv_parent, S
 	if (!m_CFModel)
 	{
 		GenerateCFModel();
-		m_CFModel->wait_loading();
 	}
 
 	Fbox dest;
@@ -88,10 +84,10 @@ void CEditableMesh::BoxQuery(const Fmatrix& parent, const Fmatrix& inv_parent, S
 	dest.getcenter(c);
 	dest.getradius(d);
 
-	XRC.box_query(m_CFModel, c, d);
-	for (int r = 0; r < XRC.r_count(); r++)
+	EditorXRC.box_query(m_CFModel, c, d);
+	for (int r = 0; r < EditorXRC.r_count(); r++)
 	{
-		pinf.append_mtx(parent, XRC.r_begin() + r, m_Parent, this);
+		pinf.append_mtx(parent, EditorXRC.r_begin() + r, m_Parent, this);
 	}
 }
 
@@ -107,20 +103,19 @@ bool CEditableMesh::RayPick(float& distance, const Fvector& start, const Fvector
 	if (!m_CFModel)
 	{
 		GenerateCFModel();
-		m_CFModel->wait_loading();
 	}
 
-	XRC.ray_options(CDB::OPT_ONLYNEAREST | CDB::OPT_CULL);
+	EditorXRC.ray_options(CDB::OPT_ONLYNEAREST | CDB::OPT_CULL);
 
 	Fvector S, D;
 	inv_parent.transform_tiny(S, start);
 	inv_parent.transform_dir(D, direction);
 
-	XRC.ray_query(m_CFModel, S, D, _sqrt_flt_max);
+	EditorXRC.ray_query(m_CFModel, S, D, _sqrt_flt_max);
 
-	if (XRC.r_count())
+	if (EditorXRC.r_count())
 	{
-		CDB::RESULT* I = XRC.r_begin();
+		CDB::RESULT* I = EditorXRC.r_begin();
 		if (I->range < distance)
 		{
 			if (pinf)
@@ -227,7 +222,6 @@ bool CEditableMesh::BoxPick(const Fbox& box, const Fmatrix& inv_parent, SBoxPick
 	if (!m_CFModel)
 	{
 		GenerateCFModel();
-		m_CFModel->wait_loading();
 	}
 
 	Fbox dest;
@@ -236,13 +230,13 @@ bool CEditableMesh::BoxPick(const Fbox& box, const Fmatrix& inv_parent, SBoxPick
 	dest.getcenter(c);
 	dest.getradius(d);
 
-	XRC.box_query(m_CFModel, c, d);
-	if (XRC.r_count())
+	EditorXRC.box_query(m_CFModel, c, d);
+	if (EditorXRC.r_count())
 	{
 		pinf.push_back(SBoxPickInfo());
 		pinf.back().e_obj = m_Parent;
 		pinf.back().e_mesh = this;
-		for (CDB::RESULT* I = XRC.r_begin(); I != XRC.r_end(); I++)
+		for (CDB::RESULT* I = EditorXRC.r_begin(); I != EditorXRC.r_end(); I++)
 		{
 			pinf.back().AddRESULT(m_CFModel, I);
 		}

@@ -66,9 +66,7 @@ public:
 
 private:
     collide::rq_results r_dest;
-#ifndef _EDITOR
-    collide::ray_cache m_ray_cache[MAX_RAYS];
-#endif
+    collide::ray_cache m_ray_cache[MAX_RAYS]; // Same layout with and without _EDITOR: the editors share this class with xrEngineCore.dll
 
 protected:
     float fBlend;

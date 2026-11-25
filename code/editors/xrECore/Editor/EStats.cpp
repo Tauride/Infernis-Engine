@@ -77,8 +77,8 @@ void CEStats::Show()
         lastDPS_calls = DPS.calls;
 
         auto& env = g_pGamePersistent->Environment();
-        float time = g_pGameLevel ? g_pGameLevel->GetEnvironmentGameDayTimeSec() : env.GetGameTime();
-        env.SplitTime(time, hours, minutes, seconds);
+        float time = env.GetGameTime() /* Infernis */;
+        EditorSplitTime(time, hours, minutes, seconds);
 
 #if 0
 

@@ -298,7 +298,7 @@ void CEditableMesh::OptimizeMesh(bool NoOpt)
         m_VertCount		= m_NewPoints.size();
         xr_free			(m_Vertices);
         m_Vertices		= xr_alloc<Fvector>(m_VertCount);
-		Memory.mem_copy	(m_Vertices,&*m_NewPoints.begin(),m_NewPoints.size()*sizeof(Fvector));
+		std::memcpy(m_Vertices,&*m_NewPoints.begin(),m_NewPoints.size()*sizeof(Fvector));
 
 		if (i_del_face){
 	        st_Face* 	old_faces 	= m_Faces;

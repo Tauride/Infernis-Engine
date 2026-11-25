@@ -369,3 +369,32 @@ FS_Path& CEditorFS::GetPathOrRoot(const char* initial)
 	Msg("~ Editor: path alias %s is not in fsgame.ltx, using $fs_root$", initial ? initial : "(null)");
 	return *FS.get_path("$fs_root$");
 }
+
+bool CEditorFS::TryLoad(const char* path)
+{
+	if (!path || !path[0])
+		return false;
+	if (FS.exist(path))
+		return true;
+	std::error_code Error;
+	if (!std::filesystem::exists(path, Error))
+		return false;
+	string_path folder;
+	xr_strcpy(folder, ExtractFilePath(path).c_str());
+	FS.rescan_path(folder, FALSE);
+	return FS.exist(path) != nullptr;
+}
+
+xr_string CEditorFS::FixPath(const char* path)
+{
+	if (!path)
+		return xr_string();
+	if (FS.path_exist("$game_data$"))
+	{
+		const char* root = FS.get_path("$game_data$")->m_Path;
+		const size_t root_length = xr_strlen(root);
+		if (root_length && 0 == _strnicmp(path, root, root_length))
+			return xr_string(path + root_length);
+	}
+	return xr_string(path);
+}

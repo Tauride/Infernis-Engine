@@ -5,6 +5,7 @@
 // Infernis: xrCore first (it sets up windows.h without min/max), then DX9 the way Infernis's R1 does it
 // (xrEngine, d3dx9, xrD3DDefs). IX-Ray included <d3d9.h> first.
 #include "../xrEUI/stdafx.h"
+#include <SDL3/SDL.h>
 #include "xrEngine/stdafx.h"
 #pragma warning(disable : 4995)
 #include <d3dx9.h>
@@ -86,6 +87,7 @@ struct astr_pred
 
 #include "Editor/InfernisDevice.h"
 #include "Editor/device.h"
+#include "Editor/EditorFonts.h" // Infernis: IX-Ray's engine font manager
 #include "xrEngine/Properties.h"
 #include "Editor/render.h"
 using FLvertexVec = xr_vector<FVF::L>;

@@ -118,7 +118,9 @@ void dxRenderDeviceRender::OnDeviceCreate(LPCSTR shName) {
     m_WireShader.create("editor\\wire");
     m_SelectionShader.create("editor\\selection");
 
+#ifndef _EDITOR // the editor device sets up its own draw utilities
     DUImpl.OnDeviceCreate();
+#endif
 }
 
 void dxRenderDeviceRender::Create(HWND hWnd, u32& dwWidth, u32& dwHeight, float& fWidth_2,

@@ -134,7 +134,7 @@ void CEditableObject::Render(const Fmatrix& parent, int priority, bool strictB2F
 				RenderEdge(parent);
 
 			if (IsSkeleton())
-				Engine.External.SetSkinningMode(4);
+				::Render->shader_option_skinning(4); // Infernis: IRender_interface
 
 			size_t s_id = 0;
 			for (SurfaceIt s_it = m_Surfaces.begin(); s_it != m_Surfaces.end(); s_it++)
@@ -169,7 +169,7 @@ void CEditableObject::Render(const Fmatrix& parent, int priority, bool strictB2F
 				s_id++;
 			}
 
-			Engine.External.SetSkinningMode();
+			::Render->shader_option_skinning(-1);
 		}
 	}
 }
@@ -427,7 +427,7 @@ void CEditableObject::CreateBone(shared_str Name)
 
 	m_objectFlags.set(eoDynamic, true);
 
-	BP.bones.push_back(B->Name());
+	BP.bones.push_back(B->Name().c_str()); // Infernis: bone names are std::string
 	m_Bones.push_back(B);
 	PrepareBones();
 
@@ -467,7 +467,7 @@ void CEditableObject::AddBone(CBone* parent_bone)
 		B->SetParentName				("");
 	}
 
-	m_BoneParts[0].bones.push_back(B->Name());
+	m_BoneParts[0].bones.push_back(B->Name().c_str()); // Infernis: std::string names
 	m_Bones.push_back	(B);
 	PrepareBones		();
 
@@ -501,7 +501,7 @@ void CEditableObject::DeleteBone(CBone* bone)
 	SharedStrVec::iterator iit_e 	= (*bpit).bones.end();
 	for( ;iit!=iit_e; ++iit)
 	{
-		if(*iit==bone->Name())
+		if(0 == xr_strcmp(iit->c_str(), bone->Name().c_str())) // Infernis: std::string names
 		{
 			(*bpit).bones.erase(iit);
 			break;

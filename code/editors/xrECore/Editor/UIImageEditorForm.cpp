@@ -121,7 +121,7 @@ void UIImageEditorForm::Draw()
 					baseTexture->Release();
 				}
 			}
-			ImGui::Image(m_Texture->get_SRView()->GetRawSRV(), ImVec2(128, 128));
+			ImGui::Image(m_Texture->get_surface_noref(), ImVec2(128, 128));
 			m_ItemProps->Draw();
 
 			if (!IsDocked)

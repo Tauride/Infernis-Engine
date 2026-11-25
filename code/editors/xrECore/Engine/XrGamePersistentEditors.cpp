@@ -1,12 +1,11 @@
 #include "stdafx.h"
 
 #include "xrEngine/IGame_Persistent.h"
-//#include "..\XrAPI\xrGameManager.h"
+//#include "../XrAPI/xrGameManager.h"
 #include "XrGamePersistentEditors.h"
 
 XrGamePersistentEditors::XrGamePersistentEditors():IGame_Persistent ()
 {
-	g_dedicated_server = false;
 	m_pMainMenu						= nullptr;
 	//pEnvironment = nullptr;
 	/*switch (xrGameManager::GetGame())

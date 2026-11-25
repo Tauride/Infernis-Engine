@@ -3,19 +3,16 @@
 #pragma once
 
 #include "..\xrServerEntities\gametype_chooser.h"
-#ifndef _EDITOR
+// Same layout with and without _EDITOR: the editors share this class with xrEngineCore.dll.
 #include "Environment.h"
 #include "IGame_ObjectPool.h"
-#endif
 
 class IRenderVisual;
 class IMainMenu;
 class ENGINE_API CPS_Instance;
 //-----------------------------------------------------------------------------------------------------------
 class ENGINE_API IGame_Persistent :
-#ifndef _EDITOR
     public DLL_Pure,
-#endif
     public pureAppStart,
     public pureAppEnd,
     public pureAppActivate,
@@ -63,12 +60,10 @@ public:
     virtual void PlayParticle(LPCSTR name, const Fvector& pos) {} 
 	virtual void ApplyLightningDamage(const Fvector& pos, float radius, float power) {}
 
-#ifndef _EDITOR
     IGame_ObjectPool ObjectPool;
     CEnvironment* pEnvironment;
     CEnvironment& Environment() { return *pEnvironment; };
     void Prefetch();
-#endif
     IMainMenu* m_pMainMenu;
 
     virtual bool OnRenderPPUI_query() {

@@ -144,7 +144,7 @@ ECORE_API bool IXBeginMainMenuBar()
 	{
 		ImVec2 t_pose = { (LogoButtonSize.x - LogoSize) / 2, (LogoButtonSize.y - LogoSize) / 2};
 		ImGui::SetCursorPos(t_pose);
-		ImGui::Image(UI->m_HeaderLogo->get_SRView()->GetRawSRV(), { LogoSize, LogoSize });
+		ImGui::Image(UI->m_HeaderLogo->get_surface_noref(), { LogoSize, LogoSize });
 		ImGui::SameLine();
 	}
 
@@ -255,12 +255,12 @@ ECORE_API void IXEndMainMenuBar()
 
 		ImGui::BeginChild("##ControlButtons", { button_w * 3,button_h });
 
-		if (ImGui::ImageButton("##IXEndMainMenuBar01", UI->m_WinMin->get_SRView()->GetRawSRV(), ImageSize))
+		if (ImGui::ImageButton("##IXEndMainMenuBar01", UI->m_WinMin->get_surface_noref(), ImageSize))
 			SendMessageW(EDevice->GetHWND(), WM_SYSCOMMAND, SC_MINIMIZE, 0);
 
 		ImGui::SameLine();
 
-		if (ImGui::ImageButton("##IXEndMainMenuBar02", (EDevice->isZoomed ? UI->m_WinRes->get_SRView()->GetRawSRV() : UI->m_WinMax->get_SRView()->GetRawSRV()), ImageSize))
+		if (ImGui::ImageButton("##IXEndMainMenuBar02", (EDevice->isZoomed ? UI->m_WinRes->get_surface_noref() : UI->m_WinMax->get_surface_noref()), ImageSize))
 			MaxBut = true;
 
 		ImGui::SameLine();
@@ -268,7 +268,7 @@ ECORE_API void IXEndMainMenuBar()
 		ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(81.f/255.f,36.f/255.f,40.f/255,1.f));
 		ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(71.f/255.f,24.f/255.f,28.f/255,1.f));
 
-		if (ImGui::ImageButton("##IXEndMainMenuBar03", UI->m_WinClose->get_SRView()->GetRawSRV(), ImageSize))
+		if (ImGui::ImageButton("##IXEndMainMenuBar03", UI->m_WinClose->get_surface_noref(), ImageSize))
 			SendMessageW(EDevice->GetHWND(), WM_CLOSE, 0, 0);
 
 		ImGui::PopStyleColor(2);

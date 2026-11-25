@@ -261,5 +261,9 @@ if (${BUILD_UTILS})
 endif()
 
 if (${BUILD_EDITORS})
+    if (NOT ${BUILD_UTILS})
+        add_subdirectory(code/utils/xrQSlim) # the editors' mesh simplifier
+        set_target_properties(xrQSlim PROPERTIES FOLDER utils)
+    endif()
     add_subdirectory(code/editors)
 endif()

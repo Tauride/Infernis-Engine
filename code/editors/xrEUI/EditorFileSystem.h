@@ -22,6 +22,15 @@ public:
     // FS.TryLoad to register them first). False when the file cannot be opened.
     bool ReadDiskFile(const char* path, xr_string& data);
 
+    // Infernis: IX-Ray's FS.TryLoad. True when the file is in the locator; a file that is on disk but not indexed
+    // yet (made after start-up) gets its folder rescanned first. CLocatorAPI::Register is private in Infernis.
+    bool TryLoad(const char* path);
+    bool TryLoad(const xr_string& path) { return TryLoad(path.c_str()); }
+
+    // Infernis: IX-Ray's FS.fix_path. The path relative to $game_data$ when it is under it, else unchanged.
+    xr_string FixPath(const char* path);
+    xr_string FixPath(const xr_string& path) { return FixPath(path.c_str()); }
+
     // Infernis: the path alias if fsgame.ltx defines it, otherwise $fs_root$. IX-Ray's fs.ltx defines aliases
     // such as $import$ that Infernis's does not, and FS.get_path asserts on unknown aliases.
     FS_Path& GetPathOrRoot(const char* initial);

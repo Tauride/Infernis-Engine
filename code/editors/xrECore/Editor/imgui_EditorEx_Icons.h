@@ -42,7 +42,7 @@ namespace chezze_svg_temporary
 
 		IRHISurface* Surf = GRHI->CreateTexture2D(Desc, SubResource);
 
-		TempTexture->surface_set(Surf);
+		TempTexture->surface_set(Surf->GetD3D()); // Infernis: D3D9 texture
 		return TempTexture;
 	}
 

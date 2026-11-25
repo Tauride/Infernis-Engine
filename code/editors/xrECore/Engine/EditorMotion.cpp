@@ -148,21 +148,9 @@ void CSMotion::Save(IWriter& F)
     for (u32 i = 0; i < sz; ++i)
         marks[i].Save(&F);
 
-    F.w_u32(notify.NotifyTracks.size());
-    for (auto& bone : notify.NotifyTracks)
-    {
-        F.w_stringZ(bone.first);
-        F.w_u32(bone.second.size());
-        for (auto& track : bone.second)
-        {
-            F.w_u32(track.Notifies.size());
-            for (auto& notif : track.Notifies)
-            {
-                F.w_float(notif.first);
-                F.w_stringZ(notif.second.ExternalRef);
-            }
-        }
-    }
+    // Infernis: no notify tracks (IX-Ray animation notifies end up in .omf files the game cannot read).
+    // The count keeps the IX-Ray .skl layout (version 0x0010).
+    F.w_u32(0);
     
 }
 
@@ -269,7 +257,8 @@ bool CSMotion::Load(IReader& F)
             {
                 shared_str temp;
                 F.r_stringZ(temp);
-                auto& BoneTrack = notify.NotifyTracks[temp];
+                // Infernis: notify tracks are read and discarded (see Save)
+                xr_vector<xr_map<float, shared_str>> BoneTrack;
                 for (u32 j = F.r_u32(); j > 0; --j)
                 {
                     BoneTrack.push_back({});
@@ -278,7 +267,7 @@ bool CSMotion::Load(IReader& F)
                     {
                         auto time = F.r_float();
                         F.r_stringZ(temp);
-                        Track.Notifies[time] = {temp};
+                        Track[time] = temp;
                     }
                 }
             }
@@ -302,7 +291,7 @@ void CSMotion::SortBonesBySkeleton(BoneVec& bones)
     BoneMotionVec new_bone_mots;
     for (BoneIt b_it = bones.begin(); b_it != bones.end(); ++b_it)
     {
-        st_BoneMotion* BM = FindBoneMotion((*b_it)->Name());
+        st_BoneMotion* BM = FindBoneMotion((*b_it)->Name().c_str());
         if (!BM)
         {
             CBone* B = *(b_it);

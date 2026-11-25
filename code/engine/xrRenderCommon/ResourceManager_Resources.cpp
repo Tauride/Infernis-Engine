@@ -147,7 +147,7 @@ void CResourceManager::_DeleteDecl(const SDeclaration* dcl) {
 }
 
 //--------------------------------------------------------------------------------------------------------------
-#ifndef _EDITOR
+// Vertex and pixel shaders: the same path for the game and the editors.
 SVS* CResourceManager::_CreateVS(LPCSTR _name) {
     string_path name;
     xr_strcpy(name, _name);
@@ -226,7 +226,6 @@ SVS* CResourceManager::_CreateVS(LPCSTR _name) {
         return _vs;
     }
 }
-#endif
 
 void CResourceManager::_DeleteVS(const SVS* vs) {
     if (0 == (vs->dwFlags & xr_resource_flagged::RF_REGISTERED))
@@ -240,7 +239,6 @@ void CResourceManager::_DeleteVS(const SVS* vs) {
     Msg("! ERROR: Failed to find compiled vertex-shader '%s'", *vs->cName);
 }
 
-#ifndef _EDITOR
 //--------------------------------------------------------------------------------------------------------------
 SPS* CResourceManager::_CreatePS(LPCSTR name) {
     LPSTR N = LPSTR(name);
@@ -313,7 +311,6 @@ SPS* CResourceManager::_CreatePS(LPCSTR name) {
         return _ps;
     }
 }
-#endif
 
 void CResourceManager::_DeletePS(const SPS* ps) {
     if (0 == (ps->dwFlags & xr_resource_flagged::RF_REGISTERED))
@@ -667,7 +664,7 @@ void CResourceManager::_DeleteConstantList(const SConstantList* L) {
     Msg("! ERROR: Failed to find compiled list of r1-constant-defs");
 }
 
-#ifdef _EDITOR
+#if 0 // GSC's editor shader creation; the editors use the game path above, through CRender::shader_compile (code/editors)
 //--------------------------------------------------------------------------------------------------------------
 class includer : public ID3DXInclude {
 public:

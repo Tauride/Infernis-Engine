@@ -25,6 +25,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
     Core._initialize("Particle", ELogCallback, true, fsgame[0] ? fsgame : FSName);
 
+	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h), before the tools and the main
+	// form are created, so that dialogs during start-up are covered.
+	CEditorCheckRun CheckRun;
+	CheckRun.Parse(pCmdLine);
+
 	psDeviceFlags.set(rsFullscreen, false);
 
 	actions_token = actions_token_impl;
@@ -38,10 +43,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	::MainForm = MainForm;
 	UI->Push(MainForm, false);
 
-
-	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h).
-	CEditorCheckRun CheckRun;
-	CheckRun.Parse(pCmdLine);
 
 	bool NeedExit = false;
 	while (!NeedExit)

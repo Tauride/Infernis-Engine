@@ -32,11 +32,26 @@ bool ReadCommandLineValue(const char* CmdLine, const char* Option, char (&Out)[S
     return ReadCommandLineValue(CmdLine, Option, Out, Size);
 }
 
+// True when the command line has Option as a whole word ("-save", not "-saved" or "pre-save.png").
+inline bool HasCommandLineOption(const char* CmdLine, const char* Option)
+{
+    const size_t Length = xr_strlen(Option);
+    for (const char* Found = CmdLine ? strstr(CmdLine, Option) : nullptr; Found; Found = strstr(Found + 1, Option))
+    {
+        const bool StartsWord = Found == CmdLine || Found[-1] == ' ';
+        const bool EndsWord = Found[Length] == 0 || Found[Length] == ' ';
+        if (StartsWord && EndsWord)
+            return true;
+    }
+    return false;
+}
+
 // Unattended checks shared by the editors' main loops (Infernis):
 //   -frames <n>  close after n frames (drawn even with the pointer outside the window);
 //   -shot <file> save the last frame (.png or .bmp);
 //   -save        run the Save command on the last frame, without edits (open/save round trips).
 // A timed run shows no dialogs: they are logged and answered OK, or Cancel/No for questions (CLog::Unattended).
+// Parse before the editor creates its tools and main form, so that dialogs during start-up are covered too.
 struct CEditorCheckRun
 {
     int FrameLimit = 0;
@@ -50,10 +65,8 @@ struct CEditorCheckRun
         if (ReadCommandLineValue(CmdLine, "-frames ", Frames))
             FrameLimit = atoi(Frames);
         ReadCommandLineValue(CmdLine, "-shot ", ShotPath);
-        SaveAtEnd = FrameLimit > 0 && strstr(CmdLine, "-save") != nullptr;
+        SaveAtEnd = FrameLimit > 0 && HasCommandLineOption(CmdLine, "-save");
         ELog.Unattended = FrameLimit > 0; // dialogs are logged and answered OK/Cancel (ELog.h)
-        if (FrameLimit > 0)
-            psDeviceFlags.set(rsRenderRealTime, TRUE); // redraw every frame (the editors redraw on request otherwise)
     }
 
     // Before each frame.
@@ -62,6 +75,7 @@ struct CEditorCheckRun
         if (FrameLimit <= 0)
             return;
         Device.b_is_Active = true; // the editors only draw while active
+        UI->RedrawScene();         // and redraw the scene on request (not through rsRenderRealTime: the preferences save it)
         if (ShotPath[0] && FrameCount == FrameLimit - 1)
             EDevice->RequestScreenshot(ShotPath);
     }

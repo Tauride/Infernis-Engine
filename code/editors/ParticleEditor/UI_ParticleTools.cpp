@@ -595,6 +595,7 @@ CCommandVar CParticleTool::CreateGroupFromSelected(CCommandVar p1, CCommandVar p
 
     pg->m_fTimeLimit				= 0.0f;
     PS::CPGDef::SEffect* eff 		= xr_new<PS::CPGDef::SEffect>();
+    eff->parent						= pg; // Infernis: the group's property panel uses it (IX-Ray left it unset)
     pg->m_Effects.push_back	   		(eff);
     eff->m_EffectName				= eff_name;
 

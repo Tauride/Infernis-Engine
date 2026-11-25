@@ -462,7 +462,14 @@ void CParticleGroup::OnFrame(u32 u_dt) {
         }
         
         m_CurrentTime += f_dt;
-        if ((m_CurrentTime > m_Def->m_fTimeLimit) && (m_Def->m_fTimeLimit > 0.0f))
+        float TimeLimit = m_Def->m_fTimeLimit;
+#ifdef _EDITOR
+        // The editors keep a stored 0 ("the longest effect", see CPGDef::Load); the preview plays it as the game does.
+        if (TimeLimit <= 0.0f)
+            for (const auto* effect : m_Def->m_Effects)
+                TimeLimit = std::max(TimeLimit, effect->m_Time1);
+#endif
+        if ((m_CurrentTime > TimeLimit) && (TimeLimit > 0.0f))
             if (!m_RT_Flags.is(flRT_DefferedStop))
                 Stop(TRUE);
 

@@ -96,6 +96,7 @@ void CExportSkeleton::SSplit::CalculateTB()
 	}
 
 	retrive_data_from_mender_otput(m_Verts, m_Faces, MenderInOutVerts, MenderInOutIndices, MenderMappingOut2InVert);
+	t_remove_isolated_verts(m_Verts, m_Faces); // Infernis: GSC's (Clear Sky SDK); IX-Ray left the vertices no face uses
 
 	MenderInOutVerts.clear();
 	MenderInOutIndices.clear();

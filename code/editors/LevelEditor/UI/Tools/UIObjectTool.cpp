@@ -402,7 +402,7 @@ void UIObjectTool::DrawObjectsList()
 		{
 			//if (ImGui::BeginChild("Props"))
 			{
-				ImGui::Image(m_RealTexture ? m_RealTexture->get_SRView()->GetRawSRV() : (m_TextureNull->get_SRView()->GetRawSRV()), ImVec2(128, 128));
+				ImGui::Image(m_RealTexture ? m_RealTexture->get_surface_noref() : (m_TextureNull->get_surface_noref()), ImVec2(128, 128));
 				ImGui::SameLine();
 				ImGui::BeginChild("##EGIProps", { 0, 128 });
 				m_Props->Draw();
@@ -597,7 +597,7 @@ void UIObjectTool::MultiSelByRefObject(bool clear_prev)
 		random_shuffle(sellist.begin(), sellist.end());
 		int max_k = iFloor(float(sellist.size()) / 100.f * float(m_selPercent) + 0.5f);
 		int k = 0;
-		for (LPU32It o_it = sellist.begin(); k < max_k; o_it++, k++) {
+		for (auto o_it = sellist.begin(); k < max_k; o_it++, k++) {
 			CSceneObject* _O = (CSceneObject*)(*o_it);
 			_O->Select(true);
 		}

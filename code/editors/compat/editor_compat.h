@@ -67,6 +67,14 @@ using xr_atomic_u32 = std::atomic<u32>;
 template <typename T> using xr_shared_ptr = std::shared_ptr<T>;
 using RTokenVecIt = RTokenVec::iterator;
 using xr_task_group = concurrency::task_group; // IX-Ray: the same on Windows (xrCore/_thread_types.h)
+using LPCSTRVec = xr_vector<LPCSTR>; // IX-Ray xrCore containers
+using LPCSTRIt = LPCSTRVec::iterator;
+using LPU32Vec = xr_vector<u32*>;
+using LPU32It = LPU32Vec::iterator;
+inline LPCSTRIt FindLPCSTR(LPCSTRVec& Vec, LPCSTR Key)
+{
+    return std::find_if(Vec.begin(), Vec.end(), [Key](LPCSTR Item) { return 0 == xr_strcmp(Item, Key); });
+}
 
 // Borland calling-convention marker, empty in IX-Ray xrCore; GSC-era editor declarations still carry it.
 #ifndef _BCL

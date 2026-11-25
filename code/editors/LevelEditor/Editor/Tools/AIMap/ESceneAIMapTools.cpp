@@ -344,7 +344,7 @@ bool ESceneAIMapTool::LoadLTX(CInifile& ini)
         {
             string128 key;
             sprintf(key, "material_%d", i);
-            SGameMtl* mtl = GameMaterialLibraryEditors->GetMaterial(ini.r_string("ignored_materials", key));
+            SGameMtl* mtl = PGMLib->GetMaterial(ini.r_string("ignored_materials", key));
             if (mtl) m_ignored_materials.push_back(mtl->GetID());
         }
     }
@@ -411,7 +411,7 @@ void ESceneAIMapTool::SaveLTX(CInifile& ini, int id)
 		u16 i = 0;
 		for (u16 MaterialID : m_ignored_materials)
 		{
-			SGameMtl* mtl = GameMaterialLibraryEditors->GetMaterialByID(MaterialID);
+			SGameMtl* mtl = PGMLib->GetMaterialByID(MaterialID);
 			R_ASSERT(mtl);
 			string128 key;
 			sprintf(key, "material_%d", i);
@@ -505,7 +505,7 @@ bool ESceneAIMapTool::LoadStream(IReader& F)
         {
             F.r_stringZ(buf);
 
-            SGameMtl* mtl = GameMaterialLibraryEditors->GetMaterial(*buf);
+            SGameMtl* mtl = PGMLib->GetMaterial(*buf);
             if (mtl) m_ignored_materials.push_back(mtl->GetID());
         }
     }
@@ -573,7 +573,7 @@ void ESceneAIMapTool::SaveStream(IWriter& F)
 
     for (u16 MaterialID : m_ignored_materials)
     {
-        SGameMtl* mtl = GameMaterialLibraryEditors->GetMaterialByID(MaterialID);
+        SGameMtl* mtl = PGMLib->GetMaterialByID(MaterialID);
         R_ASSERT(mtl);
         F.w_stringZ(*mtl->m_Name);
     }

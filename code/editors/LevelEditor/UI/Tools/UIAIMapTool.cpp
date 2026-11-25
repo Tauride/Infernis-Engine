@@ -186,7 +186,7 @@ void UIAIMapTool::UpdateIgnoreMaterial()
 {
 	for (u16 MaterialID : tool->m_ignored_materials)
 	{
-		SGameMtl* mtl = GameMaterialLibraryEditors->GetMaterialByID(MaterialID);
+		SGameMtl* mtl = PGMLib->GetMaterialByID(MaterialID);
 		m_IgnoreMaterialsList.push_back(*mtl->m_Name);
 	}
 }
@@ -202,7 +202,7 @@ void UIAIMapTool::OnDrawUI()
 			if (result)
 			{
 				m_IgnoreMaterialsList.push_back(name);
-				SGameMtl* mtl =  GameMaterialLibraryEditors->GetMaterial(name.c_str());
+				SGameMtl* mtl =  PGMLib->GetMaterial(name.c_str());
 				tool->m_ignored_materials.push_back(mtl->GetID());
 			}
 			m_ChooseIgnoreMaterials = false;

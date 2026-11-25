@@ -113,7 +113,7 @@ void CUITextureViewer::DrawView()
 	ImGui::EndChild();
 	ImGui::PopStyleVar();
 
-	if (Texture && Texture->get_SRView()->GetRawSRV())
+	if (Texture && Texture->get_surface_noref())
 	{
 		ImVec2 avail = ImGui::GetContentRegionAvail();
 		ImVec2 textureSize((float)SrcData.W, (float)SrcData.H);
@@ -136,7 +136,7 @@ void CUITextureViewer::DrawView()
 		pos.y += (avail.y - textureSize.y) * 0.5f;
 
 		ImGui::SetCursorScreenPos(pos);
-		ImGui::Image((void*)Texture->get_SRView()->GetRawSRV(), textureSize);
+		ImGui::Image((void*)Texture->get_surface_noref(), textureSize);
 	}
 }
 

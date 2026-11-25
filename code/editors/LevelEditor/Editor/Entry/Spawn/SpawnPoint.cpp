@@ -484,6 +484,7 @@ void CSpawnPoint::SSpawnData::OnAnimControlClick(ButtonValue* value, bool& bModi
 	}
 }
 
+#ifdef EDITOR_DYNAMIC_WALLMARKS // IX-Ray's dynamic wallmark entity (CSE_ALifeDynamicWallmark), not in Infernis
 void CSpawnPoint::SSpawnData::OnWallmarkUpdateClick(ButtonValue* value, bool& bModif, bool& bSafe)
 {
 	CSE_ALifeDynamicWallmark* DW = smart_cast<CSE_ALifeDynamicWallmark*>(m_Data);
@@ -527,6 +528,8 @@ void CSpawnPoint::SSpawnData::OnWallmarkDetachClick(ButtonValue* value, bool& bM
 	}
 }
 
+#endif
+
 void CSpawnPoint::SSpawnData::FillProp(const char* pref, PropItemVec& items)
 {
 	xrCriticalSectionGuard guard(mLuaEnter);
@@ -545,6 +548,7 @@ void CSpawnPoint::SSpawnData::FillProp(const char* pref, PropItemVec& items)
 		BV->OnBtnClickEvent.bind(this,&CSpawnPoint::SSpawnData::OnAnimControlClick);
     }
 
+#ifdef EDITOR_DYNAMIC_WALLMARKS
 	if (CSE_ALifeDynamicWallmark* DW = smart_cast<CSE_ALifeDynamicWallmark*>(m_Data);DW)
 	{
 		auto Button = PHelper().CreateButton(items, PrepareKey(pref,m_Data->name(), "Update Wallmark"), "Update", 0);
@@ -552,6 +556,7 @@ void CSpawnPoint::SSpawnData::FillProp(const char* pref, PropItemVec& items)
 		Button = PHelper().CreateButton(items, PrepareKey(pref, m_Data->name(), "Convert Wallmark to Static"), "Convert", 0);
 		Button->OnBtnClickEvent.bind(this, &CSpawnPoint::SSpawnData::OnWallmarkDetachClick);
 	}
+#endif
 }
 
 void CSpawnPoint::SSpawnData::Render(bool bSelected, const Fmatrix& parent,int priority, bool strictB2F)
@@ -871,7 +876,7 @@ bool CSpawnPoint::GetBox( Fbox& box )
 					CShapeData::ShapeVec& SV	= shape->GetShapes();
 					box.invalidate();
 					Fvector p;
-					for (CShapeData::ShapeIt it=SV.begin(); it!=SV.end(); it++){
+					for (CShapeData::auto it=SV.begin(); it!=SV.end(); it++){
 						switch (it->type){
 						case CShapeData::cfSphere:
 							p.add(it->data.sphere.P,it->data.sphere.R); shape->_Transform().transform_tiny(p); box.modify(p);
@@ -1084,7 +1089,7 @@ void CSpawnPoint::Render( int priority, bool strictB2F )
 				}else{
 					switch (m_Type)
 					{
-					case ptRPoint: 	s_name = "RPoint T:" + xr_string::ToString(m_RP_TeamID); break;
+					case ptRPoint: 	s_name = "RPoint T:" + xr_string_ToString(m_RP_TeamID); break;
 					case ptEnvMod:
 					{
 						string256 Data = {};
@@ -1543,8 +1548,9 @@ void CSpawnPoint::OnFillRespawnItemProfile(ChooseValue* val)
 	FS.update_path(fn,"$game_config$", "mp\\respawn_items.ltx");
 	CInifile ini(fn);
 	CInifile::Root& sections = ini.sections();
-	for(CInifile::Sect& sect : sections)
+	for(CInifile::Sect* SectPtr : sections) // Infernis: the root holds pointers
 	{
+		CInifile::Sect& sect = *SectPtr;
 		shared_str& sect_name = sect.Name;
 		shared_str hint;
 		if(ini.line_exist(sect_name,"description"))

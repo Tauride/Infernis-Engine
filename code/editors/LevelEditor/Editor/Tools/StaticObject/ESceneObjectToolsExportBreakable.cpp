@@ -19,7 +19,7 @@ IC bool build_mesh(const Fmatrix& parent, CEditableMesh* mesh, CGeomPartExtracto
 			bResult 		= false; 
 			break; 
 		}
-		SGameMtl* M 		=  GameMaterialLibraryEditors->GetMaterialByID(gm_id);
+		SGameMtl* M 		=  PGMLib->GetMaterialByID(gm_id);
 		if (!M){
 			ELog.DlgMsg		(mtError,"%s Object '%s', surface '%s' contain undefined game material.", mesh->Name().c_str(), mesh->Parent()->m_LibName.c_str(),surf->_Name());
 			bResult 		= false; 

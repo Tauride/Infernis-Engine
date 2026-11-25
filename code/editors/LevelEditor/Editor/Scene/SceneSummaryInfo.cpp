@@ -340,12 +340,12 @@ void SSceneSummary::FillProp(PropItemVec& items)
     PHelper().CreateCaption	(items,"Sounds\\Occluder\\Vertices",	shared_str().printf("%d",snd_occ_vert_cnt));
     PHelper().CreateCaption	(items,"Sounds\\Sources",				shared_str().printf("%d",sound_source_cnt));
     PHelper().CreateCaption	(items,"Sounds\\Waves\\Count",			shared_str().printf("%d",waves.size()));
-    for (RStringSetIt w_it=waves.begin(); w_it!=waves.end(); w_it++)
+    for (auto w_it=waves.begin(); w_it!=waves.end(); w_it++)
         PHelper().CreateCaption(items,PrepareKey("Sounds\\Waves",w_it->c_str()),"-");
     // particles
     PHelper().CreateCaption	(items,"Particle System\\Sources",		shared_str().printf("%d",pe_static_cnt));
     PHelper().CreateCaption	(items,"Particle System\\Refs\\Count",	shared_str().printf("%d",pe_static.size()));
-    for (RStringSetIt pe_it=pe_static.begin(); pe_it!=pe_static.end(); pe_it++)
+    for (auto pe_it=pe_static.begin(); pe_it!=pe_static.end(); pe_it++)
         PHelper().CreateCaption(items,PrepareKey("Particle System\\Refs",pe_it->c_str()),"-");
 }
 

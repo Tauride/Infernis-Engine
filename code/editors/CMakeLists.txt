@@ -262,7 +262,8 @@ set_target_properties(ActorEditor PROPERTIES FOLDER editors)
 # (AI/, scene_spawn.cpp; Infernis's xrAI builds those), and its Python plugin. Server entities come from Infernis's xrSE_Factory, built for the editors (xrSE_Factory_Editor).
 file(GLOB_RECURSE LEVEL_EDITOR_SOURCES CONFIGURE_DEPENDS LevelEditor/*.cpp LevelEditor/*.h)
 list(FILTER LEVEL_EDITOR_SOURCES EXCLUDE REGEX
-     "/LevelEditor/(Engine/(XRayEditor|XrGameManager)[^/]*|AI/.*|Plugins/PluginPython[^/]*|Editor/Scene/scene_spawn[.]cpp)$")
+     "/LevelEditor/(Engine/(XRayEditor|XrGameManager)[^/]*|AI/.*|Plugins/PluginPython[^/]*|Editor/Scene/scene_spawn[.]cpp|Nodes/UIDialogsView[.](cpp|h))$")
+# (Nodes/UIDialogsView: IX-Ray's dialog editor uses its tinyxml2-based XML API, like the dialog nodes of xrEProps.)
 add_executable(LevelEditor WIN32 ${LEVEL_EDITOR_SOURCES} LevelEditor/LevelEditor.rc LevelEditor/LevelEditor.manifest)
 target_precompile_headers(LevelEditor PRIVATE LevelEditor/stdafx.h)
 target_compile_definitions(LevelEditor PRIVATE _LEVEL_EDITOR _WINDOWS)

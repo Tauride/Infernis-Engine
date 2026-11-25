@@ -93,8 +93,10 @@ public:
 		void    		Render			(bool bSelected, const Fmatrix& parent,int priority, bool strictB2F);
 		void    		OnFrame			();
     	void 	OnAnimControlClick		(ButtonValue* value, bool& bModif, bool& bSafe);  
+#ifdef EDITOR_DYNAMIC_WALLMARKS
 		void	OnWallmarkUpdateClick	(ButtonValue* value, bool& bModif, bool& bSafe);
 		void	OnWallmarkDetachClick	(ButtonValue* value, bool& bModif, bool& bSafe);
+#endif
         
 		virtual void get_bone_xform				(const char* name, Fmatrix& xform);
         IC CSE_Abstract* GetEntity()const { return m_Data; }

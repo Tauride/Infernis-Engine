@@ -30,7 +30,7 @@ UITopBarForm::~UITopBarForm()
 
 #define IMGUI_HINT_BUTTON(Name, Ptr, Hint, dImDrawFlags, Callback) \
 			Ptr->Load(); \
-			if (XRay::ImGui::ToolbarIconButton("##" Name, Ptr->get_SRView()->GetRawSRV(), nullptr, dImDrawFlags)) \
+			if (XRay::ImGui::ToolbarIconButton("##" Name, Ptr->get_surface_noref(), nullptr, dImDrawFlags)) \
 				Callback(); \
 			if (ImGui::IsItemHovered()) \
 			{ \
@@ -122,7 +122,7 @@ void UITopBarForm::Draw()
 				}
 
 				Icons["play_in_editor_settings"]->Load();
-				if (XRay::ImGui::ToolbarIconButton("##PlaySettings", Icons["play_in_editor_settings"]->get_SRView()->GetRawSRV(), nullptr, ImDrawFlags_RoundCornersRight, ButtonRadius, { ButtonSize * 0.5f, ButtonSize }, { IconSize * 0.4f, IconSize * 0.4f }))
+				if (XRay::ImGui::ToolbarIconButton("##PlaySettings", Icons["play_in_editor_settings"]->get_surface_noref(), nullptr, ImDrawFlags_RoundCornersRight, ButtonRadius, { ButtonSize * 0.5f, ButtonSize }, { IconSize * 0.4f, IconSize * 0.4f }))
 				{
 					ImGui::OpenPopup("test");
 				}

@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "ContentView.h"
 
-#include "../../Nodes/UIDialogsView.h"
+// Infernis: no dialog editor yet (Nodes/UIDialogsView uses IX-Ray's tinyxml2-based XML API)
 #include "../../../../utils/xrDXT/xrDXT.h"
 #include "xrECore/Editor/ParticleEffectActions.h"
 
@@ -414,7 +414,7 @@ void CContentView::DrawHeader()
 			{
 				ImGui::SameLine(0, 0);
 
-				xr_string ButtonPathName = Path + "##" + xr_string::ToString(Iter);
+				xr_string ButtonPathName = Path + "##" + xr_string_ToString(Iter);
 
 				if (ImGui::Button(Platform::ANSI_TO_UTF8(ButtonPathName).c_str()))
 				{
@@ -545,7 +545,7 @@ void CContentView::DrawHeader()
 this->MenuIcon.p_ was nullptr.
 	*/
 
-	//if (MenuIcon && ImGui::ImageButton("##MenuCB", MenuIcon->get_SRView()->GetRawSRV(), { 15, 15 }))
+	//if (MenuIcon && ImGui::ImageButton("##MenuCB", MenuIcon->get_surface_noref(), { 15, 15 }))
 		ImGui::SetCursorPosY(ImGui::GetCursorPosY() + TableBorder);
 		if (MenuIcon && XRay::ImGui::Button(ICON_FA_BARS"##IMenuCB", { Height - TableBorder * 2.f, Height - TableBorder * 2.f }))
 		{
@@ -947,7 +947,7 @@ void CContentView::DrawOtherDir(size_t& HorBtnIter, const size_t IterCount, xr_s
 					auto Iter = std::find(GameDialogs.begin(), GameDialogs.end(), FileName);
 					if (Iter != GameDialogs.end())
 					{
-						CUIDialogView::OpenFile(FilePath.File.xfilename());
+						ELog.DlgMsg(mtInformation, "The dialog editor is not ported to Infernis yet.");
 					}
 				}
 				if (FilePath.File.extension() == ".thm")
@@ -1263,12 +1263,12 @@ bool CContentView::BeginDragDropAction(xr_path& FilePath, xr_string& FileName, c
 	xr_string LabelText = FilePath.has_extension() ? FileName.substr(0, FileName.length() - FilePath.extension().string().length()).c_str() : FileName.c_str();
 	if (SelectedObjects.size() == 1) 
 	{
-		ImGui::ImageButton(FilePath.xfilename().c_str(), IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_SRView()->GetRawSRV() : nullptr, BtnSize);
+		ImGui::ImageButton(FilePath.xfilename().c_str(), IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_surface_noref() : nullptr, BtnSize);
 		ImGui::TextUnformatted(LabelText.data());
 	}
 	else 
 	{
-		ImGui::ImageButton(FilePath.xfilename().c_str(), Icons["multi"].Icon->get_SRView()->GetRawSRV(), BtnSize);
+		ImGui::ImageButton(FilePath.xfilename().c_str(), Icons["multi"].Icon->get_surface_noref(), BtnSize);
 		ImGui::Text("%d objects", SelectedObjects.size());
 	}
 	
@@ -1428,7 +1428,7 @@ bool CContentView::DrawItemN(const FileOptData& InitFileName, size_t& HorBtnIter
 				IconColor.w = 0.3;
 			}
 
-			ImGui::Image(IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_SRView()->GetRawSRV()  : nullptr, ImageSize, ImVec2(0, 0), ImVec2(1, 1), IconColor, ImVec4(0,0,0,0));
+			ImGui::Image(IconPtr->Icon->get_SRView() ? IconPtr->Icon->get_surface_noref()  : nullptr, ImageSize, ImVec2(0, 0), ImVec2(1, 1), IconColor, ImVec4(0,0,0,0));
 
 			/*
 				Два варианта
@@ -2005,7 +2005,7 @@ CContentView::IconData & CContentView::GetTexture(const xr_string & IconPath)
 				m_Thm->Update(Texture);
 				TempTexture->surface_set(Texture);
 
-				if (TempTexture->pSurface != nullptr && TempTexture->get_SRView()->GetRawSRV() != nullptr)
+				if (TempTexture->pSurface != nullptr && TempTexture->get_surface_noref() != nullptr)
 				{
 					Icons[IconPath] = { TempTexture, false };
 					Texture->Release();

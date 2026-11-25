@@ -51,7 +51,7 @@ bool CLevelSoundManager::MakeEnvGeometry(CMemoryWriter& F, bool bErrMsg)
 
         int inner = -1;
         int outer = -1;
-        for (RStringVecIt e_it = env_names.begin(); e_it != env_names.end(); e_it++) {
+        for (auto e_it = env_names.begin(); e_it != env_names.end(); e_it++) {
             if ((-1 == inner) && (E->m_EnvInner == *e_it)) inner = e_it - env_names.begin();
             if ((-1 == outer) && (E->m_EnvOuter == *e_it)) outer = e_it - env_names.begin();
             if ((inner > -1) && (outer > -1)) break;
@@ -76,7 +76,7 @@ bool CLevelSoundManager::MakeEnvGeometry(CMemoryWriter& F, bool bErrMsg)
     
     // write names
     F.open_chunk	(0);
-	for (RStringVecIt e_it=env_names.begin(); e_it!=env_names.end(); e_it++)
+	for (auto e_it=env_names.begin(); e_it!=env_names.end(); e_it++)
     	F.w_stringZ	(e_it->c_str());
     F.close_chunk	();
     

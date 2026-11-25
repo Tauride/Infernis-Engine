@@ -85,7 +85,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	splash::SetProgressStatus(40, "Loading Game Materials");
 
 	// Initialize APP
-	GameMaterialLibraryEditors->Load();
+	PGMLib->Load();
 
 	splash::SetProgressStatus(55, "Initializing Game Persistent Objects");
 

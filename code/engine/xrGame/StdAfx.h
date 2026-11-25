@@ -1,4 +1,6 @@
 #pragma once
+// The Actor Editor (code/editors) compiles PostprocessAnimator.cpp with _PP_EDITOR_ and its own precompiled header.
+#ifndef _PP_EDITOR_
 
 #pragma warning(disable : 4995)
 #include "../xrEngine/stdafx.h"
@@ -44,3 +46,4 @@
 #include "../xrEngine/igame_level.h"
 #include "../xrphysics/xrphysics.h"
 #include "smart_cast.h"
+#endif // _PP_EDITOR_

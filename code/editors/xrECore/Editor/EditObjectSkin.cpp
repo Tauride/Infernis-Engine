@@ -29,10 +29,10 @@ void CEditableObject::ResetBones()
 }
 
 class fBoneNameEQPred {
-	shared_str	name;
+	std::string	name; // Infernis: CBone names are std::string (IX-Ray: shared_str)
 public:
-    fBoneNameEQPred(shared_str N) : name(N) {};
-	IC bool operator() (CBone* B) { return (xr_strcmp(B->Name(),name)==0); }
+    fBoneNameEQPred(const std::string& N) : name(N) {};
+	IC bool operator() (CBone* B) { return B->Name() == name; }
 };
 
 bool CEditableObject::LoadBoneData(IReader& F)
@@ -57,7 +57,7 @@ bool CEditableObject::LoadBoneData(IReader& F)
             {
                 B->CopyData	(*n_it);
             }else{
-	            ELog.Msg	(mtError,"Can't find bone: '%s'.",*(*b_it)->Name());
+	            ELog.Msg	(mtError,"Can't find bone: '%s'.",(*b_it)->Name().c_str());
             	bRes		= false; 
 //                break;
             }

@@ -41,8 +41,8 @@ set_target_properties(xrEUI PROPERTIES FOLDER editors)
 file(GLOB_RECURSE EPROPS_SOURCES CONFIGURE_DEPENDS xrEProps/*.cpp xrEProps/*.h xrEProps/*.H)
 list(APPEND EPROPS_SOURCES Public/PropertiesListTypes.h Public/PropertiesListHelper.h Public/xrEProps.h
                            Public/ItemListTypes.h Public/xrEPropsTypes.h Public/WaveForm.h)
-# Not built yet: the bone views need CBone from the engine sources the editor core compiles (Actor Editor stage),
-# and the dialog nodes use IX-Ray's tinyxml2-based XML API (Level Editor stage).
+# The bone view and bone nodes are built by xrECore (they need its CBone). Not built yet: the dialog nodes use
+# IX-Ray's tinyxml2-based XML API (Level Editor stage).
 list(FILTER EPROPS_SOURCES EXCLUDE REGEX "/(NodeBuilder/BoneNodes|UIBoneView|NodeBuilder/DialogNode)\\.(cpp|h)$")
 add_library(xrEProps SHARED ${EPROPS_SOURCES})
 target_include_directories(xrEProps PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xrEProps)
@@ -70,13 +70,23 @@ foreach(LUNASVG_TARGET lunasvg plutovg)
     endif()
 endforeach()
 
+# FreeMagic (Magic Software), the part the skinned-mesh export uses for bone shapes (3rd-party/MagicSoftware).
+file(GLOB FREEMAGIC_SOURCES CONFIGURE_DEPENDS 3rd-party/MagicSoftware/FreeMagic/Source/*.cpp)
+add_library(FreeMagic_editor STATIC ${FREEMAGIC_SOURCES})
+target_include_directories(FreeMagic_editor PUBLIC 3rd-party/MagicSoftware/FreeMagic/Include
+                                            PRIVATE 3rd-party/MagicSoftware/FreeMagic/Source)
+target_compile_options(FreeMagic_editor PRIVATE /W0)
+set_target_properties(FreeMagic_editor PROPERTIES FOLDER editors/3rd-party)
+
 # xrECore: the editor core (device, camera, scene objects, meshes, library, thumbnails). Built on Infernis's
 # engine (xrEngineCore.dll, the engine sources as a DLL) and on Infernis's DX9 renderer sources, compiled here
 # with _EDITOR as the renderer of the editor viewport.
 set(ENGINE_DIR ${CMAKE_SOURCE_DIR}/code/engine)
 file(GLOB_RECURSE ECORE_SOURCES CONFIGURE_DEPENDS xrECore/*.cpp xrECore/*.h)
-# Not built yet: skinned-mesh export and bone-shape fitting need MagicSoftware and DirectXMesh (Actor Editor stage).
-list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/(WildMagic/|Editor/EditObjectSkin[.]cpp|Editor/ExportSkeleton)")
+# The bone view and its nodes are xrEProps sources, but they use CBone, whose editor layout only the editor core
+# has (_EDITOR); they are compiled here.
+list(APPEND ECORE_SOURCES xrEProps/UIBoneView.cpp xrEProps/UIBoneView.h xrEProps/NodeBuilder/BoneNodes.cpp
+                          xrEProps/NodeBuilder/BoneNodes.h)
 # Not built yet: the image editor form, which uses IX-Ray's RedImage (comes with the DXTUtils work).
 list(FILTER ECORE_SOURCES EXCLUDE REGEX "/xrECore/Editor/UIImageEditorForm[.]cpp$")
 # The material library itself is Infernis's (format authority), compiled here in its editor layout (GM_NON_GAME:
@@ -199,7 +209,7 @@ set_source_files_properties(${ENGINE_DIR}/xrEngine/ai_script_lua_debug.cpp ${ENG
 target_link_directories(xrECore PUBLIC ${DXSDK_LIB_DIR}) # d3dx9, as for the renderers
 target_compile_definitions(xrECore PRIVATE XRECORE_EXPORTS _WINDOWS _USRDLL PUBLIC _EDITOR)
 target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xrSound xrPhysics xrParticles
-                                     xrAPI luabind lunasvg xrQSlim d3d9 d3dx9 dinput8 dxguid)
+                                     xrAPI luabind lunasvg xrQSlim FreeMagic_editor d3d9 d3dx9 dinput8 dxguid)
 # Loaded at run time, so built with the core: the CPU pipeline (software skinning, bound by Engine.Initialize) and
 # the texture compressor (DXTUtils).
 add_dependencies(xrECore xrCPU_Pipe xrDXT)
@@ -231,3 +241,17 @@ target_compile_definitions(ParticleEditor PRIVATE _PARTICLE_EDITOR _WINDOWS)
 target_include_directories(ParticleEditor PRIVATE ${ENGINE_DIR}/xrParticles) # the editor's action classes
 target_link_libraries(ParticleEditor PRIVATE xrECore)
 set_target_properties(ParticleEditor PROPERTIES FOLDER editors)
+
+# --- Actor Editor (stage 4): editable objects (.object), their skeletons and motions (.skl/.skls), export to .ogf
+# and .omf in Infernis's (GSC's) format, and post-process effects (.ppe, through Infernis's own PostprocessAnimator,
+# which keeps GSC's _PP_EDITOR_ branches).
+file(GLOB ACTOR_EDITOR_SOURCES CONFIGURE_DEPENDS ActorEditor/*.cpp ActorEditor/*.h ActorEditor/CustomTools/*.cpp
+                                                 ActorEditor/CustomTools/*.h)
+add_executable(ActorEditor WIN32 ${ACTOR_EDITOR_SOURCES} ActorEditor/ActorEditor.rc ActorEditor/ActorEditor.manifest
+                           ${ENGINE_DIR}/xrGame/PostprocessAnimator.cpp)
+target_precompile_headers(ActorEditor PRIVATE ActorEditor/stdafx.h)
+target_compile_definitions(ActorEditor PRIVATE _ACTOR_EDITOR _PP_EDITOR_ _WINDOWS)
+target_include_directories(ActorEditor PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ActorEditor ${ENGINE_DIR}/xrGame
+                                               ${ENGINE_DIR}/xrEngine) # xrGame/PostprocessAnimator.h: envelope.h
+target_link_libraries(ActorEditor PRIVATE xrECore)
+set_target_properties(ActorEditor PROPERTIES FOLDER editors)

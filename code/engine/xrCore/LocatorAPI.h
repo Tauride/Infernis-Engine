@@ -173,6 +173,9 @@ public:
     void unload_archive(archive& A);
 
     void rescan_path(LPCSTR full_path, BOOL bRecurse);
+    // For the editors: true when the file is known, or exists on disk at that full path, in which case it is
+    // registered so that r_open finds it (a file picked outside the mounted folders). IX-Ray has the same call.
+    bool TryLoad(LPCSTR full_path);
     // editor functions
     void rescan_pathes();
     void lock_rescan();

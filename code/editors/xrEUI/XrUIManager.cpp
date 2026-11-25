@@ -339,6 +339,19 @@ void XrUIManager::Draw()
 		ImGui::PushStyleColor(ImGuiCol_Border, XRay::ImGui::GetEditorColor(XRay::ImGui::EEditorColors::BackgroundTint).Value);
 		ImGui::Begin("MyDockspace", NULL, window_flags);
 		ImGuiID dockMain = ImGui::GetID("MyDockspace");
+		if (!m_DefaultLayoutChecked)
+		{
+			m_DefaultLayoutChecked = true;
+			ImGuiDockNode* Node = ImGui::DockBuilderGetNode(dockMain);
+			if (!Node || (!Node->IsSplitNode() && Node->Windows.Size == 0))
+			{
+				ImGui::DockBuilderRemoveNode(dockMain);
+				ImGui::DockBuilderAddNode(dockMain, ImGuiDockNodeFlags_DockSpace);
+				ImGui::DockBuilderSetNodeSize(dockMain, ImGui::GetContentRegionAvail());
+				BuildDefaultLayout(dockMain);
+				ImGui::DockBuilderFinish(dockMain);
+			}
+		}
 
 		////// Save off menu bar height for later.
 

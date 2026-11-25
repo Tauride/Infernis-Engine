@@ -27,7 +27,7 @@ the environment for both commands.
 | `xrEProps` | Property grids, item lists, choosers, small forms. |
 | `Public` | Headers shared by the editor libraries. |
 | `compat` | IX-Ray `xrCore` types and helpers that Infernis's `xrCore` lacks (`xr_path`, `xr_delegate`, string helpers). Editor-only. |
-| `3rd-party/imgui` | Dear ImGui 1.92.1, docking branch, with IX-Ray's additions. Separate from the game's `code/3rd-party/imgui`. |
+| (shared) | Dear ImGui lives in `code/3rd-party/imgui` (1.92.1 docking, IX-Ray's copy): the game links it statically, the editors as `imgui_editor.dll`. |
 | `test` | `xrEditorUITest`: opens the shell with a property grid. Run it from a folder with an `fsgame.ltx` whose `$game_fonts$` holds `editors\*.ttf`; `-frames <n> -shot <file.bmp>` closes after n frames and saves the last one. |
 
 Not built yet: the bone views and bone nodes in `xrEProps` (need `CBone` from the editor core) and the dialog nodes
@@ -38,7 +38,7 @@ types only, no lazy archive loading, DX9 texture handles instead of IX-Ray's RHI
 
 ## Licence
 
-The sources under `xrEUI`, `xrEProps`, `Public`, `compat` (ported parts) and `3rd-party/imgui` come from
+The sources under `xrEUI`, `xrEProps`, `Public`, `compat` (ported parts) and the ImGui core in `code/3rd-party/imgui` come from
 [IX-Ray](https://github.com/ixray-team/ixray-1.6-stcop), commit `09c1a3de9`, under its licence: MIT-style
 permission to use, copy, modify, merge, publish and distribute, **except selling copies**; the copyright notice
 must be kept ("Copyright (c) 2019-2025 IX-Ray and contributors"). GSC Game World keeps the rights to the original

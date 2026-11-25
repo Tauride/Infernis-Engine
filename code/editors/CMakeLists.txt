@@ -20,21 +20,18 @@ add_compile_definitions(_HAS_DEPRECATED_ALLOCATOR_MEMBERS=1 _SILENCE_ALL_CXX17_D
 
 include(SDL3.cmake)
 
-# Dear ImGui, docking branch with IX-Ray's additions (imgui_user.*, imgui_ixr.cpp). A DLL, so that every editor
-# module shares one ImGui context. Separate from the game's code/3rd-party/imgui, which has no docking.
-file(GLOB IMGUI_EDITOR_SOURCES CONFIGURE_DEPENDS 3rd-party/imgui/*.cpp 3rd-party/imgui/*.h)
-add_library(imgui_editor SHARED ${IMGUI_EDITOR_SOURCES})
-target_include_directories(imgui_editor PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/3rd-party/imgui)
-target_compile_definitions(imgui_editor PUBLIC IMGUI_DLL PRIVATE IMGUI_EXPORTS)
-target_link_libraries(imgui_editor PUBLIC xrCore)
+# Dear ImGui: imgui_editor is defined in code/3rd-party/imgui, as a DLL built from the same 1.92.1-docking sources
+# as the game's static imgui library, so that every editor module shares one ImGui context.
 set_target_properties(imgui_editor PROPERTIES FOLDER editors/3rd-party)
 
 # xrEUI: editor window shell (ImGui on SDL3 + D3D9), theme, fonts, gizmo, plots, node editor.
 file(GLOB_RECURSE EUI_SOURCES CONFIGURE_DEPENDS xrEUI/*.cpp xrEUI/*.h)
-list(APPEND EUI_SOURCES compat/editor_compat.h compat/xr_path.h compat/xr_delegate.h)
+list(APPEND EUI_SOURCES compat/editor_compat.h compat/xr_path.h compat/xr_delegate.h
+                        ${CMAKE_SOURCE_DIR}/code/3rd-party/imgui/imgui_impl_dx9.cpp)
 add_library(xrEUI SHARED ${EUI_SOURCES})
 target_include_directories(xrEUI PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/xrEUI ${CMAKE_CURRENT_SOURCE_DIR})
-target_compile_definitions(xrEUI PRIVATE XREUI_EXPORTS _WINDOWS _USRDLL PUBLIC XR_EDITOR_NEW
+# IMGUI_IMPL_API empty: the backends (SDL3, DX9) are compiled into xrEUI, not imported from imgui_editor.dll.
+target_compile_definitions(xrEUI PRIVATE XREUI_EXPORTS _WINDOWS _USRDLL IMGUI_IMPL_API= PUBLIC XR_EDITOR_NEW
                            IMGUI_DEFINE_MATH_OPERATORS)
 target_link_libraries(xrEUI PUBLIC xrCore imgui_editor SDL3::SDL3 d3d9)
 set_target_properties(xrEUI PROPERTIES FOLDER editors)

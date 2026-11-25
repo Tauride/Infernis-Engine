@@ -42,7 +42,8 @@ public:
     float GetLength() const;
     // Update
     void Update(float dt);
-    void DrawPath();
+    void DrawPath(); // GSC's editor build only (ObjectAnimator.cpp, _EDITOR); the Infernis editors draw from Current()
+    IC COMotion* Current() const { return m_Current; }
 };
 
 #endif // ObjectAnimatorH

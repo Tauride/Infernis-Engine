@@ -38,8 +38,19 @@ public:
 	void SetShape(SBoneShape* Ptr);
 
 public:
+	// Infernis: the engine's SBoneShape has no operator== (IX-Ray added one); the same test here: type, flags and
+	// the shape of that type (plain floats).
 	inline bool operator==(const SBoneShape& Left)
 	{
-		return *ShapePtr == Left;
+		const SBoneShape& Right = *ShapePtr;
+		if (Left.type != Right.type || Left.flags.get() != Right.flags.get())
+			return false;
+		switch (Left.type)
+		{
+		case SBoneShape::stBox:			return 0 == memcmp(&Left.box, &Right.box, sizeof(Left.box));
+		case SBoneShape::stSphere:		return 0 == memcmp(&Left.sphere, &Right.sphere, sizeof(Left.sphere));
+		case SBoneShape::stCylinder:	return 0 == memcmp(&Left.cylinder, &Right.cylinder, sizeof(Left.cylinder));
+		default:						return false;
+		}
 	}
 };

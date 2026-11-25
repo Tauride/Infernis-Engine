@@ -26,7 +26,7 @@ void CBlender_Particle::Save(IWriter& fs) {
     IBlender::Save(fs);
 
     // Blend mode
-    xrP_TOKEN::Item I;
+    xrP_TOKEN::Item I{}; // zeroed: the whole 64-byte name is written
     xrPWRITE_PROP(fs, "Blending", xrPID_TOKEN, oBlend);
     I.ID = 0;
     xr_strcpy(I.str, "SET");

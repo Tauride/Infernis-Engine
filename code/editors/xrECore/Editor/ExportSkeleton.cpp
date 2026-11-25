@@ -19,12 +19,12 @@
 #include "UI_ToolsCustom.h"
 #include "../../../engine/xrEngine/GameMtlLib.h"
 
-#include <DirectXMesh.h>
 
 #define MAX_BONE 128
 
-ECORE_API bool g_force16BitTransformQuant = true;
-ECORE_API bool g_force32BitTransformQuant = false;
+// Infernis: GSC's default (translations 8-bit, 16-bit when a bone moves more than 1.5 m). IX-Ray forced 16-bit by
+// default and added 32-bit keys, which Infernis's motion format (GSC's) does not have.
+ECORE_API bool g_force16BitTransformQuant = false;
 ECORE_API float g_EpsSkelPositionDelta = EPS_L;
 
 u16 CSkeletonCollectorPacked::VPack(SSkelVert& V)
@@ -460,117 +460,69 @@ void CExportSkeleton::SSplit::MakeProgressive()
 	processor_skeleton.VIPM_Destroy		();
 }
 
+// Infernis: GSC's vertex cache optimisation (D3DX, as the Clear Sky SDK and Infernis's static mesh export do);
+// IX-Ray used DirectXMesh, a package Infernis does not carry.
 void CExportSkeleton::SSplit::MakeStripify()
 {
-	bool NeedSkip = false;
-
-	xr_vector<u32> adjacency(m_Faces.size() * 3);
-	xr_vector<u16> indices(m_Faces.size() * 3);
-	for (size_t i = 0; i < m_Faces.size(); ++i)
+	if (m_Faces.empty() || m_Verts.empty())
+		return;
+	// faces
 	{
-		indices[i * 3 + 0] = m_Faces[i].v[0];
-		indices[i * 3 + 1] = m_Faces[i].v[1];
-		indices[i * 3 + 2] = m_Faces[i].v[2];
-	}
-
-	xr_vector<DirectX::XMFLOAT3> positions(m_Verts.size());
-	for (size_t i = 0; i < m_Verts.size(); ++i)
-	{
-		positions[i].x = m_Verts[i].offs.x;
-		positions[i].y = m_Verts[i].offs.y;
-		positions[i].z = m_Verts[i].offs.z;
-	}
-
-	HRESULT adjacencyResult = DirectX::ConvertPointRepsToAdjacency
-	(
-		indices.data(),
-		m_Faces.size(),
-		positions.data(),
-		m_Verts.size(),
-		nullptr,
-		adjacency.data()
-	);
-
-	if (FAILED(adjacencyResult))
-	{
-		NeedSkip = true;
-	}
-
-	if (!NeedSkip)
-	{
-		xr_vector<u16> indicesCopy = indices;
-		xr_vector<u32> faceRemap(m_Faces.size());
-
-		HRESULT rhr = DirectX::OptimizeFaces
-		(
-			indicesCopy.data(),
-			m_Faces.size(),
-			adjacency.data(),
-			faceRemap.data()
-		);
-
-		if (SUCCEEDED(rhr))
+		xr_vector<DWORD> remap(m_Faces.size());
+		// A failed optimisation only costs vertex cache efficiency: skip it, as IX-Ray did (GSC stopped with R_CHK)
+		if (FAILED(D3DXOptimizeFaces(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data())))
 		{
-			SkelFaceVec _source = m_Faces;
-			for (size_t it = 0; it < m_Faces.size(); ++it)
+			Msg("! %s: the face order is kept (D3DXOptimizeFaces failed)", m_Texture.c_str());
+			return;
+		}
+		SkelFaceVec _source = m_Faces;
+		for (u32 it = 0; it < _source.size(); it++)
+			m_Faces[it] = _source[remap[it]];
+	}
+	// vertices: the remap gives each vertex its new place. D3DX marks vertices no face uses with 0xFFFFFFFF; GSC's
+	// loop wrote those out of bounds. Here they are dropped (nothing refers to them), and a remap that is not a
+	// plain reordering leaves the vertices as they are.
+	{
+		xr_vector<DWORD> remap(m_Verts.size());
+		if (FAILED(D3DXOptimizeVertices(&m_Faces.front(), (UINT)m_Faces.size(), (UINT)m_Verts.size(), FALSE, remap.data())))
+		{
+			Msg("! %s: the vertex order is kept (D3DXOptimizeVertices failed)", m_Texture.c_str());
+			return;
+		}
+		const u32 count = (u32)m_Verts.size();
+		xr_vector<bool> taken(count, false);
+		u32 used = 0;
+		bool valid = true;
+		for (u32 vit = 0; vit < count && valid; vit++)
+		{
+			if (remap[vit] == 0xFFFFFFFF)
+				continue;
+			valid = remap[vit] < count && !taken[remap[vit]];
+			if (valid)
 			{
-				m_Faces[it] = _source[faceRemap[it]];
+				taken[remap[vit]] = true;
+				++used;
 			}
-
-			indices = indicesCopy;
+		}
+		for (u32 n = 0; n < used && valid; n++) // the used vertices fill the first places
+			valid = taken[n];
+		for (u32 fit = 0; fit < (u32)m_Faces.size() && valid; fit++)
+			for (u32 j = 0; j < 3 && valid; j++)
+				valid = remap[m_Faces[fit].v[j]] != 0xFFFFFFFF;
+		if (valid)
+		{
+			SkelVertVec _source = m_Verts;
+			m_Verts.resize(used);
+			for (u32 vit = 0; vit < count; vit++)
+				if (remap[vit] != 0xFFFFFFFF)
+					m_Verts[remap[vit]] = _source[vit];
+			for (u32 fit = 0; fit < (u32)m_Faces.size(); fit++)
+				for (u32 j = 0; j < 3; j++)
+					m_Faces[fit].v[j] = (u16)remap[m_Faces[fit].v[j]];
 		}
 		else
 		{
-			NeedSkip = true;
-		}
-	}
-
-	if (!NeedSkip)
-	{
-		xr_vector<u32> vertexRemap(m_Verts.size());
-		HRESULT rhr = DirectX::OptimizeVertices
-		(
-			indices.data(),
-			m_Faces.size(),
-			m_Verts.size(),
-			vertexRemap.data()
-		);
-
-		if (SUCCEEDED(rhr))
-		{
-			SkelVertVec newVerts;
-			newVerts.reserve(m_Verts.size());
-
-			xr_vector<u32> newIndex(m_Verts.size(), UINT_MAX);
-
-			for (size_t vit = 0; vit < m_Verts.size(); ++vit)
-			{
-				if (vertexRemap[vit] != UINT_MAX)
-				{
-					newIndex[vit] = (u32)newVerts.size();
-					newVerts.push_back(m_Verts[vit]);
-				}
-			}
-
-			for (size_t i = 0; i < m_Faces.size(); ++i)
-			{
-				for (int j = 0; j < 3; ++j)
-				{
-					u32 oldIdx = indices[i * 3 + j];
-					u32 newIdx = newIndex[oldIdx];
-
-					if (newIdx != UINT_MAX)
-					{
-						m_Faces[i].v[j] = (WORD)newIdx;
-					}
-					else
-					{
-						m_Faces[i].v[j] = 0;
-					}
-				}
-			}
-
-			m_Verts.swap(newVerts);
+			Msg("! %s: the vertex order is kept (unexpected remap from D3DXOptimizeVertices)", m_Texture.c_str());
 		}
 	}
 }
@@ -697,7 +649,7 @@ bool CExportSkeleton::PrepareGeometry(u8 influence)
 
 	for (U16It uit = bone_brk_parts.begin(); uit != bone_brk_parts.end(); uit++)
 	{
-		Msg("Bone: %s - Part: %d", *m_Source->GetBone(uit - bone_brk_parts.begin())->Name(), *uit);
+		Msg("Bone: %s - Part: %d", m_Source->GetBone(uit - bone_brk_parts.begin())->Name().c_str(), *uit);
 	}
 
 	bool bRes = true;
@@ -1045,27 +997,21 @@ bool CExportSkeleton::ExportGeometry(IWriter& F, u8 infl)
 //----------------------------------------------------
 struct bm_item{
 	CKeyQR* 		_keysQR;
-	CKeyQR32*       _keysQR32;
 	CKeyQT8* 		_keysQT8; 
 	CKeyQT16* 		_keysQT16;
-	CKeyQT32*       _keysQT32;
 	Fvector* 		_keysT;
 	void create(u32 len)
 	{
 		_keysQR 	= xr_alloc<CKeyQR>(len);
-		_keysQR32   = xr_alloc<CKeyQR32>(len);
 		_keysQT8 	= xr_alloc<CKeyQT8>(len); 
 		_keysQT16 	= xr_alloc<CKeyQT16>(len);
-		_keysQT32   = xr_alloc<CKeyQT32>(len);
 		_keysT 		= xr_alloc<Fvector>(len);
 	}
 	void destroy()
 	{
 		xr_free		(_keysQR);
-		xr_free     (_keysQR32);
 		xr_free		(_keysQT8);
 		xr_free		(_keysQT16);
-		xr_free     (_keysQT32);
 		xr_free		(_keysT);
 	}
 };
@@ -1096,9 +1042,6 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 	mRotate.setHPB(m_Source->a_vRotate.y, m_Source->a_vRotate.x, m_Source->a_vRotate.z);
 	mTranslate.translate(m_Source->a_vPosition);
 	mGT.mul(mTranslate, mRotate);
-
-	NotifyVec PrefetchedData;
-	PrefetchedData.resize(m_Source->LastSMotion() - m_Source->FirstSMotion());
 
 	for (SMotionIt motion_it = m_Source->FirstSMotion(); motion_it != m_Source->LastSMotion(); motion_it++, smot++)
 	{
@@ -1172,17 +1115,6 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 
 				Fvector& Kt = items[bone_id]._keysT[frame - cur_motion->FrameStart()];
 				// Quantize quaternion
-
-				if (g_force32BitTransformQuant)
-				{
-					CKeyQR32& Kr = items[bone_id]._keysQR32[frame - cur_motion->FrameStart()];
-
-					Kr.x = q.x;
-					Kr.y = q.y;
-					Kr.z = q.z;
-					Kr.w = q.w;
-				}
-				else
 				{
 					CKeyQR& Kr = items[bone_id]._keysQR[frame - cur_motion->FrameStart()];
 
@@ -1240,10 +1172,6 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 				bTransform16Bit = true;
 				Msg("animation [%s] is 16bit-transform (%f)m", cur_motion->Name(), St.magnitude());
 			}
-			else if (g_force32BitTransformQuant)
-			{
-				Msg("animation [%s] is 32bit-transform (%f)m", cur_motion->Name(), St.magnitude());
-			}
 
 			for (int t_idx = 0; t_idx < dwLen; ++t_idx)
 			{
@@ -1253,22 +1181,6 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 					t_present = true;
 				}
 
-				if (g_force32BitTransformQuant)
-				{
-					CKeyQR32& R = BM._keysQR32[0];
-					CKeyQR32& r = BM._keysQR32[t_idx];
-					if ((R.x != r.x) || (R.y != r.y) || (R.z != r.z) || (R.w != r.w))
-					{
-						r_present = true;
-					}
-
-					CKeyQT32& Kt = BM._keysQT32[t_idx];
-
-					Kt.x1 = t.x;
-					Kt.y1 = t.y;
-					Kt.z1 = t.z;
-				}
-				else
 				{
 					CKeyQR& R = BM._keysQR[0];
 					CKeyQR& r = BM._keysQR[t_idx];
@@ -1321,39 +1233,18 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 			}
 
 			// save
-			F.w_u8(u8((t_present ? flTKeyPresent : 0) | (r_present ? 0 : flRKeyAbsent) | (bTransform16Bit ? flTKey16IsBit : 0) | (g_force32BitTransformQuant ? flTKeyFFT_Bit : 0)));
+			F.w_u8(u8((t_present ? flTKeyPresent : 0) | (r_present ? 0 : flRKeyAbsent) | (bTransform16Bit ? flTKey16IsBit : 0)));
 			if (r_present)
 			{
-				if (g_force32BitTransformQuant)
-				{
-					F.w_u32(crc32(BM._keysQR32, dwLen * sizeof(CKeyQR32)));
-					F.w(BM._keysQR32, dwLen * sizeof(CKeyQR32));
-				}
-				else
-				{
-					F.w_u32(crc32(BM._keysQR, dwLen * sizeof(CKeyQR)));
-					F.w(BM._keysQR, dwLen * sizeof(CKeyQR));
-				}
+				F.w_u32(crc32(BM._keysQR, dwLen * sizeof(CKeyQR)));
+				F.w(BM._keysQR, dwLen * sizeof(CKeyQR));
 			}
 			else
 			{
-				if (g_force32BitTransformQuant)
-				{
-					F.w(&BM._keysQR32[0], sizeof(BM._keysQR32[0]));
-				}
-				else
-				{
-					F.w(&BM._keysQR[0], sizeof(BM._keysQR[0]));
-				}
+				F.w(&BM._keysQR[0], sizeof(BM._keysQR[0]));
 			}
 			if (t_present)
 			{
-				if (g_force32BitTransformQuant)
-				{
-					F.w_u32(crc32(BM._keysQT32, u32(dwLen * sizeof(CKeyQT32))));
-					F.w(BM._keysQT32, dwLen * sizeof(CKeyQT32));
-				}
-				else
 				{
 					if (bTransform16Bit)
 					{
@@ -1380,54 +1271,9 @@ bool CExportSkeleton::ExportMotionKeys(IWriter& F)
 		xr_free(items);
 		F.close_chunk();
 
-		F.open_chunk(m_Source->SMotionCount() + 1 + smot);
+		// Infernis: IX-Ray writes its motion notify tracks here, in an extra chunk per motion; Infernis's motion
+		// format (GSC's) has none.
 
-		auto index = motion_it - m_Source->FirstSMotion();
-		PrefetchedData[index] = {};
-
-		for (int itm_idx = 0; itm_idx < b_lst.size(); ++itm_idx)
-		{
-			PrefetchedData[index][itm_idx] = {};
-			auto& BoneDatas = PrefetchedData[index];
-			auto& notifies = (*motion_it)->notify;
-			for (auto& BoneTrack : notifies.NotifyTracks)
-			{
-				if (m_Source->GetBoneIndexByWMap(BoneTrack.first.c_str()) != itm_idx)
-				{
-					continue;
-				}
-				auto& PrefetchedElem = BoneDatas[itm_idx];
-				for (auto& Track : BoneTrack.second)
-				{
-					for (auto& TrackNotify : Track.Notifies)
-					{
-						if (!PrefetchedElem.data.contains(TrackNotify.first))
-						{
-							PrefetchedElem.data[TrackNotify.first] = {};
-						}
-						PrefetchedElem.data[TrackNotify.first].push_back(&TrackNotify.second);
-					}
-				}
-			}
-		}
-
-		F.w_u32(PrefetchedData[index].size());
-		for (auto& BoneTrack : PrefetchedData[index])
-		{
-			F.w_u16(BoneTrack.first);
-			F.w_u32(BoneTrack.second.data.size());
-			for (auto& Key : BoneTrack.second.data)
-			{
-				F.w_float(Key.first);
-				F.w_u32(Key.second.size());
-				for (auto& Notify : Key.second)
-				{
-					F.w_stringZ(Notify->ExternalRef);
-				}
-			}
-		}
-
-		F.close_chunk();
 		pb->Inc();
 	}
 
@@ -1579,19 +1425,19 @@ bool CBone::ExportOGF(IWriter& F)
 	// check valid
 	if (!shape.Valid())
 	{
-		ELog.Msg(mtError, "Bone '%s' has invalid shape.", *Name());
+		ELog.Msg(mtError, "Bone '%s' has invalid shape.", Name().c_str());
 		return false;
 	}
 
 	SGameMtl* M = GMLib.GetMaterial(game_mtl.c_str());
 	if (!M)
 	{
-		ELog.Msg(mtError, "Bone '%s' has invalid game material.", *Name());
+		ELog.Msg(mtError, "Bone '%s' has invalid game material.", Name().c_str());
 		return false;
 	}
 	if (!M->Flags.is(SGameMtl::flDynamic))
 	{
-		ELog.Msg(mtError, "Bone '%s' has non-dynamic game material.", *Name());
+		ELog.Msg(mtError, "Bone '%s' has non-dynamic game material.", Name().c_str());
 		return false;
 	}
 

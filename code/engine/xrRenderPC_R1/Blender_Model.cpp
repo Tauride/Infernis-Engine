@@ -24,7 +24,7 @@ void CBlender_Model::Save(IWriter& fs) {
     IBlender::Save(fs);
     xrPWRITE_PROP(fs, "Use alpha-channel", xrPID_BOOL, oBlend);
     xrPWRITE_PROP(fs, "Alpha ref", xrPID_INTEGER, oAREF);
-    xrP_TOKEN::Item I;
+    xrP_TOKEN::Item I{}; // zeroed: the whole 64-byte name is written
     xrPWRITE_PROP(fs, "Tessellation", xrPID_TOKEN, oTessellation);
     I.ID = 0;
     xr_strcpy(I.str, "NO_TESS");

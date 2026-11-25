@@ -19,6 +19,11 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
     Core._initialize("Shader", ELogCallback, true, fsgame[0] ? fsgame : FSName);
 
+	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h), before the tools and the main
+	// form are created, so that dialogs during start-up are covered.
+	CEditorCheckRun CheckRun;
+	CheckRun.Parse(pCmdLine);
+
 	Tools = new CShaderTool();
 	STools = (CShaderTool*)Tools;
 
@@ -29,10 +34,6 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	::MainForm = MainForm;
 	UI->Push(MainForm, false);
 
-
-	// Infernis: unattended checks (-frames, -shot, -save; see EditorCommandLine.h).
-	CEditorCheckRun CheckRun;
-	CheckRun.Parse(pCmdLine);
 
 	bool NeedExit = false;
 	while (!NeedExit)

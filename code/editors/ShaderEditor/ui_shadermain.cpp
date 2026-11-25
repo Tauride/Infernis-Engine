@@ -22,8 +22,7 @@ CShaderMain::~CShaderMain()
 
 CCommandVar CShaderTool::CommandSave(CCommandVar p1, CCommandVar p2)
 {
-    Save			(0,0);
-    return true;
+    return Save		(0,0); // Infernis: the result reaches the caller (IX-Ray returned true always)
 }
 CCommandVar CShaderTool::CommandSaveBackup(CCommandVar p1, CCommandVar p2)
 {

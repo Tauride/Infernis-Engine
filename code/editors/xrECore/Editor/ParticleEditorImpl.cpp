@@ -702,14 +702,13 @@ void  PS::CPGDef::OnEffectEditClick(ButtonValue* B, bool& bDataModified, bool& b
 bool PS::CPGDef::RemoveEffect(int idx, bool& safe)
 {
 	if (ELog.DlgMsg(mtConfirmation, mbYes| mbNo,"Remove effect?") == mrYes){
-		// Infernis: the tool lets go of this group first and takes it back after, so that it recompiles its preview
-		// group (one item per effect) and drops its selected effect, which may be the one deleted here. IX-Ray left
-		// both pointing at the removed effect, and the next property refresh read freed memory.
-		Tools->SetCurrentPG(nullptr);
+		// Infernis: the tool recompiles its preview of this group and drops its selected effect if it is the one
+		// removed, before the effect is freed. IX-Ray left both pointing at it, and the next property refresh read
+		// freed memory.
 		SEffect* eff	= *(m_Effects.begin()+idx);
-		xr_delete		(eff);
 		m_Effects.erase	(m_Effects.begin()+idx);
-		Tools->SetCurrentPG(this);
+		Tools->OnPGEffectsChanged(this, eff);
+		xr_delete		(eff);
 		ExecCommand		(COMMAND_UPDATE_PROPERTIES);
 		OnParamsChangeInternal();
 		safe = true;
@@ -741,6 +740,7 @@ void PS::CPGDef::OnParamsChangeInternal()
 {
 	//Tools->SetCurrentPG(0);
 	//Tools->SetCurrentPG(this);
+	Tools->OnPGEffectsChanged(this, nullptr); // Infernis: appended slots and changed effect names reach the preview
 }
 
 void PS::CPGDef::FillProp(const char* pref, PropItemVec& items, void* owner)

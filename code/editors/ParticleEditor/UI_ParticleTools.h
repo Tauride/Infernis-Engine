@@ -191,6 +191,7 @@ public:
     PS::CPGDef*			AppendPG			(PS::CPGDef* src,const char* path);
 	void				SetCurrentPG		(PS::CPGDef* P) override {SetCurrentPG(P, nullptr);}
     void 				SetCurrentPG		(PS::CPGDef* P, PS::CPGDef::SEffect* Ef);
+    void				OnPGEffectsChanged	(PS::CPGDef* P, const void* RemovedEffect) override;
     void				DrawReferenceList	();
 
 #ifdef EDITOR_PARTICLE_ANIM_CURVES // IX-Ray particle animation curves (not in Infernis's format)

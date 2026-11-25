@@ -7,7 +7,7 @@
 
 u32 NET_Packet::r_begin(u16& type) { // returns time of receiving
     r_pos = 0;
-    r_u16(type);
+    r_u16(type); // (r_u16 reads from the ini stream when there is one)
     return timeReceive;
 }
 
@@ -141,22 +141,50 @@ void NET_Packet::r_sdir(Fvector& A) {
 }
 
 void NET_Packet::r_stringZ(char* S) {
+#ifdef XR_NET_PACKET_INISTREAM
+    if (inistream) {
+        inistream->r_string(S, 4096); // GSC: the caller's buffer size is not known here
+        return;
+    }
+#endif
     const char* data = reinterpret_cast<const char*>(&B.data[r_pos]);
     const size_t len = xr_strlen(data);
     r(S, len + 1);
 }
 
 void NET_Packet::r_stringZ(xr_string& dest) {
+#ifdef XR_NET_PACKET_INISTREAM
+    if (inistream) {
+        string4096 buff;
+        inistream->r_string(buff, sizeof(buff));
+        dest = buff;
+        return;
+    }
+#endif
     dest = reinterpret_cast<const char*>(&B.data[r_pos]);
     r_advance(u32(dest.size() + 1));
 }
 
 void NET_Packet::r_stringZ(shared_str& dest) {
+#ifdef XR_NET_PACKET_INISTREAM
+    if (inistream) {
+        string4096 buff;
+        inistream->r_string(buff, sizeof(buff));
+        dest = buff;
+        return;
+    }
+#endif
     dest = reinterpret_cast<const char*>(&B.data[r_pos]);
     r_advance(dest.size() + 1);
 }
 
 void NET_Packet::skip_stringZ() {
+#ifdef XR_NET_PACKET_INISTREAM
+    if (inistream) {
+        inistream->skip_stringZ();
+        return;
+    }
+#endif
     const char* data = reinterpret_cast<const char*>(&B.data[r_pos]);
     const auto len = xr_strlen(data);
     r_advance(len + 1);
@@ -180,6 +208,12 @@ void NET_Packet::r_clientID(ClientID& C) {
 }
 
 void NET_Packet::r_stringZ_s(char* string, const size_t size) {
+#ifdef XR_NET_PACKET_INISTREAM
+    if (inistream) {
+        inistream->r_string(string, u32(size));
+        return;
+    }
+#endif
     auto data = reinterpret_cast<LPCSTR>(B.data) + r_pos;
     const size_t length = xr_strlen(data);
     R_ASSERT2((length + 1) <= size, "buffer overrun");

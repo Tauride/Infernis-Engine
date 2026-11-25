@@ -108,13 +108,23 @@ int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR CmdLine, int)
     if (const char* Arg = strstr(CmdLine, "-frames "))
         MaxFrames = atoi(Arg + 8);
     if (const char* Arg = strstr(CmdLine, "-shot "))
-        sscanf(Arg + 6, "%259s", ShotPath);
+    {
+        // A quoted path may hold spaces; an unquoted one ends at the next space.
+        Arg += 6;
+        while (*Arg == ' ')
+            ++Arg;
+        if (*Arg == '"')
+            sscanf(Arg + 1, "%259[^\"]", ShotPath);
+        else
+            sscanf(Arg, "%259s", ShotPath);
+    }
 
     Core._initialize("xrEditorUITest", nullptr, TRUE, nullptr);
 
     if (!SDL_Init(SDL_INIT_VIDEO))
     {
         Msg("! SDL_Init failed: %s", SDL_GetError());
+        Core._destroy();
         return 1;
     }
 
@@ -137,7 +147,12 @@ int APIENTRY WinMain(HINSTANCE, HINSTANCE, LPSTR CmdLine, int)
     if (!D3D || FAILED(D3D->CreateDevice(D3DADAPTER_DEFAULT, D3DDEVTYPE_HAL, Hwnd, D3DCREATE_HARDWARE_VERTEXPROCESSING,
                                          &Params, &Device)))
     {
-        Msg("! Direct3D 9 device creation failed");
+        Msg("! Direct3D 9 %s failed", D3D ? "device creation" : "initialisation");
+        if (D3D)
+            D3D->Release();
+        SDL_DestroyWindow(Window);
+        SDL_Quit();
+        Core._destroy();
         return 1;
     }
 

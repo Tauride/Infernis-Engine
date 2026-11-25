@@ -18,6 +18,14 @@ public:
 
     void MarkFile(const char* fn, bool bDeleteSource);
 
+    // Infernis: reads a file straight from disk, for paths the locator has not indexed (IX-Ray used
+    // FS.TryLoad to register them first). False when the file cannot be opened.
+    bool ReadDiskFile(const char* path, xr_string& data);
+
+    // Infernis: the path alias if fsgame.ltx defines it, otherwise $fs_root$. IX-Ray's fs.ltx defines aliases
+    // such as $import$ that Infernis's does not, and FS.get_path asserts on unknown aliases.
+    FS_Path& GetPathOrRoot(const char* initial);
+
     xr_string AppendFolderToName(xr_string& tex_name, int depth, bool full_name);
     const char* AppendFolderToName(LPSTR tex_name, u32 const tex_name_size, int depth, bool full_name);
     const char* AppendFolderToName(const char* src_name, LPSTR dest_name, u32 const dest_name_size, int depth,

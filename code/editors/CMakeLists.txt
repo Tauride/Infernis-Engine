@@ -1,6 +1,10 @@
 # Level editor SDK: the IX-Ray editors ported to Infernis (see README.md).
 # Built only with -DBUILD_EDITORS=ON. Nothing here is linked by the game or the compilers.
 
+if (CMAKE_VERSION VERSION_LESS 3.24)
+    message(FATAL_ERROR "BUILD_EDITORS needs CMake 3.24 or newer (FetchContent with DOWNLOAD_EXTRACT_TIMESTAMP); this is ${CMAKE_VERSION}")
+endif()
+
 # The editor sources are C++23 (IX-Ray). The rest of Infernis stays C++17, so swap the standard for this
 # directory only.
 get_directory_property(EDITOR_COMPILE_OPTIONS COMPILE_OPTIONS)

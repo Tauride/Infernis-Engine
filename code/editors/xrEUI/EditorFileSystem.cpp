@@ -119,7 +119,7 @@ bool CEditorFS::GetOpenNameInternal(const char* initial, LPSTR buffer, int sz_bu
 {
 #ifdef IXR_WINDOWS
 	VERIFY(buffer && (sz_buf > 0));
-	FS_Path& P = *FS.get_path(initial);
+	FS_Path& P = GetPathOrRoot(initial);
 	string1024 			flt;
 	MakeFilter(flt, "", ext ? ext : P.m_DefExt);
 
@@ -220,7 +220,7 @@ bool CEditorFS::GetOpenName(const char* initial, xr_string& buffer, bool bMulti,
 bool CEditorFS::GetSaveName(const char* initial, string_path& buffer, const char* offset, int start_flt_ext, const char* ext)
 {
 #ifdef IXR_WINDOWS
-	FS_Path& P = *FS.get_path(initial);
+	FS_Path& P = GetPathOrRoot(initial);
 	string1024 			flt;
 
 	const char* def_ext = P.m_DefExt;
@@ -344,3 +344,28 @@ const char* CEditorFS::GenerateName(const char* base_path, const char* base_name
 }
 
 //#endif
+
+//----------------------------------------------------
+// Infernis additions
+//----------------------------------------------------
+bool CEditorFS::ReadDiskFile(const char* path, xr_string& data)
+{
+	FILE* File = fopen(path, "rb");
+	if (!File)
+		return false;
+	fseek(File, 0, SEEK_END);
+	const long Size = ftell(File);
+	fseek(File, 0, SEEK_SET);
+	data.assign(Size > 0 ? (size_t)Size : 0, '\0');
+	const bool Ok = Size >= 0 && fread(data.data(), 1, data.size(), File) == data.size();
+	fclose(File);
+	return Ok;
+}
+
+FS_Path& CEditorFS::GetPathOrRoot(const char* initial)
+{
+	if (initial && FS.path_exist(initial))
+		return *FS.get_path(initial);
+	Msg("~ Editor: path alias %s is not in fsgame.ltx, using $fs_root$", initial ? initial : "(null)");
+	return *FS.get_path("$fs_root$");
+}

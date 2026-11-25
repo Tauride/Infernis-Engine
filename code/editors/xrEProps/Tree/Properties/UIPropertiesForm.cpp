@@ -438,15 +438,21 @@ void UIPropertiesForm::DrawEditText()
 			xr_string fn;
 			if (EFS.GetOpenName("$import$", fn, false, NULL, 2)) 
 			{
+				// Infernis: IX-Ray registered the picked file with FS.TryLoad before FS.r_open. Infernis's locator
+				// cannot register files (Register is private), so read the file from disk; like r_stringZ, the text
+				// ends at the first zero byte.
 				xr_string buf;
-				// Infernis: no FS.TryLoad (IX-Ray lazy archive mount); the path comes from a file dialog
-				IReader* F = FS.r_open(fn.c_str());
-
-				F->r_stringZ(buf);
-				xr_delete(m_EditTextValueData);
-				m_EditTextValueData = xr_strdup(buf.c_str());
-				m_EditTextValueDataSize = xr_strlen(m_EditTextValueData)+1;
-				FS.r_close(F);
+				if (EFS.ReadDiskFile(fn.c_str(), buf))
+				{
+					buf.resize(xr_strlen(buf.c_str()));
+					xr_delete(m_EditTextValueData);
+					m_EditTextValueData = xr_strdup(buf.c_str());
+					m_EditTextValueDataSize = xr_strlen(m_EditTextValueData)+1;
+				}
+				else
+				{
+					Msg("! Can't read text file: %s", fn.c_str());
+				}
 			}
 		}
 		

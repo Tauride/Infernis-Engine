@@ -38,7 +38,10 @@ void LoadImGuiFontBase(const char* Font, float scale)
 	ImFontConfig FontConfig = {};
 	FontConfig.OversampleH = 3;
 
-	if (FS.exist(FullPath)) // Infernis: no lazy archive loading (IX-Ray FS.TryLoad)
+	// Infernis: ImGui reads the font from disk, so check the disk (IX-Ray used FS.TryLoad, which also registered
+	// files the locator had not indexed; Infernis cannot register them).
+	std::error_code ExistsError;
+	if (std::filesystem::exists(FullPath, ExistsError))
 	{
 		if (!FontsStorage.contains(Font))
 		{

@@ -206,10 +206,17 @@ target_link_libraries(xrECore PUBLIC xrEUI xrEProps xrEngineCore xrCore xrCDB xr
 add_dependencies(xrECore xrCPU_Pipe xrDXT)
 set_target_properties(xrECore PROPERTIES FOLDER editors)
 
-# --- Shader Editor (stage 3): shaders.xr, gamemtl.xr and shaders_xrlc.xr (sound environments not yet) -----
+# --- Shader Editor (stage 3): shaders.xr, shaders_xrlc.xr, gamemtl.xr and senvironment.xr -------------------
 file(GLOB SHADER_EDITOR_SOURCES CONFIGURE_DEPENDS ShaderEditor/*.cpp ShaderEditor/*.h)
-add_executable(ShaderEditor WIN32 ${SHADER_EDITOR_SOURCES} ShaderEditor/ShaderEditor.rc)
+# The sound environment library is not exported from xrSound.dll (GSC exported it only for its Borland editors), so
+# the Shader Editor compiles that file itself; xrSound's headers want the Ogg Vorbis, OpenAL and (in _EDITOR mode)
+# ETools headers.
+add_executable(ShaderEditor WIN32 ${SHADER_EDITOR_SOURCES} ShaderEditor/ShaderEditor.rc
+                                  ${ENGINE_DIR}/xrSound/SoundRender_Environment.cpp)
+set_source_files_properties(${ENGINE_DIR}/xrSound/SoundRender_Environment.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+target_include_directories(ShaderEditor PRIVATE ${CMAKE_SOURCE_DIR}/code/3rd-party/openal/include
+                                                ${CMAKE_SOURCE_DIR}/code/utils/ETools)
 target_precompile_headers(ShaderEditor PRIVATE ShaderEditor/stdafx.h)
 target_compile_definitions(ShaderEditor PRIVATE _SHADER_EDITOR _WINDOWS)
-target_link_libraries(ShaderEditor PRIVATE xrECore)
+target_link_libraries(ShaderEditor PRIVATE xrECore libogg libvorbis libvorbisfile)
 set_target_properties(ShaderEditor PROPERTIES FOLDER editors)

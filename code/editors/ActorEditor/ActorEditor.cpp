@@ -138,6 +138,22 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	}
 	LocalFree(Commands);
 
+	// Infernis: preview checks. -engine shows the object through the engine's model and animation code (the
+	// Engine render style); -motion <name> plays that motion. -frames counts from here.
+	if (HasCommandLineOption(pCmdLine, "-engine") && ATools->CurrentObject())
+	{
+		if (!ATools->IsVisualPresent()) // as the Engine button of the left bar does
+			ExecCommand(COMMAND_MAKE_PREVIEW);
+		MainForm->GetLeftBarForm()->SetRenderMode(ATools->IsVisualPresent());
+		if (!ATools->IsVisualPresent())
+			Msg("! -engine: the engine preview could not be made");
+	}
+	string128 Motion = "";
+	if (ReadCommandLineValue(pCmdLine, "-motion ", Motion))
+		ATools->SetCurrentMotion(Motion, 0);
+	if (ATools->CurrentObject())
+		ExecCommand(COMMAND_ZOOM_EXTENTS);
+
 	// Infernis: export checks. With -frames, -export_ogf <file> and -export_omf <file> export the loaded object on
 	// the last frame, as File > Export OGF / OMF do (OGF version 4, the motions' own form).
 	string_path ExportOGF = "", ExportOMF = "";

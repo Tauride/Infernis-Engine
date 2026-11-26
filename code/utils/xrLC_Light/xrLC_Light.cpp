@@ -82,7 +82,10 @@ BOOL APIENTRY DllMain(HMODULE hModule, DWORD ul_reason_for_call, LPVOID lpReserv
     switch (ul_reason_for_call) {
     case DLL_PROCESS_ATTACH: {
         Debug._initialize();
-        bool init_log = (0 != xr_strcmp(Core.ApplicationName, "XRayEditorTools"));
+        // Infernis: only into a file system that exists. A compiler loads this DLL before its WinMain initialises the
+        // core and the file system (which creates the program's log); a log created now has no $logs$ and fails with
+        // "Can't create log file." (xrDO_Light; xrLC escaped through ETools, loaded first, as XRayEditorTools)
+        bool init_log = (0 != xr_strcmp(Core.ApplicationName, "XRayEditorTools")) && xr_FS != nullptr;
         Core._initialize("xrLC_Light", 0, FALSE);
         if (init_log)
             CreateLog();

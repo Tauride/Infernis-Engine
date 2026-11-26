@@ -6,6 +6,7 @@
 #include "global_calculation_data.h"
 #include "lightthread.h"
 #include "xrLightDoNet.h"
+#include "xrEmbreeTrace.h"
 
 void xrLight() {
     const u32 range = gl_data.slots_data.size_z();
@@ -31,6 +32,7 @@ void xrLight() {
 void xrCompileDO(bool net) {
     Phase("Loading level...");
     gl_data.xrLoad();
+    lc_embree_build_details(); // with -embree: the light rays go to Embree
 
     Phase("Lighting nodes...");
     if (net)
@@ -39,4 +41,5 @@ void xrCompileDO(bool net) {
         xrLight();
 
     gl_data.slots_data.Free();
+    lc_embree_release();
 }

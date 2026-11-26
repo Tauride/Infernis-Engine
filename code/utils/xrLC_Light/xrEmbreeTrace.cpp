@@ -26,6 +26,19 @@ struct OcclusionContext {
     const base_Face* skip;
     float energy;
     s32 blocker; // the model's triangle of the opaque face that blocked the ray, or -1
+    // The transparent primitives already counted: with spatial splits (RTC_BUILD_QUALITY_HIGH) Embree may report one
+    // primitive more than once along a ray, and its texel must let the light through only once
+    u32 counted[32];
+    u32 counted_size;
+
+    bool count_once(u32 prim) {
+        for (u32 i = 0; i < counted_size; i++)
+            if (counted[i] == prim)
+                return false;
+        if (counted_size < std::size(counted))
+            counted[counted_size++] = prim;
+        return true; // (past 32 transparent hits, repeats count again: the light is all but gone by then)
+    }
 };
 
 // The share of light a transparent face lets through at the hit (GSC's getLastRP_Scale)
@@ -80,7 +93,7 @@ void FilterTransparent(const RTCFilterFunctionNArguments* args) {
             continue;
         const u32 prim = RTCHitN_primID(args->hit, args->N, i);
         base_Face* F = geometry->faces[prim];
-        if (F != ctx->skip)
+        if (F != ctx->skip && ctx->count_once(prim))
             ctx->energy *= TexelTransmission(F, RTCHitN_u(args->hit, args->N, i), RTCHitN_v(args->hit, args->N, i));
         // the product over every hit, in any order; once nothing is left the hit stands and the query stops
         if (ctx->energy > 0.f)
@@ -160,6 +173,9 @@ void lc_embree_build(const CDB::MODEL* model) {
 void lc_embree_release() {
     if (g_scene)
         rtcReleaseScene(g_scene);
+    if (g_device)
+        rtcReleaseDevice(g_device); // (its TBB threads with it; the next scene creates it again)
+    g_device = nullptr;
     g_scene = nullptr;
     g_model = nullptr;
     g_opaque.faces.clear();
@@ -176,6 +192,7 @@ float lc_embree_occlusion(const Fvector& P, const Fvector& D, float range, const
     ctx.skip = skip;
     ctx.energy = 1.f;
     ctx.blocker = -1;
+    ctx.counted_size = 0;
 
     RTCOccludedArguments args;
     rtcInitOccludedArguments(&args);
@@ -207,7 +224,13 @@ float lc_embree_occlusion(const Fvector& P, const Fvector& D, float range, const
 #else // XRLC_EMBREE
 
 XRLC_LIGHT_API bool lc_embree_enabled() { return false; }
-void lc_embree_build(const CDB::MODEL*) {}
+void lc_embree_build(const CDB::MODEL*) {
+    static bool warned = false;
+    if (!warned && strstr(Core.Params, "-embree")) {
+        Msg("! -embree: this xrLC is built without Embree (CMake's XRLC_EMBREE_DIR, XRLC_TBB_DIR); tracing with OPCODE");
+        warned = true;
+    }
+}
 void lc_embree_release() {}
 bool lc_embree_traces(const CDB::MODEL*) { return false; }
 float lc_embree_occlusion(const Fvector&, const Fvector&, float, const base_Face*, Fvector[3]) { return 1.f; }

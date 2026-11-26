@@ -85,6 +85,7 @@ void CreateLODSamples(const Fbox& bbox, U32Vec& tgt_data, u32 tgt_w, u32 tgt_h)
 	U32Vec 	s_pixels,d_pixels;
     Fmatrix save_projection		= EDevice->mProject;
     Fmatrix save_view			= EDevice->mView;
+    Fmatrix save_full			= EDevice->mFullTransform; // Infernis: the captures set it (and the frustum)
 
     // save render params
     Flags32 old_flag			= psDeviceFlags;
@@ -148,6 +149,8 @@ void CreateLODSamples(const Fbox& bbox, U32Vec& tgt_data, u32 tgt_w, u32 tgt_h)
 
     RCache.set_xform_view		(save_view);
     RCache.set_xform_project	(save_projection);
+    EDevice->mFullTransform		= save_full;
+    ::Render->ViewBase.CreateFromMatrix(save_full, FRUSTUM_P_ALL);
 }
 
 void CImageManager::CreateLODTexture(CEditableObject* OBJECT, U32Vec& lod_pixels, U32Vec& nm_pixels, u32 tgt_w, u32 tgt_h, int _samples, int quality)

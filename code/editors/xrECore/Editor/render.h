@@ -147,7 +147,8 @@ public:
 	// options
 
 	// Data
-	CFrustum				ViewBase;
+	// Infernis: no ViewBase of its own (IX-Ray's hid IRender_interface's): the device's UpdateView and Make LOD's
+	// captures set the interface's, which the culling (occ_visible) never read, and the LOD colours came out empty.
 	CPSLibrary				PSLibrary;
 
 	CModelPool* Models;

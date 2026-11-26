@@ -72,7 +72,7 @@ bool GetTranslucency(const Vertex* V, float& v_trans) {
 }
 
 // The vertices [first, end) that are lit per vertex, with the worker's own collider
-static void LightVertices(CDB::COLLIDER& DB, u32 first, u32 end) {
+static void LightVertices(CDB::COLLIDER& DB, base_lighting& lights, u32 first, u32 end) {
     for (u32 id = first; id < end; id++) {
         Vertex* V = lc_global_data()->g_vertices()[id];
         R_ASSERT(V);
@@ -82,7 +82,7 @@ static void LightVertices(CDB::COLLIDER& DB, u32 first, u32 end) {
             base_color_c vC, old;
             V->C._get(old);
 
-            LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, lc_global_data()->L_static(),
+            LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, lights,
                        (lc_global_data()->b_nosun() ? LP_dont_sun : 0) | LP_dont_hemi, 0);
             vC._tmp_ = v_trans;
             vC.mul(.5f);
@@ -110,8 +110,9 @@ void LightVertex(bool net) {
         lc_run_workers([&](u32 thread) {
             CDB::COLLIDER DB;
             DB.ray_options(0);
+            base_lighting lights = lc_global_data()->L_static(); // own copy: the lights cache their last occluder
             for (u32 first; lc_take(next, count, first, run);) {
-                LightVertices(DB, first, std::min(first + run, count));
+                LightVertices(DB, lights, first, std::min(first + run, count));
                 if (thread == 0)
                     Progress(float(first) / float(count));
             }

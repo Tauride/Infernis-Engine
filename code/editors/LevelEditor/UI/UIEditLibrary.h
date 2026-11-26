@@ -11,6 +11,9 @@ public:
 	static void Show();
 	static void Close();
 	static void OnRender();
+	// Infernis: Make LOD (high quality) for these objects (library names), with the preview on, for the unattended
+	// checks (-make_lods)
+	static void MakeLODs(const SharedStrVec& Objects);
 
 	ref_texture m_RealTexture;
 

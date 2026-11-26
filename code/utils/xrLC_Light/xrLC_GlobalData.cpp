@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <shared_mutex>
 
 #include "xrLC_GlobalData.h"
 #include "xrface.h"
@@ -153,9 +154,24 @@ void xrLC_GlobalData ::initialize() {
 
 //*((u32*)&F)
 
-base_Face* convert_nax(u32 dummy) { return (base_Face*)(*((void**)&dummy)); }
+// The faces that collision models refer to (convert_nax). Models are built while lighting threads read them, so
+// the table is read under a shared lock.
+static xr_vector<base_Face*> g_nax_faces(1, nullptr); // index 0: no face
+static std::shared_mutex g_nax_lock;
 
-u32 convert_nax(base_Face* F) { return *((u32*)&F); }
+XRLC_LIGHT_API base_Face* convert_nax(u32 dummy) {
+    std::shared_lock<std::shared_mutex> Lock(g_nax_lock);
+    R_ASSERT(dummy < g_nax_faces.size());
+    return g_nax_faces[dummy];
+}
+
+XRLC_LIGHT_API u32 convert_nax(base_Face* F) {
+    if (!F)
+        return 0;
+    std::unique_lock<std::shared_mutex> Lock(g_nax_lock);
+    g_nax_faces.push_back(F);
+    return u32(g_nax_faces.size() - 1);
+}
 
 void write(IWriter& w, const CDB::TRI& tri) {
     w.w_u32(tri.verts[0]);

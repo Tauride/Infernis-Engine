@@ -323,7 +323,7 @@ public:
 	bool IsValidateDublicateNames = true;
 	bool IsValidateLODs = true;
 
-	bool IsAIMapDefaultLegacy = false;
+	bool IsAIMapDefaultLegacy = true; // Infernis: GSC's AI map (version 1), which Infernis's xrAI reads (IX-Ray: false)
 private:
 	bool IsAppliedPos = false;
 	bool IsPIERayPick = false;

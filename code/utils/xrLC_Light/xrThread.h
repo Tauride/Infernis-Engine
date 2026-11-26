@@ -21,7 +21,9 @@ public:
         thDestroyOnComplete = TRUE;
     }
     virtual ~CThread() {}
-    void Start() { std::thread worker(startup, this); }
+    // The manager waits on thCompleted, not on the thread: detached (a joinable std::thread destroyed unjoined
+    // calls std::terminate, which ended every threaded xrLC phase).
+    void Start() { std::thread(startup, this).detach(); }
     virtual void Execute() = 0;
 };
 
@@ -32,6 +34,13 @@ public:
     void start(CThread* T);
     void wait(u32 sleep_time = 1000);
 };
+
+// Worker threads for the phases that split their work into independent parts: the machine's hardware threads (GSC
+// fixed 3 to 8 per phase, for the machines of 2007).
+IC u32 lc_worker_threads() {
+    const u32 Count = std::thread::hardware_concurrency();
+    return Count ? Count : 4;
+}
 
 IC void get_intervals(u32 max_threads, u32 num_items, u32& threads, u32& stride, u32& rest) {
     if (max_threads <= num_items) {

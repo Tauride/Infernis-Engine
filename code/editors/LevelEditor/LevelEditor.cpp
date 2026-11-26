@@ -3,6 +3,8 @@
 
 #include "Editor/Utils/ContentView.h"
 #include "Editor/Scene/LEPhysics.h"
+#include "Editor/Builder/Builder.h"
+#include "UI/UIEditLibrary.h"
 
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/XR_IOConsole.h"
@@ -10,6 +12,29 @@
 
 ECORE_API extern bool bIsLevelEditor;
 void DragDrop(const xr_string&, int);
+
+// -make_lods (with -level): the LOD textures (textures\lod\lod_*) of the scene's multiple usage objects, made by
+// the object library's Make LOD (high quality); the build's validation needs them.
+static void MakeSceneLODs()
+{
+	xr_set<shared_str> Names;
+	for (CCustomObject* Custom : Scene->ListObj(OBJCLASS_SCENEOBJECT))
+	{
+		CSceneObject* SceneObject = static_cast<CSceneObject*>(Custom);
+		CEditableObject* Object = SceneObject->GetReference();
+		if (Object && Object->IsMUStatic())
+			Names.insert(SceneObject->RefName());
+	}
+	UIEditLibrary::MakeLODs(SharedStrVec(Names.begin(), Names.end()));
+	Msg("* -make_lods: %u objects", (u32)Names.size());
+}
+
+// -build (with -level): Compile\Build without its confirmation, on this thread: the static geometry for xrLC, the
+// AI map, the game and spawn data, HOM, SOM and each tool's export, into $game_levels$\<level>.
+static void BuildScene()
+{
+	Msg("* -build: %s", Builder.Compile(false, false) ? "done" : "FAILED");
+}
 
 // Infernis: written like the other ported editors' entry points. IX-Ray's also shows its launcher's splash screen,
 // loads the game DLL (xrGame) for the game persistent object and play in editor (EDITOR_PLAY_IN_EDITOR), and counts
@@ -69,10 +94,28 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	GContentView->Init();
 	UI->PushBegin(GContentView);
 
-	// A level named on the command line (-level <name>, as in the level list, e.g. "jupiter").
+	// A level named on the command line: -level <name>, a scene under $maps$ without the extension (e.g.
+	// "jupiter" or "!FinalSP\jupiter"), or a full path to a .level file. The load command takes a full path.
 	string_path LevelName = "";
+	bool PendingMakeLods = false, PendingBuild = false;
 	if (ReadCommandLineValue(pCmdLine, "-level ", LevelName))
-		ExecCommand(COMMAND_LOAD, xr_string(LevelName));
+	{
+		string_path LevelPath;
+		if (FS.exist(LevelName))
+			xr_strcpy(LevelPath, LevelName);
+		else
+			FS.update_path(LevelPath, _maps_, EFS.ChangeFileExt(LevelName, ".level").c_str());
+		if (!FS.exist(LevelPath))
+			Msg("! -level: no scene '%s' (%s)", LevelName, LevelPath);
+		else if (ExecCommand(COMMAND_LOAD, xr_string(LevelPath)))
+		{
+			PendingMakeLods = HasCommandLineOption(pCmdLine, "-make_lods");
+			PendingBuild = HasCommandLineOption(pCmdLine, "-build");
+		}
+	}
+	// -make_lods and -build run after a few frames, as for someone using the editor: objects update their
+	// transforms (and other state) on frames, not when they are loaded
+	u32 FramesBeforeActions = 5;
 
 	bool NeedExit = false;
 	while (!NeedExit)
@@ -137,6 +180,15 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
 		CheckRun.BeforeFrame();
 		MainForm->Frame();
+
+		if ((PendingMakeLods || PendingBuild) && FramesBeforeActions && --FramesBeforeActions == 0)
+		{
+			if (PendingMakeLods)
+				MakeSceneLODs();
+			if (PendingBuild)
+				BuildScene();
+			PendingMakeLods = PendingBuild = false;
+		}
 
 		if (CheckRun.AfterFrame())
 		{

@@ -58,6 +58,14 @@ EScene::EScene()
 		m_SceneTools.insert(std::make_pair((ObjClassID)i,(ESceneToolBase*)NULL));
 	g_SpatialSpace = new ISpatial_DB();
 	g_SpatialSpacePhysic = new ISpatial_DB();
+	// Infernis: the engine's spatial DB needs its root before the first query (IX-Ray's skips queries without one);
+	// its bounds are fixed, the box is not used
+	{
+		Fbox Bounds;
+		Bounds.invalidate();
+		g_SpatialSpace->initialize(Bounds);
+		g_SpatialSpacePhysic->initialize(Bounds);
+	}
 
 // 	Build options
 	m_SummaryInfo	= 0;

@@ -90,6 +90,10 @@ void CEditShape::SetScale(const Fvector& val)
 
 void CEditShape::ApplyScale()
 {
+	// Infernis: the scale transform is updated on the next frame after a load or an edit; before that it is not
+	// set (a build straight after loading wrote space restrictors with garbage boxes)
+	if (m_RT_Flags.is(flRT_UpdateTransform))
+		OnUpdateTransform();
 	for (auto it=shapes.begin(); it!=shapes.end(); it++){
 		switch (it->type){
 		case cfSphere:{

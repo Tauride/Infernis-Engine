@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "imgui_internal.h" // DockBuilder (BuildDefaultLayout)
 #include "Utils/Cursor3D.h"
 #include "../xrengine\GameFont.h"
 #include "UI\UIEditLibrary.h"
@@ -1493,4 +1494,27 @@ void CLevelMain::OnStats(CGameFont* font)
 bool CLevelMain::IsPlayInEditor()
 {
 	return Scene->IsPlayInEditor();
+}
+
+// Infernis: the first-run layout (IX-Ray ships none for the Level Editor). The edit modes and the tool of the
+// current mode on the left, the object list and the properties on the right, the content browser and the log at
+// the bottom.
+void CLevelMain::BuildDefaultLayout(unsigned int DockSpaceId)
+{
+	ImGuiID Center = DockSpaceId;
+	ImGuiID Left = ImGui::DockBuilderSplitNode(Center, ImGuiDir_Left, 0.18f, nullptr, &Center);
+	ImGuiID Right = ImGui::DockBuilderSplitNode(Center, ImGuiDir_Right, 0.22f, nullptr, &Center);
+	ImGuiID Bottom = ImGui::DockBuilderSplitNode(Center, ImGuiDir_Down, 0.25f, nullptr, &Center);
+	ImGuiID LeftBottom = ImGui::DockBuilderSplitNode(Left, ImGuiDir_Down, 0.6f, nullptr, &Left);
+	ImGuiID RightBottom = ImGui::DockBuilderSplitNode(Right, ImGuiDir_Down, 0.5f, nullptr, &Right);
+
+	ImGui::DockBuilderDockWindow("Edit Mode", Left);
+	ImGui::DockBuilderDockWindow("Object Tools", LeftBottom);
+	ImGui::DockBuilderDockWindow("Snap List", LeftBottom);
+	ImGui::DockBuilderDockWindow("Edit Group Items", LeftBottom);
+	ImGui::DockBuilderDockWindow("Object List", Right);
+	ImGui::DockBuilderDockWindow("Properties", RightBottom);
+	ImGui::DockBuilderDockWindow("Content Browser", Bottom);
+	ImGui::DockBuilderDockWindow("Log", Bottom);
+	ImGui::DockBuilderDockWindow("Render##0", Center);
 }

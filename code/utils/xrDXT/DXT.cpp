@@ -11,19 +11,37 @@
 #include "dds.h"
 #include <ddraw.h>
 
-typedef NV_ERROR_CODE(__cdecl* nvDXTcompressFuncT)(const RGBAImage*, nvCompressionOptions*);
+// NVIDIA's nvDXTcompress for an RGBAImage, with the routine that writes the .dds.
+typedef NV_ERROR_CODE(__cdecl* nvDXTcompressFuncT)(const RGBAImage*, nvCompressionOptions*,
+                                                   DXTWriteCallback, const RECT*);
 
 static nvDXTcompressFuncT nvDXTcompressFunc = nullptr;
 
+// nvdxtwrap.dll's only export, nvDXTCompressFunc(image, options), is
+//     xor r9d, r9d / xor r8d, r8d / jmp nvDXTcompress
+// that is, nvDXTcompress with no write routine, and NVIDIA's library calls the write routine for each part of the
+// .dds without checking it: every compression crashed on a null call. Take the jump's target and call it with
+// WriteDDS. Any other code at the export (another build of the wrapper) is refused here, not guessed at.
+static nvDXTcompressFuncT FindCompressWithWriter(const void* Export) {
+    static const u8 Pattern[] = {0x45, 0x33, 0xC9, 0x45, 0x33, 0xC0, 0xE9};
+    const u8* Code = static_cast<const u8*>(Export);
+    if (!Code || std::memcmp(Code, Pattern, sizeof(Pattern)) != 0)
+        return nullptr;
+    s32 Offset;
+    std::memcpy(&Offset, Code + sizeof(Pattern), sizeof(Offset));
+    return reinterpret_cast<nvDXTcompressFuncT>(Code + sizeof(Pattern) + sizeof(Offset) + Offset);
+}
+
 BOOL APIENTRY DllMain(HANDLE hModule, u32 ul_reason_for_call, LPVOID lpReserved) {
+    if (ul_reason_for_call != DLL_PROCESS_ATTACH)
+        return TRUE;
     auto dxtWrapHandle = LoadLibraryW(L"nvdxtwrap.dll");
     if (!dxtWrapHandle) {
         FATAL("nvdxtwrap.dll not found");
     }
-    nvDXTcompressFunc =
-        reinterpret_cast<nvDXTcompressFuncT>(GetProcAddress(dxtWrapHandle, "nvDXTCompressFunc"));
+    nvDXTcompressFunc = FindCompressWithWriter(GetProcAddress(dxtWrapHandle, "nvDXTCompressFunc"));
     if (!nvDXTcompressFunc) {
-        FATAL("nvDXTCompressFunc not found");
+        FATAL("nvdxtwrap.dll: nvDXTCompressFunc not found, or not the wrapper xrDXT knows");
     }
     return TRUE;
 }
@@ -37,7 +55,10 @@ const u32 fcc_DXT3 = MAKEFOURCC('D', 'X', 'T', '3');
 const u32 fcc_DXT4 = MAKEFOURCC('D', 'X', 'T', '4');
 const u32 fcc_DXT5 = MAKEFOURCC('D', 'X', 'T', '5');
 
-void __cdecl WriteDTXnFile(DWORD count, void* buffer, void* userData) {
+// NVIDIA's write routine: each part of the .dds in turn (the magic, the header, the image data).
+static NV_ERROR_CODE WriteDDS(const void* constBuffer, size_t count, const MIPMapData* mipMapData,
+                              void* userData) {
+    void* buffer = const_cast<void*>(constBuffer);
     if (count == sizeof(DDS_HEADER)) {
         // correct DDS header
         DDS_HEADER* hdr = (DDS_HEADER*)buffer;
@@ -53,7 +74,8 @@ void __cdecl WriteDTXnFile(DWORD count, void* buffer, void* userData) {
             }
         }
     }
-    _write(gFileOut, buffer, count);
+    _write(gFileOut, buffer, (unsigned int)count);
+    return NV_OK;
 }
 
 void __cdecl ReadDTXnFile(DWORD count, void* buffer, void* userData) {
@@ -137,20 +159,6 @@ bool IsThisNumberPowerOfTwo(unsigned int n)
         return (((n & (n-1)) == 0) && (n != 0));
 }
 */
-IC u32 GetPowerOf2Plus1(u32 v) {
-    u32 cnt = 0;
-    while (v) {
-        v >>= 1;
-        cnt++;
-    };
-    return cnt;
-}
-
-void FillRect(u8* data, u8* new_data, u32 offs, u32 pitch, u32 h, u32 full_pitch) {
-    for (u32 i = 0; i < h; i++)
-        std::memcpy(data + (full_pitch * i + offs), new_data + i * pitch, pitch);
-}
-
 int DXTCompressImage(LPCSTR out_name, u8* raw_data, u32 w, u32 h, u32 pitch, STextureParams* fmt,
                      u32 depth) {
     R_ASSERT((0 != w) && (0 != h));
@@ -224,6 +232,11 @@ int DXTCompressImage(LPCSTR out_name, u8* raw_data, u32 w, u32 h, u32 pitch, STe
 
     switch (fmt->mip_filter) {
     case STextureParams::kMIPFilterAdvanced:
+        // GSC's "advanced" mips: xrDXT built the chain itself (2x2 averages, with the fade) and passed it side by
+        // side in one image as existing mips. The wrapped NVIDIA library takes a single image and wrote that strip
+        // as the top level under a full mip header: truncated files the game refuses. The library builds the mips
+        // instead, with the same box filter and its own fade options (set above from the same parameters).
+        nvOpt.mipFilterType = kMipFilterBox;
         break;
 
     case STextureParams::kMIPFilterPoint:
@@ -273,57 +286,12 @@ int DXTCompressImage(LPCSTR out_name, u8* raw_data, u32 w, u32 h, u32 pitch, STe
         break;
     }
     //-------------------
-    if ((fmt->flags.is(STextureParams::flGenerateMipMaps)) &&
-        (STextureParams::kMIPFilterAdvanced == fmt->mip_filter)) {
-        nvOpt.mipMapGeneration = kUseExistingMipMaps;
-
-        u8* pImagePixels = 0;
-        int numMipmaps = GetPowerOf2Plus1(__min(w, h));
-        u32 line_pitch = w * 2 * 4;
-        pImagePixels = xr_alloc<u8>(line_pitch * h);
-        u32 w_offs = 0;
-        u32 dwW = w;
-        u32 dwH = h;
-        u32 dwP = pitch;
-        u32* pLastMip = xr_alloc<u32>(w * h * 4);
-        std::memcpy(pLastMip, raw_data, w * h * 4);
-        FillRect(pImagePixels, (u8*)pLastMip, w_offs, pitch, dwH, line_pitch);
-        w_offs += dwP;
-
-        float inv_fade = clampr(1.f - float(fmt->fade_amount) / 100.f, 0.f, 1.f);
-        float blend =
-            fmt->flags.is_any(STextureParams::flFadeToColor | STextureParams::flFadeToAlpha)
-                ? inv_fade
-                : 1.f;
-        for (int i = 1; i < numMipmaps; i++) {
-            u32* pNewMip = Build32MipLevel(dwW, dwH, dwP, pLastMip, fmt,
-                                           i < fmt->fade_delay ? 0.f : 1.f - blend);
-            FillRect(pImagePixels, (u8*)pNewMip, w_offs, dwP, dwH, line_pitch);
-            xr_free(pLastMip);
-            pLastMip = pNewMip;
-            pNewMip = 0;
-            w_offs += dwP;
-        }
-        xr_free(pLastMip);
-
-        nvOpt.bFadeColor = false;
-        nvOpt.bFadeAlpha = false;
-
-        RGBAImage pImage(w * 2, h);
-        rgba_t* pixels = pImage.pixels();
-        u8* pixel = pImagePixels;
-        for (u32 k = 0; k < w * 2 * h; k++, pixel += 4)
-            pixels[k].set(pixel[2], pixel[1], pixel[0], pixel[3]);
-        hr = nvDXTcompressFunc(&pImage, &nvOpt);
-        xr_free(pImagePixels);
-    } else {
-        RGBAImage pImage(w, h);
-        rgba_t* pixels = pImage.pixels();
-        u8* pixel = raw_data;
-        for (u32 k = 0; k < w * h; k++, pixel += 4)
-            pixels[k].set(pixel[2], pixel[1], pixel[0], pixel[3]);
-        hr = nvDXTcompressFunc(&pImage, &nvOpt);
-    }
+    RGBAImage pImage(w, h);
+    rgba_t* pixels = pImage.pixels();
+    u8* pixel = raw_data;
+    for (u32 k = 0; k < w * h; k++, pixel += 4)
+        pixels[k].set(pixel[2], pixel[1], pixel[0], pixel[3]);
+    hr = nvDXTcompressFunc(&pImage, &nvOpt, WriteDDS, nullptr);
     _close(gFileOut);
     if (hr != DD_OK) {
         switch (hr) {

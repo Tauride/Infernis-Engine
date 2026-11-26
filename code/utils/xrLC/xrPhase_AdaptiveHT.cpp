@@ -119,14 +119,14 @@ void GSaveAsSMF					(LPCSTR fname)
 }
 */
 // The base hemisphere of vertices [first, end), with the worker's own collider
-static void PrecalcBaseHemi(CDB::COLLIDER& DB, u32 first, u32 end) {
+static void PrecalcBaseHemi(CDB::COLLIDER& DB, base_lighting& lights, u32 first, u32 end) {
     vecVertex& verts = lc_global_data()->g_vertices();
     for (u32 vit = first; vit < end; vit++) {
         base_color_c vC;
         Vertex* V = verts[vit];
         R_ASSERT(V);
         V->normalFromAdj();
-        LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, pBuild->L_static(),
+        LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, lights,
                    LP_dont_rgb + LP_dont_sun, 0);
         vC.mul(0.5f);
         V->C._set(vC);
@@ -181,8 +181,9 @@ void CBuild::xrPhase_AdaptiveHT() {
         lc_run_workers([&](u32) {
             CDB::COLLIDER DB;
             DB.ray_options(0);
+            base_lighting lights = pBuild->L_static(); // own copy: the lights cache their last occluder
             for (u32 first; lc_take(next, count, first, run);)
-                PrecalcBaseHemi(DB, first, std::min(first + run, count));
+                PrecalcBaseHemi(DB, lights, first, std::min(first + run, count));
         });
         // precalc_base_hemi
     }

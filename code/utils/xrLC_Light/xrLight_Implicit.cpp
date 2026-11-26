@@ -62,6 +62,9 @@ void ImplicitExecute::Execute(net_task_callback* net_callback) {
     // R_ASSERT				(DATA);
     ImplicitDeflector& defl = cl_globs.DATA();
     CDB::COLLIDER DB;
+    // Infernis: the lights' own copy (the ray tracing caches each light's last occluder in it; runs of rows are
+    // lit by several workers at once)
+    base_lighting lights = inlc_global_data()->L_static();
 
     // Setup variables
     Fvector2 dim, half;
@@ -107,7 +110,7 @@ void ImplicitExecute::Execute(net_task_callback* net_callback) {
                             wN.from_bary(V1->N, V2->N, V3->N, B);
                             wN.normalize();
                             LightPoint(&DB, inlc_global_data()->RCAST_Model(), C, wP, wN,
-                                       inlc_global_data()->L_static(),
+                                       lights,
                                        (inlc_global_data()->b_nosun() ? LP_dont_sun : 0), F);
                             Fcount++;
                         }

@@ -129,7 +129,7 @@ void EDetailManager::OnDeviceCreate()
         ((EDetail*)(*it))->OnDeviceCreate();
 
     if (!objects.empty())
-        hw_Load();
+        soft_Load();
 }
 
 void EDetailManager::OnDeviceDestroy()
@@ -139,7 +139,7 @@ void EDetailManager::OnDeviceDestroy()
 	// detail objects
 	for (DetailIt it=objects.begin(); it!=objects.end(); it++)
     	((EDetail*)(*it))->OnDeviceDestroy();
-	hw_Unload	();
+	soft_Unload	();
 }
 
 
@@ -257,7 +257,7 @@ bool EDetailManager::LoadColorIndices(IReader& F)
     InvalidateCache();
 
     if (!objects.empty())
-        hw_Load();
+        soft_Load();
 
     return bRes;
 }
@@ -376,7 +376,7 @@ bool EDetailManager::LoadLTX(CInifile& ini)
     InvalidateCache();
 
     if (!objects.empty())
-        hw_Load();
+        soft_Load();
 
     if (!bRes)
     {

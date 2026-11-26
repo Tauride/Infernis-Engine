@@ -406,6 +406,7 @@ void CRender::create() {
     }
 
     o.dx10_gbuffer_opt = ps_r2_ls_flags.test(R3FLAG_GBUFFER_OPT);
+    o.detail_instancing = ps_r2_ls_flags_ext.test(R4FLAGEXT_DETAIL_INSTANCING);
 
     o.dx10_minmax_sm = ps_r3_minmax_sm;
     o.dx10_minmax_sm_screenarea_threshold = 1600 * 1200;
@@ -1508,6 +1509,17 @@ HRESULT CRender::shader_compile(LPCSTR name, DWORD const* pSrcData, UINT SrcData
 
     sh_name[len] = 0;
 
+    // Infernis: instanced grass (dx10DetailManager_VS.cpp) for the grass vertex shaders only; their cache key carries
+    // it (see detail_shader below), so the other shaders' keys stay as they were
+    const bool detail_shader = 'v' == pTarget[0] &&
+        (0 == xr_strcmp(name, "deffer_detail_w_flat") || 0 == xr_strcmp(name, "deffer_detail_s_flat") ||
+         0 == xr_strcmp(name, "shadow_direct_detail_w"));
+    if (detail_shader && o.detail_instancing) {
+        defines[def_it].Name = "DETAIL_INSTANCING";
+        defines[def_it].Definition = "1";
+        def_it++;
+    }
+
     // finish
     defines[def_it].Name = 0;
     defines[def_it].Definition = 0;
@@ -1553,6 +1565,10 @@ HRESULT CRender::shader_compile(LPCSTR name, DWORD const* pSrcData, UINT SrcData
          (name[lens_shader_name_len] == '_' &&
           name[lens_shader_name_len + 1] >= '0' && name[lens_shader_name_len + 1] <= '7' &&
           name[lens_shader_name_len + 2] == 0));
+    // Infernis: the grass vertex shaders read their items from an instance buffer with DETAIL_INSTANCING (instanced
+    // grass, dx10DetailManager_VS.cpp); bytecode cached from GSC's source (or CoP's precompiled objects) draws nothing
+    // with it, so they are keyed by their source and that option too
+    const bool source_keyed = scope_lens_shader || detail_shader;
     bool loaded_from_cache = false;
 
     string_path folder_name, folder;
@@ -1571,7 +1587,7 @@ HRESULT CRender::shader_compile(LPCSTR name, DWORD const* pSrcData, UINT SrcData
     FS.file_list(m_file_set, folder_name, FS_ListFiles | FS_RootOnly, "*");
 
     string_path temp_file_name, file_name;
-    if (!match_shader_id(name, sh_name, m_file_set, temp_file_name)) {
+    if (detail_shader || !match_shader_id(name, sh_name, m_file_set, temp_file_name)) {
         string_path file;
         xr_strcpy(file, "shaders_cache\\r4\\");
         xr_strcat(file, name);
@@ -1582,10 +1598,12 @@ HRESULT CRender::shader_compile(LPCSTR name, DWORD const* pSrcData, UINT SrcData
         // The lens shaders are updated alongside gameplay features. Their old
         // cached bytecode can be valid while ignoring new scope_lens_state modes.
         // Keep its cache key tied to the source without invalidating other shaders.
-        if (scope_lens_shader) {
+        if (source_keyed) {
             string16 source_crc;
             xr_sprintf(source_crc, "_%08x", crc32(pSrcData, SrcDataLen));
             xr_strcat(file, source_crc);
+            if (detail_shader)
+                xr_strcat(file, o.detail_instancing ? "_i" : "_b");
         }
         FS.update_path(file_name, "$app_data_root$", file);
     } else {

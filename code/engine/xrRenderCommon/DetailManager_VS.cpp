@@ -125,6 +125,9 @@ void CDetailManager::hw_Load_Geom() {
 }
 
 void CDetailManager::hw_Unload() {
+#ifdef USE_DX11
+    hw_Instances_Release();
+#endif
     hw_Geom.destroy();
     HW.stats_manager.decrement_stats_vb(hw_VB);
     HW.stats_manager.decrement_stats_ib(hw_IB);

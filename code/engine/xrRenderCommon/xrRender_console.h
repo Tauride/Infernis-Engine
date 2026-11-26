@@ -193,6 +193,7 @@ enum {
     R_FLAGEXT_HOM_DEPTH_DRAW = (1 << 7),
     R2FLAGEXT_SUN_ZCULLING = (1 << 8),
     R2FLAGEXT_SUN_OLD = (1 << 9),
+    R4FLAGEXT_DETAIL_INSTANCING = (1 << 10), // R4: grass drawn instanced (read when the renderer starts)
 };
 
 extern ECORE_API Flags32 ps_r2_rain_drops_flags;

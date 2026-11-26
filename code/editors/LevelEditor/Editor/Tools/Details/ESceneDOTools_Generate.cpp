@@ -90,14 +90,14 @@ bool EDetailManager::Initialize()
     }
 
     if (!objects.empty())
-        hw_Unload();
+        soft_Unload();
 
     if (!UpdateHeader())                return false;
     m_Base.CreateRMFromObjects			(m_BBox,m_SnapObjects);
     if (!UpdateSlots()) 		   		return false;
 
     if (!objects.empty())
-        hw_Load();
+        soft_Load();
 
     if (!objects.empty()&&!UpdateObjects(false,false))	return false;
 	return true;
@@ -115,7 +115,7 @@ bool EDetailManager::Reinitialize()
     }
 
     if (!objects.empty())
-        hw_Unload();
+        soft_Unload();
 
     InvalidateCache();
 
@@ -125,7 +125,7 @@ bool EDetailManager::Reinitialize()
     if (!UpdateSlots()) 			return false;
 
     if (!objects.empty())
-        hw_Load();
+        soft_Load();
 
     if (!objects.empty()&&!UpdateObjects(false,false))return false;
 

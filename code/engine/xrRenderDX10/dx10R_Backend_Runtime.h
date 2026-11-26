@@ -245,6 +245,21 @@ IC void CBackend::Compute(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT T
     constants.flush();
     HW.pContext->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);
 }
+
+IC void CBackend::RenderInstanced(u32 baseV, u32 countV, u32 startI, u32 PC, u32 instances) {
+    stat.calls++;
+    stat.verts += countV * instances;
+    stat.polys += PC * instances;
+
+    ApplyPrimitieTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    SRVSManager.Apply();
+    ApplyRTandZB();
+    ApplyVertexLayout();
+    StateManager.Apply();
+    //	State manager may alter constants
+    constants.flush();
+    HW.pContext->DrawIndexedInstanced(PC * 3, instances, startI, baseV, 0);
+}
 #endif
 
 IC void CBackend::Render(D3DPRIMITIVETYPE T, u32 baseV, u32 startV, u32 countV, u32 startI,

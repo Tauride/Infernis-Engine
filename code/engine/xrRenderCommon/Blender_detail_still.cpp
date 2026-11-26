@@ -146,6 +146,17 @@ void CBlender_Detail_Still::Compile(CBlender_Compile& C) {
             C.RS.SetRS(D3DRS_ZFUNC, D3DCMP_EQUAL);
         C.r_End();
         break;
+    case SE_R2_SHADOW: // Infernis (after IX-Ray's grass shadows): the waving grass in the sun's shadow map
+        // (r2_sun_details): depth only, alpha-tested against the base texture, both sides (the still grass casts none)
+        C.r_Pass("shadow_direct_detail_w", "shadow_direct_base_aref", FALSE, TRUE, TRUE, TRUE, D3DBLEND_ZERO,
+                 D3DBLEND_ONE, TRUE, 200);
+        C.r_dx10Texture("s_base", C.L_textures[0]);
+        C.r_dx10Sampler("smp_base");
+        C.r_dx10Sampler("smp_linear");
+        C.r_ColorWriteEnable(false, false, false, false);
+        C.r_CullMode(D3DCULL_NONE);
+        C.r_End();
+        break;
     }
 }
 #endif

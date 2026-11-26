@@ -145,10 +145,20 @@ void CDetailManager::UpdateVisibleM() {
     const u32 dwCC = dm_cache1_count * dm_cache1_count;
 
     RDEVICE.Statistic->RenderDUMP_DT_VIS.Begin();
-    
+
+    // Infernis: one list per object; the editors never call Load, and add and remove objects as they edit
+    for (vis_list& list : m_visibles)
+        if (list.size() != objects.size())
+            list.resize(objects.size());
+    // Built anew for each frame: every pass of the frame (main view, scope lens, the sun's cascades with
+    // r2_sun_details) draws the same items; the D3D9 and software paths also empty them as they draw
+    for (vis_list& list : m_visibles)
+        for (xr_vector<SlotItemVec*>& vis : list)
+            vis.clear();
+
     for (int _mz = 0; _mz < dm_cache1_line; _mz++) {
         for (int _mx = 0; _mx < dm_cache1_line; _mx++) {
-            CacheSlot1& MS = cache_level1[_mz][_mx];
+            CacheSlot1& MS = cache_level1_at(_mz, _mx);
             if (MS.empty) continue;
             
             u32 mask = 0xff;
@@ -261,7 +271,11 @@ void __stdcall CDetailManager::MT_CALC() {
             int s_z = iFloor(EYE.z / dm_slot_size + 0.5f);
 
             RDEVICE.Statistic->RenderDUMP_DT_Cache.Begin();
-            cache_Update(s_x, s_z, EYE, dm_max_decompress);
+            // Infernis: a new grass radius (r__detail_radius) rebuilds the cache here, under the lock
+            if (dm_size != dm_requested_size)
+                cache_Initialize();
+            // the slots unpacked per frame grow with the radius: a step refills a row of dm_cache_line slots
+            cache_Update(s_x, s_z, EYE, dm_max_decompress * dm_size / 24);
             RDEVICE.Statistic->RenderDUMP_DT_Cache.End();
 
             UpdateVisibleM();

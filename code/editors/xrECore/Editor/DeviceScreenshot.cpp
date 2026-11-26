@@ -33,6 +33,11 @@ bool CEditorRenderDevice::MakeScreenshot(U32Vec& pixels, u32 width, u32 height)
 	CHK_DX(REDevice->SetRenderTarget(0,pRT));
 
     EDevice->Begin		();
+    // Infernis: cull with the caller's camera (Make LOD's eight views, a group's thumbnail). The renderer builds
+    // its frustum once per frame (IX-Ray's CRender::Calculate), and these captures run inside a frame: the frustum
+    // was the editor camera's, every mesh was culled and the LOD colours came out black. The next frame's
+    // UpdateView builds the editor camera's again.
+    ::Render->ViewBase.CreateFromMatrix(mFullTransform, FRUSTUM_P_ALL);
     Tools->Render		();
     EDevice->End			();
 

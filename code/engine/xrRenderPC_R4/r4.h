@@ -88,6 +88,7 @@ public:
         u32 dx10_msaa_hybrid : 1;    //	DX10.0 main path with DX10.1 A-test msaa allowed
         u32 dx10_msaa_opt : 1;       //	DX10.1 path
         u32 dx10_gbuffer_opt : 1;    //
+        u32 detail_instancing : 1;   //	grass drawn instanced (r4_detail_instancing, at start-up)
         u32 dx10_sm4_1 : 1;          //	DX10.1 path
         u32 dx10_msaa_alphatest : 2; //	A-test mode
         u32 dx10_msaa_samples : 4;

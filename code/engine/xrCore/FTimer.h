@@ -130,9 +130,10 @@ public:
     CTimer T;
     Duration accum;
     float result;
+    float last; // the last frame's time, in seconds (result keeps the peaks and smooths the rest)
     u32 count;
 
-    CStatTimer() : T(), accum(), result(.0f), count(0) {}
+    CStatTimer() : T(), accum(), result(.0f), last(.0f), count(0) {}
     void FrameStart();
     void FrameEnd();
 

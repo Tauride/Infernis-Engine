@@ -151,6 +151,7 @@ set(COMPILER compiler.cpp
              compiler_build.cpp
              compiler_cover.cpp
              compiler_display.cpp
+             compiler_embree.cpp
              compiler_light.cpp
              compiler_load.cpp
              compiler_save.cpp
@@ -159,6 +160,7 @@ set(COMPILER compiler.cpp
              ../../engine/xrEngine/xrLoadSurface.cpp
              AIMapExport.h
              compiler.h
+             compiler_embree.h
              ETextureParams.h
              motion_simulator.h
              Shader_xrLC.h)
@@ -422,3 +424,22 @@ add_executable(xrAI ${ALIFE_SEARCH_DATA_STORAGES_ALGORITHMS_LISTS_SINGLE_LINKED_
                     ${MGC})
 set_target_properties(xrAI PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
 target_link_libraries(xrAI xrCore xrCDB luabind FreeImage rpcrt4 comctl32 d3dx9 winmm imagehlp)
+
+# Intel Embree for the cover rays (xrAI -embree; compiler_embree.cpp), optional: the runtime packages xrLC_Light uses
+# (see its CMakeLists.txt; the same cache variables). Without them xrAI traces with OPCODE only.
+set(XRLC_EMBREE_DIR "$ENV{USERPROFILE}/.nuget/packages/imesense.packages.embree.runtimes.win-x64/4.3.3"
+    CACHE PATH "Embree 4 runtime package for xrLC (build/native/include, runtimes/win-x64/native/Release)")
+set(XRLC_TBB_DIR "$ENV{USERPROFILE}/.nuget/packages/imesense.packages.onetbb.runtimes.win7-x64/2021.11.0"
+    CACHE PATH "oneTBB runtime package for Embree (runtimes/win7-x64/native/Release/tbb12.dll)")
+if (EXISTS "${XRLC_EMBREE_DIR}/build/native/include/embree4/rtcore.h"
+    AND EXISTS "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.lib"
+    AND EXISTS "${XRLC_TBB_DIR}/runtimes/win7-x64/native/Release/tbb12.dll")
+    target_compile_definitions(xrAI PRIVATE XRAI_EMBREE)
+    target_include_directories(xrAI PRIVATE "${XRLC_EMBREE_DIR}/build/native/include")
+    target_link_libraries(xrAI "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.lib")
+    add_custom_command(TARGET xrAI POST_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                               "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.dll"
+                               "${XRLC_TBB_DIR}/runtimes/win7-x64/native/Release/tbb12.dll"
+                               $<TARGET_FILE_DIR:xrAI>)
+endif()

@@ -22,15 +22,20 @@ typedef ObjectMap::iterator ObjectPairIt;
 constexpr int dm_max_decompress = 7;
 #endif
 
-constexpr int dm_size = 24;                                   
-constexpr int dm_cache1_count = 4;                            
-constexpr int dm_cache1_line = dm_size * 2 / dm_cache1_count; 
+// Infernis (after IX-Ray): the grass radius is set at run time (r__detail_radius, metres); dm_size is in slots (2 m)
+// around the camera, GSC's 24. The cache follows it on the next frame (CDetailManager::cache_Resize).
+inline int dm_size = 24;
+inline std::atomic<int> dm_requested_size{24}; // r__detail_radius (the console's thread; read by MT_CALC)
+constexpr int dm_cache1_count = 4;
+inline int dm_cache1_line = 24 * 2 / dm_cache1_count;
 constexpr int dm_max_objects = 64;
 constexpr int dm_obj_in_slot = 4;
-constexpr int dm_cache_line = dm_size + 1 + dm_size;
-constexpr int dm_cache_size = dm_cache_line * dm_cache_line;
-constexpr float dm_fade = static_cast<float>(2 * dm_size) - 0.5f;
+inline int dm_cache_line = 24 + 1 + 24;
+inline int dm_cache_size = (24 + 1 + 24) * (24 + 1 + 24);
+inline float dm_fade = static_cast<float>(2 * 24) - 0.5f;
 constexpr float dm_slot_size = DETAIL_SLOT_SIZE;
+// The grass radius in metres for a size in slots and back (IX-Ray's CCC_DetailRadius: an even number of slots)
+inline int dm_size_for_radius(int radius) { return (radius / 4) * 2; }
 
 // (no export macro: the Level Editor compiles the detail manager itself, its editor part uses the editor's scene;
 // ECORE_API is empty in the game's build)
@@ -128,12 +133,17 @@ public:
 #ifndef _EDITOR
     xrXRC xrc;
 #endif
-    CacheSlot1 cache_level1[dm_cache1_line][dm_cache1_line];
-    Slot* cache[dm_cache_line][dm_cache_line]; 
-    svector<Slot*, dm_cache_size> cache_task;  
-    Slot cache_pool[dm_cache_size];            
+    // Sized by dm_size (cache_Resize): dm_cache1_line^2 groups of 4x4 slots, dm_cache_line^2 slots (rows of
+    // dm_cache_line, z first), and as many in the pool
+    xr_vector<CacheSlot1> cache_level1;
+    xr_vector<Slot*> cache;
+    xr_vector<Slot*> cache_task;
+    xr_vector<Slot> cache_pool;
     int cache_cx;
     int cache_cz;
+    Slot*& cache_at(int z, int x) { return cache[z * dm_cache_line + x]; }
+    CacheSlot1& cache_level1_at(int z, int x) { return cache_level1[z * dm_cache1_line + x]; }
+    void cache_Resize(); // to dm_requested_size: drops every unpacked slot and the visibility lists
 
     PSS poolSI; 
 
@@ -145,7 +155,13 @@ public:
     virtual ObjectList* GetSnapList() = 0;
 #endif
 
+#ifdef _EDITOR
+    // The editors compile details\set as a fixed-function pass (CBlender_Detail_Still, bEditor): it has no constants
+    // for the vertex shader path (hw_Load_Shaders), so they draw details with the software path
+    [[nodiscard]] IC bool UseVS() const { return false; }
+#else
     [[nodiscard]] IC bool UseVS() const { return HW.Caps.geometry_major >= 1; }
+#endif
 
     ref_geom soft_Geom;
     void soft_Load();
@@ -169,7 +185,30 @@ public:
     void hw_Load_Shaders();
     void hw_Unload();
     void hw_Render();
-#if defined(USE_DX10) || defined(USE_DX11)
+#if defined(USE_DX11)
+    // Instanced grass (after IX-Ray's D3D11 detail renderer; r4_detail_instancing): every visible item of a call
+    // packed into one buffer, drawn with one instanced call per model and variant; the vertex shaders read the item
+    // by SV_InstanceID (deffer_detail_s_flat.vs, deffer_detail_w_flat.vs, DETAIL_INSTANCING)
+    struct HWInstance {
+        float x, y, z, scale; // position, scale (the matrix's second row)
+        float rot_x, rot_z;   // the scaled rotation about Y: _11 and _31 of the item's matrix, times its scale
+        float hemi, sun;
+    };
+    struct HWRange {
+        u32 first, count;
+    };
+    ID3D11Buffer* hw_Instances = nullptr;
+    ID3D11ShaderResourceView* hw_InstancesView = nullptr;
+    u32 hw_InstancesSize = 0; // in instances
+    u32 hw_InstancesFrame = u32(-1), hw_InstancesCount = 0; // the frame filled, and its items
+    xr_vector<HWRange> hw_Ranges[3];
+    void hw_Instances_Reserve(u32 count);
+    void hw_Instances_Release();
+    u32 hw_Instances_Fill(); // packs m_visibles into the buffer; the number of instances
+    void hw_Render_instanced(const Fvector4& consts, const Fvector4& wave, const Fvector4& wind, u32 var_id,
+                             u32 lod_id);
+    void hw_Render_dump(const Fvector4& consts, const Fvector4& wave, const Fvector4& wind, u32 var_id, u32 lod_id);
+#elif defined(USE_DX10)
     void hw_Render_dump(const Fvector4& consts, const Fvector4& wave, const Fvector4& wind, u32 var_id, u32 lod_id);
 #else 
     void hw_Render_dump(ref_constant array, u32 var_id, u32 lod_id, u32 c_base);

@@ -467,6 +467,9 @@ public:
 
 #ifdef USE_DX11
     ICF void Compute(UINT ThreadGroupCountX, UINT ThreadGroupCountY, UINT ThreadGroupCountZ);
+    // Indexed triangles of the bound geometry, drawn instances times (D3D11's DrawIndexedInstanced; the vertex shader
+    // tells them apart by SV_InstanceID)
+    ICF void RenderInstanced(u32 baseV, u32 countV, u32 startI, u32 PC, u32 instances);
 #endif
 
     // Device create / destroy / frame signaling

@@ -798,6 +798,9 @@ void CCC_Register() {
     CMD1(CCC_TexturesStat, "stat_textures");
 #endif // DEBUG
 
+    // Infernis: in every build, to measure what the grass costs (sdk_level_zaton.cfg)
+    CMD3(CCC_Mask, "rs_detail", &psDeviceFlags, rsDetails);
+
 #ifdef DEBUG
     CMD3(CCC_Mask, "mt_particles", &psDeviceFlags, mtParticles);
 
@@ -816,7 +819,6 @@ void CCC_Register() {
     CMD3(CCC_Mask, "rs_clear_bb", &psDeviceFlags, rsClearBB);
     CMD3(CCC_Mask, "rs_occlusion", &psDeviceFlags, rsOcclusion);
 
-    CMD3(CCC_Mask, "rs_detail", &psDeviceFlags, rsDetails);
     // CMD4(CCC_Float,		"r__dtex_range",		&r__dtex_range,		5,		175
     // );
 

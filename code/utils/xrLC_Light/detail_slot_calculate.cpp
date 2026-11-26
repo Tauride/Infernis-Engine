@@ -10,6 +10,7 @@
 #include "cl_intersect.h"
 #include "base_lighting.h"
 #include "global_calculation_data.h"
+#include "xrEmbreeTrace.h"
 #include "../shader_xrlc.h"
 
 enum {
@@ -201,6 +202,11 @@ float rayTrace(CDB::COLLIDER* DB, R_Light& L, Fvector& P, Fvector& D, float R) /
         if (range > 0 && range < R)
             return 0;
     }
+
+    // With -embree, Embree traces the level's ray-cast model (IX-Ray's xrDO: its lighting backend), by the rules of
+    // getLastRP_Scale above, and caches the opaque face that blocked the light
+    if (lc_embree_traces(&gl_data.RCAST_Model))
+        return lc_embree_occlusion(P, D, R, nullptr, L.tri, true); // LightThread's rays: CDB::OPT_CULL
 
     // 2. Polygon doesn't pick - real database query
     DB->ray_query(&gl_data.RCAST_Model, P, D, R);

@@ -19,12 +19,15 @@ void CDetailManager::soft_Render() {
     _IndexStream& _IS = RCache.Index;
     _VertexStream& _VS = RCache.Vertex;
     
+    // Infernis: every list (UpdateVisibleM sorts the items into them by vis_ID); GSC drew list 0 only and never cleared
+    // the others, which grew every frame
+    for (u32 L = 0; L < 3; ++L)
     for (u32 O = 0; O < objects.size(); ++O) {
         CDetail& Object = *objects[O];
         const u32 vCount_Object = Object.number_vertices;
         const u32 iCount_Object = Object.number_indices;
 
-        auto& _vis = m_visibles[0][O];
+        auto& _vis = m_visibles[L][O];
         for (auto* items : _vis) {
             const u32 o_total = items->size();
             const u32 vCount_Total = o_total * vCount_Object;

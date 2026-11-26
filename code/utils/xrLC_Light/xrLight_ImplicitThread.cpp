@@ -3,27 +3,16 @@
 #include "xrThread.h"
 #include "xrLight_Implicit.h"
 #include "xrlight_implicitdeflector.h"
-class ImplicitThread : public CThread {
-public:
-    ImplicitExecute execute;
-    ImplicitThread(u32 ID, ImplicitDeflector* _DATA, u32 _y_start, u32 _y_end)
-        : CThread(ID), execute(_y_start, _y_end) {}
-    virtual void Execute();
-};
-
-void ImplicitThread ::Execute() {
-    // Priority
-    SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
-    Sleep(0);
-    execute.Execute(0);
-}
-
-#define NUM_THREADS 8
+// One worker per hardware thread, taking runs of 8 rows (IX-Ray's scheme). GSC split the rows into 8 fixed bands of
+// Height / 8, which left the last Height % 8 rows unlit.
 void RunImplicitMultithread(ImplicitDeflector& defl) {
-    // Start threads
-    CThreadManager tmanager;
-    u32 stride = defl.Height() / NUM_THREADS;
-    for (u32 thID = 0; thID < NUM_THREADS; thID++)
-        tmanager.start(xr_new<ImplicitThread>(thID, &defl, thID * stride, thID * stride + stride));
-    tmanager.wait();
+    const u32 rows = defl.Height();
+    const u32 run = 8;
+    std::atomic<u32> next{0};
+    lc_run_workers([&](u32) {
+        for (u32 first; lc_take(next, rows, first, run);) {
+            ImplicitExecute execute(first, std::min(first + run, rows));
+            execute.Execute(0);
+        }
+    });
 }

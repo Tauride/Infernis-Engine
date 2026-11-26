@@ -11,6 +11,7 @@
 #include "../xrLC_Light/xrLC_GlobalData.h"
 #include "../xrLC_Light/xrface.h"
 #include "../xrLC_Light/mu_model_light.h"
+#include "../xrLC_Light/xrThread.h"
 #include "../xrLC_Light/net_cl_data_prepare.h"
 #include "../xrLC_Light/serialize.h"
 //#include "../xrLC_Light/lcnet_task_manager.h"
@@ -300,10 +301,17 @@ void CBuild::RunAfterLight(IWriter* fs) {
     {
         u32 m;
         Status("MU : Models...");
-        for (m = 0; m < mu_models().size(); m++) {
-            calc_ogf(*mu_models()[m]);
-            export_geometry(*mu_models()[m]);
+        {
+            // The models' OGFs in parallel (IX-Ray's scheme), their geometry exported in model order
+            const u32 count = u32(mu_models().size());
+            std::atomic<u32> next{0};
+            lc_run_workers([&](u32) {
+                for (u32 model; lc_take(next, count, model);)
+                    calc_ogf(*mu_models()[model]);
+            });
         }
+        for (m = 0; m < mu_models().size(); m++)
+            export_geometry(*mu_models()[m]);
 
         Status("MU : References...");
         for (m = 0; m < mu_refs().size(); m++)

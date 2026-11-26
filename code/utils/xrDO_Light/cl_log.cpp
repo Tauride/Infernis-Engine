@@ -94,6 +94,8 @@ void Phase(const char* phase_name) {
     xr_sprintf(tbuf, "%s : %s", make_time(phase_total_time / 1000).c_str(), phase);
     SendMessage(hwPhaseTime, LB_DELETESTRING, SendMessage(hwPhaseTime, LB_GETCOUNT, 0, 0) - 1, 0);
     SendMessage(hwPhaseTime, LB_ADDSTRING, 0, (LPARAM)tbuf);
+    if (phase[0]) // the time of each phase in the log too (the window only shows it)
+        Msg("* Phase finished: %s (%.1f s)", phase, float(phase_total_time) / 1000.f);
 
     // Start _new phase
     phase_start_time = timeGetTime();

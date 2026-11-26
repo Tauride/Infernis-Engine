@@ -22,7 +22,7 @@ BOOL SphereValid(xr_vector<Fvector>& geom, Fsphere& test) {
 
 void OGF_Base::CalcBounds() {
     // get geometry
-    static xr_vector<Fvector> V;
+    thread_local xr_vector<Fvector> V; // (per thread: OGFs are built in parallel)
     xr_vector<Fvector>::iterator I;
     V.clear();
     V.reserve(4096);

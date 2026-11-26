@@ -3,6 +3,7 @@
 #include <mutex>
 
 #include "xrLC_GlobalData.h"
+#include "xrEmbreeTrace.h"
 #include "xrface.h"
 #include "xrdeflector.h"
 #include "lightmap.h"
@@ -93,7 +94,10 @@ poolFaces &xrLC_GlobalData	::FacePool			()
 }
 */
 
-void xrLC_GlobalData ::destroy_rcmodel() { xr_delete(_cl_globs._RCAST_Model); }
+void xrLC_GlobalData ::destroy_rcmodel() {
+    lc_embree_release();
+    xr_delete(_cl_globs._RCAST_Model);
+}
 void xrLC_GlobalData::clear_build_textures_surface() {
     clLog("mem usage before clear build textures surface: %u", Memory.mem_usage());
     // xr_vector<b_BuildTexture>		_textures;
@@ -122,6 +126,7 @@ void xrLC_GlobalData ::create_rcmodel(CDB::CollectorPacked& CL) {
     VERIFY(!_cl_globs._RCAST_Model);
     _cl_globs._RCAST_Model = xr_new<CDB::MODEL>();
     _cl_globs._RCAST_Model->build(CL.getV(), (int)CL.getVS(), CL.getT(), (int)CL.getTS());
+    lc_embree_build(_cl_globs._RCAST_Model); // with -embree: its scene for the light rays
 }
 
 void xrLC_GlobalData ::initialize() {

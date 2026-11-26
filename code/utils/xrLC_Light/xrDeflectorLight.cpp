@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include "xrdeflector.h"
+#include "xrEmbreeTrace.h"
 //#include "build.h"
 #include "cl_intersect.h"
 #include "xrlc_globaldata.h"
@@ -404,6 +405,11 @@ float rayTrace(CDB::COLLIDER* DB, CDB::MODEL* MDL, R_Light& L, Fvector& P, Fvect
         if (range > 0 && range < R)
             return 0;
     }
+
+    // With -embree, the level's ray-cast model is traced by Embree (same rules as getLastRP_Scale below, which
+    // also caches the opaque face that blocked the light)
+    if (lc_embree_traces(MDL))
+        return lc_embree_occlusion(P, D, R, skip, L.tri);
 
     // 2. Polygon doesn't pick - real database query
     DB->ray_query(MDL, P, D, R);

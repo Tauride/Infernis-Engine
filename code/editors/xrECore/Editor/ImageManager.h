@@ -19,6 +19,23 @@ struct SSimpleImage
 IC bool operator == (const SSimpleImage& a, shared_str nm){return a.name==nm;}
 IC bool operator < (const SSimpleImage& a, const SSimpleImage& b){return a.name<b.name;}
 
+// Infernis: one object's LOD texture, made in steps so that the editor can keep drawing frames meanwhile: the views
+// rendered on the main thread between frames (CreateLODCapture), the normals and the hemisphere ray-traced on any
+// thread, in parallel inside (CreateLODCompute), then the textures saved on the main thread (SaveLODTexture).
+struct ECORE_API SLODBuild
+{
+	CEditableObject*	object = nullptr;
+	int					quality = 1;
+	U32Vec				lod_pixels;
+	U32Vec				nm_pixels;
+	xr_vector<std::pair<const void*, bool>> rendering; // each surface's shader renders (looked up once)
+	std::atomic<u32>	rows_done{0};	// progress of CreateLODCompute, out of rows_total
+	u32					rows_total = 0;
+	std::atomic<bool>	cancel{false};	// set by anyone: CreateLODCompute stops early (the result is then unusable)
+	float				seconds = 0.f;
+	unsigned int		fp_modes = 0;	// the main thread's SSE modes (MXCSR), for the tracing threads
+};
+
 using SSimpleImageVec = xr_vector<SSimpleImage>;
 using SSimpleImageVecIt = SSimpleImageVec::iterator;
 
@@ -50,6 +67,9 @@ public:
     bool		CreateOBJThumbnail	(const char* tex_name, CEditableObject* obj, time_t age);
     void		CreateLODTexture	(CEditableObject* object, U32Vec& lod_pixels, U32Vec& nm_pixels, u32 tgt_w, u32 tgt_h, int samples, int quality);
     void		CreateLODTexture	(CEditableObject* object, const char* tex_name, 	u32 tgt_w, u32 tgt_h, int samples, time_t age, int quality);
+    void		CreateLODCapture	(SLODBuild& build);	// main thread, outside a frame
+    void		CreateLODCompute	(SLODBuild& build);	// any thread, after the capture
+    void		SaveLODTexture		(const SLODBuild& build, const char* tex_name, time_t age); // main thread
     void		CreateGameTexture	(const char* src_name, ETextureThumbnail* thumb=nullptr);
     bool		LoadTextureData		(const char* src_name, U32Vec& data, u32& w, u32& h, time_t* age=nullptr);
 

@@ -61,6 +61,18 @@ void CEditableObject::RayQuery(SPickQuery& pinf)
 		(*m)->RayQuery(pinf);
 }
 
+void CEditableObject::RayQuery(SPickQuery& pinf, CDB::COLLIDER& collider)
+{
+	for (CEditableMesh* Mesh : m_Meshes)
+		Mesh->RayQuery(pinf, collider);
+}
+
+void CEditableObject::PrepareCFModels()
+{
+	for (CEditableMesh* Mesh : m_Meshes)
+		Mesh->PrepareCFModel();
+}
+
 void CEditableObject::RayQuery(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf)
 {
 	for(EditMeshIt m = m_Meshes.begin();m!=m_Meshes.end();m++)

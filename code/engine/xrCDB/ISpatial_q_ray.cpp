@@ -3,6 +3,7 @@
 #pragma warning(push)
 #pragma warning(disable : 4995)
 #include <xmmintrin.h>
+#include <limits>
 #pragma warning(pop)
 
 // can you say "barebone"?
@@ -203,6 +204,13 @@ public:
         ray.pos.set(_start);
         ray.inv_dir.set(1.f, 1.f, 1.f).div(_dir);
         ray.fwd_dir.set(_dir);
+        // isect_sse loads these as 4-float vectors and reduces the slab test over all four lanes.
+        // Without these, lane 3 holds leftover stack data and can make a ray miss a box it crosses.
+        // pos.pad = 0 and inv_dir.pad = +inf give (0 - 0) * inf = NaN, which the minps/maxps
+        // filters turn into +inf / -inf, so lane 3 never limits the result.
+        ray.pos.pad = 0.f;
+        ray.inv_dir.pad = std::numeric_limits<float>::infinity();
+        ray.fwd_dir.pad = 0.f;
         if (!b_use_sse) {
             // for FPU - zero out inf
             if (xr::abs(_dir.x) > flt_eps) {

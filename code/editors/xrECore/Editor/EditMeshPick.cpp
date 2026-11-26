@@ -53,6 +53,16 @@ void CEditableMesh::RayQuery(SPickQuery& pinf)
 	}
 }
 
+void CEditableMesh::RayQuery(SPickQuery& pinf, CDB::COLLIDER& collider)
+{
+	VERIFY(m_CFModel); // (PrepareCFModel)
+	collider.ray_query(m_CFModel, pinf.m_Start, pinf.m_Direction, pinf.m_Dist);
+	for (int r = 0; r < collider.r_count(); r++)
+	{
+		pinf.append(collider.r_begin() + r, m_Parent, this);
+	}
+}
+
 void CEditableMesh::RayQuery(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf)
 {
 	if (!m_CFModel)

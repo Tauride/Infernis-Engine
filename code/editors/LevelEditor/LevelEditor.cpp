@@ -15,7 +15,7 @@ void DragDrop(const xr_string&, int);
 
 // -make_lods (with -level): the LOD textures (textures\lod\lod_*) of the scene's multiple usage objects, made by
 // the object library's Make LOD (high quality); the build's validation needs them.
-static void MakeSceneLODs()
+static void MakeSceneLODs(bool Async)
 {
 	xr_set<shared_str> Names;
 	for (CCustomObject* Custom : Scene->ListObj(OBJCLASS_SCENEOBJECT))
@@ -24,6 +24,12 @@ static void MakeSceneLODs()
 		CEditableObject* Object = SceneObject->GetReference();
 		if (Object && Object->IsMUStatic())
 			Names.insert(SceneObject->RefName());
+	}
+	if (Async) // -make_lods_async: as the library's Make LOD button, in steps across frames with the progress window
+	{
+		UIEditLibrary::StartLODs(SharedStrVec(Names.begin(), Names.end()));
+		Msg("* -make_lods_async: %u objects", (u32)Names.size());
+		return;
 	}
 	UIEditLibrary::MakeLODs(SharedStrVec(Names.begin(), Names.end()));
 	Msg("* -make_lods: %u objects", (u32)Names.size());
@@ -97,7 +103,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 	// A level named on the command line: -level <name>, a scene under $maps$ without the extension (e.g.
 	// "jupiter" or "!FinalSP\jupiter"), or a full path to a .level file. The load command takes a full path.
 	string_path LevelName = "";
-	bool PendingMakeLods = false, PendingBuild = false;
+	bool PendingMakeLods = false, PendingBuild = false, AsyncMakeLods = false;
 	if (ReadCommandLineValue(pCmdLine, "-level ", LevelName))
 	{
 		string_path LevelPath;
@@ -110,6 +116,8 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 		else if (ExecCommand(COMMAND_LOAD, xr_string(LevelPath)))
 		{
 			PendingMakeLods = HasCommandLineOption(pCmdLine, "-make_lods");
+			AsyncMakeLods = HasCommandLineOption(pCmdLine, "-make_lods_async");
+			PendingMakeLods |= AsyncMakeLods;
 			PendingBuild = HasCommandLineOption(pCmdLine, "-build");
 		}
 	}
@@ -130,6 +138,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 				SDL_WindowID MainWndID = SDL_GetWindowID(g_AppInfo.Window);
 				if (Event.window.windowID == MainWndID)
 				{
+					UIEditLibrary::LODJobStop();
 					GContentView->Destroy();
 					NeedExit = true;
 				}
@@ -180,13 +189,14 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
 		CheckRun.BeforeFrame();
 		MainForm->Frame();
+		UIEditLibrary::LODJobUpdate(); // (between frames: it renders the objects' views)
 
 		// (on the check run's last frame at the latest: a -frames limit below 5 must not skip them)
 		const bool LastCheckFrame = CheckRun.FrameLimit > 0 && CheckRun.FrameCount + 1 >= CheckRun.FrameLimit;
 		if ((PendingMakeLods || PendingBuild) && (--FramesBeforeActions == 0 || LastCheckFrame))
 		{
 			if (PendingMakeLods)
-				MakeSceneLODs();
+				MakeSceneLODs(AsyncMakeLods);
 			if (PendingBuild)
 				BuildScene();
 			PendingMakeLods = PendingBuild = false;
@@ -194,11 +204,13 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
 		if (CheckRun.AfterFrame())
 		{
+			UIEditLibrary::LODJobStop();
 			GContentView->Destroy();
 			NeedExit = true;
 		}
 	}
 
+	UIEditLibrary::LODJobStop(); // (its worker traces library objects that the shutdown frees)
 	g_scene_physics.DestroyAll();
 	g_scene_physics.DestroyObjectSpace();
 

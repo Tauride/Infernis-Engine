@@ -6,6 +6,8 @@
 
 #include "xrECore/Editor/Library.h"
 #include "xrECore/Editor/ExportObjectOGF.h"
+#include "xrECore/Editor/ImageManager.h"
+#include <thread>
 
 static FS_FileSet modif_map;
 UIEditLibrary* UIEditLibrary::Form = nullptr;
@@ -166,7 +168,7 @@ void UIEditLibrary::MakeLODs(const SharedStrVec& Objects)
 	Show();
 	const bool Preview = Form->m_Preview;
 	Form->m_Preview = true; // the LOD is rendered from the library's preview of the object
-	Form->GenerateLOD(Objects, true);
+	Form->GenerateLODNow(Objects, true);
 	Form->m_Preview = Preview;
 	Close();
 }
@@ -230,7 +232,193 @@ void UIEditLibrary::DrawObjects()
 		ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
 }
 
+// The LOD texture's name of an object: lod_<its path with underscores>
+static xr_string LODTextureName(CEditableObject* O)
+{
+	xr_string tex_name = EFS.ChangeFileExt(O->GetName(), "");
+	string_path tmp;
+	xr_strcpy(tmp, tex_name.c_str());
+	_ChangeSymbol(tmp, '\\', '_');
+	tex_name = xr_string("lod_") + tmp;
+	return ImageLib.UpdateFileName(tex_name);
+}
+
+// Infernis: Make LOD in steps across frames, with a progress window on top. Each object: its eight views rendered on
+// the main thread between frames (the library's preview), its normals and hemisphere ray-traced on a worker (in
+// parallel inside), then its textures saved on the main thread; meanwhile the editor keeps drawing.
+namespace
+{
+	struct LODJob
+	{
+		SharedStrVec Names;
+		bool HighQuality = true;
+		size_t Next = 0;					// the next object to start; the current one is Names[Next - 1]
+		u32 Made = 0;
+		CEditableObject* Object = nullptr;	// the object being traced (a library reference of the job's own)
+		bool UsingLOD = false;
+		xr_string TexName;
+		std::unique_ptr<SLODBuild> Build;
+		std::thread Worker;
+		std::atomic<bool> Done{false};
+		bool Cancelled = false;
+		bool PreviewWas = false;
+		CTimer Timer;
+
+		~LODJob()
+		{
+			if (Worker.joinable()) // (the editor closed during a job)
+			{
+				Build->cancel = true;
+				Worker.join();
+			}
+		}
+	};
+	std::unique_ptr<LODJob> GLODJob;
+
+	class UILODProgressForm : public IEditorWnd
+	{
+	public:
+		void Draw() override
+		{
+			if (!GLODJob)
+			{
+				bOpen = false;
+				return;
+			}
+			LODJob& Job = *GLODJob;
+			ImGui::SetNextWindowSize(ImVec2(460, 0));
+			if (ImGui::BeginPopupModal("Making LODs", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize, true))
+			{
+				const u32 Count = u32(Job.Names.size());
+				const u32 Current = std::max<u32>(1, u32(Job.Next));
+				ImGui::Text("Object %u of %u", Current, Count);
+				ImGui::TextUnformatted(Job.Names[Current - 1].c_str());
+				const float ObjectDone = Job.Build && Job.Build->rows_total ?
+					float(Job.Build->rows_done) / float(Job.Build->rows_total) : 0.f;
+				ImGui::ProgressBar(ObjectDone, ImVec2(-1, 0));
+				string64 Overlay;
+				xr_sprintf(Overlay, "%u of %u objects, %.0f s", Current - 1, Count, Job.Timer.GetElapsed_sec());
+				ImGui::ProgressBar((float(Current - 1) + ObjectDone) / float(Count), ImVec2(-1, 0), Overlay);
+				if (Job.Cancelled)
+					ImGui::TextUnformatted("Cancelling...");
+				else if (ImGui::Button("Cancel", ImVec2(-1, 0)))
+				{
+					Job.Cancelled = true;
+					if (Job.Build)
+						Job.Build->cancel = true;
+				}
+				ImGui::EndPopup();
+			}
+		}
+	};
+}
+
+bool UIEditLibrary::LODJobRunning() { return GLODJob != nullptr; }
+
+void UIEditLibrary::LODJobStop()
+{
+	if (!GLODJob)
+		return;
+	GLODJob->Cancelled = true;
+	if (GLODJob->Build)
+		GLODJob->Build->cancel = true;
+	while (GLODJob)
+	{
+		if (GLODJob->Object && !GLODJob->Done)
+			std::this_thread::yield();
+		else
+			LODJobUpdate(); // (the cancelled job releases its object and ends)
+	}
+}
+
+void UIEditLibrary::StartLODs(const SharedStrVec& Objects)
+{
+	Show();
+	Form->GenerateLOD(Objects, true);
+}
+
 void UIEditLibrary::GenerateLOD(const SharedStrVec& props, bool bHighQuality)
+{
+	if (GLODJob || props.empty())
+		return;
+	GLODJob = std::make_unique<LODJob>();
+	GLODJob->Names = props;
+	GLODJob->HighQuality = bHighQuality;
+	GLODJob->PreviewWas = m_Preview;
+	GLODJob->Timer.Start();
+	m_Preview = true; // the views are rendered from the library's preview of the object
+	UI->Push(xr_new<UILODProgressForm>(), true);
+}
+
+void UIEditLibrary::LODJobUpdate()
+{
+	if (!GLODJob)
+		return;
+	LODJob& Job = *GLODJob;
+
+	// The object being traced: done?
+	if (Job.Object)
+	{
+		if (!Job.Done)
+			return;
+		Job.Worker.join();
+		if (!Job.Cancelled)
+		{
+			ImageLib.SaveLODTexture(*Job.Build, Job.TexName.c_str(), xr_chrono_to_time_t(std::chrono::system_clock::now()));
+			ELog.Msg(mtInformation, "+ LOD for object '%s' successfully created (%.1f s).", Job.Object->GetName(), Job.Build->seconds);
+			Job.Made++;
+		}
+		Job.Object->OnDeviceDestroy();
+		Job.Object->m_objectFlags.set(CEditableObject::eoUsingLOD, Job.UsingLOD);
+		Lib.RemoveEditObject(Job.Object);
+		Job.Build.reset();
+	}
+
+	// All done, or cancelled
+	if (Job.Cancelled || Job.Next >= Job.Names.size())
+	{
+		if (Job.Cancelled)
+			ELog.Msg(mtInformation, "Making LODs cancelled: %u of %u made.", Job.Made, u32(Job.Names.size()));
+		else
+			ELog.Msg(mtInformation, "+ '%u' LOD's successfully created (%.0f s).", Job.Made, Job.Timer.GetElapsed_sec());
+		if (Form)
+			Form->m_Preview = Job.PreviewWas;
+		GLODJob.reset(); // (the progress window closes on its next frame)
+		return;
+	}
+
+	// The next object: its views here (between frames), its tracing on a worker
+	const shared_str Name = Job.Names[Job.Next++];
+	if (!Form || !Form->bOpen)
+		Show();
+	if (UI->GetEState() != esEditLibrary)
+		UI->BeginEState(esEditLibrary);
+	Form->ChangeReference(SharedStrVec{Name});
+	CEditableObject* O = Form->m_pEditObjects.size() == 1 ? Form->m_pEditObjects[0]->GetReference() : nullptr;
+	if (!O || !O->IsMUStatic())
+	{
+		ELog.Msg(mtError, "! Can't create LOD texture from non 'Multiple Usage' object '%s'.", Name.c_str());
+		return;
+	}
+	Job.Object = Lib.CreateEditObject(Name.c_str()); // held while traced: the library may not unload it meanwhile
+	Job.UsingLOD = Job.Object->m_objectFlags.is(CEditableObject::eoUsingLOD);
+	Job.Object->m_objectFlags.set(CEditableObject::eoUsingLOD, false);
+	Job.TexName = LODTextureName(Job.Object);
+
+	Job.Build = std::make_unique<SLODBuild>();
+	Job.Build->object = Job.Object;
+	Job.Build->quality = Job.HighQuality ? 4 /*7*/ : 1;
+	ImageLib.CreateLODCapture(*Job.Build);
+	Job.Done = false;
+	Job.Worker = std::thread([&Job]()
+	{
+		ImageLib.CreateLODCompute(*Job.Build);
+		Job.Done = true;
+	});
+}
+
+// Make LOD on this thread, the editor waiting (the unattended -make_lods, which the build after it needs done)
+void UIEditLibrary::GenerateLODNow(const SharedStrVec& props, bool bHighQuality)
 {
 	u32 lodsCnt = 0;
 	SPBItem* pb = UI->ProgressStart(props.size(), "Making LOD");
@@ -250,14 +438,7 @@ void UIEditLibrary::GenerateLOD(const SharedStrVec& props, bool bHighQuality)
 			pb->Inc(O->GetName());
 			bool bLod = O->m_objectFlags.is(CEditableObject::eoUsingLOD);
 			O->m_objectFlags.set(CEditableObject::eoUsingLOD, false);
-			xr_string tex_name;
-			tex_name = EFS.ChangeFileExt(O->GetName(), "");
-
-			string_path tmp;
-			strcpy(tmp, tex_name.c_str());
-			_ChangeSymbol(tmp, '\\', '_');
-			tex_name = xr_string("lod_") + tmp;
-			tex_name = ImageLib.UpdateFileName(tex_name);
+			const xr_string tex_name = LODTextureName(O);
 			ImageLib.CreateLODTexture(O, tex_name.c_str(), LOD_IMAGE_SIZE, LOD_IMAGE_SIZE, LOD_SAMPLE_COUNT, xr_chrono_to_time_t(std::chrono::system_clock::now()), bHighQuality ? 4 /*7*/ : 1);
 			O->OnDeviceDestroy();
 			O->m_objectFlags.set(CEditableObject::eoUsingLOD, bLod);
@@ -266,7 +447,7 @@ void UIEditLibrary::GenerateLOD(const SharedStrVec& props, bool bHighQuality)
 		}
 		else
 		{
-			ELog.Msg(mtError, "! Can't create LOD texture from non 'Multiple Usage' object.", SO->RefName());
+			ELog.Msg(mtError, "! Can't create LOD texture from non 'Multiple Usage' object '%s'.", SO->RefName());
 		}
 
 		if (UI->NeedAbort())

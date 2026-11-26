@@ -5,12 +5,13 @@
 
 #pragma warning(disable : 4018)
 
-static Object* g_pObject = 0;
-static ArbitraryList<MeshPt*> g_ppTempPts = 0;
-static float g_fSlidingWindowErrorTolerance = 0.1f;
-static BOOL g_bOptimiseVertexOrder = FALSE;
-static u32 g_bMaxSlidingWindow = u32(-1);
-static VIPM_Result* g_pResult = 0;
+// Per thread (IX-Ray: a VIMP_Processor per thread), so that xrLC simplifies several meshes at once
+static thread_local Object* g_pObject = 0;
+static thread_local ArbitraryList<MeshPt*> g_ppTempPts = 0;
+static thread_local float g_fSlidingWindowErrorTolerance = 0.1f;
+static thread_local BOOL g_bOptimiseVertexOrder = FALSE;
+static thread_local u32 g_bMaxSlidingWindow = u32(-1);
+static thread_local VIPM_Result* g_pResult = 0;
 
 ETOOLS_API void __stdcall VIPM_Init() {
     //.	OutputDebugString("VIPM_INIT-------------------\n");

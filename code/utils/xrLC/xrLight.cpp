@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <numeric>
 #include "build.h"
 
 #include "../xrlc_light/xrdeflector.h"
@@ -10,76 +11,44 @@
 //#include "../xrLC_Light/net_task_manager.h"
 #include "../xrLC_Light/lcnet_task_manager.h"
 #include "../xrLC_Light/mu_model_light.h"
-std::recursive_mutex task_CS;
-
-xr_vector<int> task_pool;
-
-class CLMThread : public CThread {
-private:
-    HASH H;
-    CDB::COLLIDER DB;
-    base_lighting LightsSelected;
-
-public:
-    CLMThread(u32 ID) : CThread(ID) {
-        // thMonitor= TRUE;
-        thMessages = FALSE;
-    }
-
-    virtual void Execute() {
-        CDeflector* D = 0;
-
-        for (;;) {
-            // Get task
-            {
-                std::lock_guard<decltype(task_CS)> lock(task_CS);
-                thProgress =
-                    1.f - float(task_pool.size()) / float(lc_global_data()->g_deflectors().size());
-                if (task_pool.empty())
-                    return;
-
-                D = lc_global_data()->g_deflectors()[task_pool.back()];
-                task_pool.pop_back();
-            }
-
-            // Perform operation
-            try {
-                D->Light(&DB, &LightsSelected, H);
-            } catch (...) {
-                clMsg("* ERROR: CLMThread::Execute - light");
-            }
-        }
-    }
-};
-
 void CBuild::LMapsLocal() {
     FPU::m64r();
 
     mem_Compact();
 
-// Randomize deflectors
-#ifndef NET_CMP
-    std::shuffle(lc_global_data()->g_deflectors().begin(), lc_global_data()->g_deflectors().end(),
-                 rng);
-#endif
+    // Randomize deflectors
+    xr_vector<CDeflector*>& deflectors = lc_global_data()->g_deflectors();
+    std::shuffle(deflectors.begin(), deflectors.end(), rng);
 
-#ifndef NET_CMP
-    for (u32 dit = 0; dit < lc_global_data()->g_deflectors().size(); dit++)
-        task_pool.push_back(dit);
-#else
-    task_pool.push_back(14);
-    task_pool.push_back(16);
-#endif
+    // The largest deflectors first: a large one taken near the end would keep the other workers waiting. Each
+    // deflector is lit on its own, so the order does not change the result.
+    xr_vector<u32> order(deflectors.size());
+    std::iota(order.begin(), order.end(), 0u);
+    std::stable_sort(order.begin(), order.end(), [&deflectors](u32 a, u32 b) {
+        return deflectors[a]->layer.Area() > deflectors[b]->layer.Area();
+    });
 
-    // Main process (one thread per hardware thread)
+    // Main process: one worker per hardware thread, each with its own hash, collider and lights (IX-Ray's scheme)
     Status("Lighting...");
-    CThreadManager threads;
-    const u32 thNUM = lc_worker_threads();
     CTimer start_time;
     start_time.Start();
-    for (int L = 0; L < thNUM; L++)
-        threads.start(xr_new<CLMThread>(L));
-    threads.wait(500);
+    std::atomic<u32> next{0};
+    const u32 count = u32(order.size());
+    lc_run_workers([&](u32 thread) {
+        auto H = std::make_unique<HASH>(); // 128x128 cells: too large for a thread's stack
+        CDB::COLLIDER DB;
+        base_lighting LightsSelected;
+        for (u32 item; lc_take(next, count, item);) {
+            try {
+                deflectors[order[item]]->Light(&DB, &LightsSelected, *H);
+            } catch (...) {
+                clMsg("* ERROR: CBuild::LMapsLocal - light");
+            }
+            if (thread == 0)
+                Progress(float(item) / float(count));
+        }
+    });
+    Progress(1.f);
     clMsg("%f seconds", start_time.GetElapsed_sec());
 }
 

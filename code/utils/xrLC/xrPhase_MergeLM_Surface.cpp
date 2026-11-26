@@ -132,7 +132,11 @@ BOOL _rect_place(L_rect& r, lm_layer* D) {
             // accelerated part
             for (_X = 0; _X < x_max - 8;) {
 #ifdef _M_X64
-                __m128i init = _mm_set1_epi64x(*(temp_surf + _X));
+                // Infernis: the 8 surface bytes at _X (the x64 port read one byte, so the "8 occupied pixels" skip
+                // never applied and every position went through the per-pixel test)
+                __int64 eight;
+                std::memcpy(&eight, temp_surf + _X, sizeof(eight));
+                __m128i init = _mm_set1_epi64x(eight);
                 __m128i m64_cmp = _mm_cmpeq_epi8(init, _mm_setzero_si128());
                 __m128i m64_cmp_low = _mm_move_epi64(m64_cmp);
                 __m128i m64_work = _mm_sad_epu8(m64_cmp_low, _mm_setzero_si128());
@@ -195,7 +199,11 @@ BOOL _rect_place(L_rect& r, lm_layer* D) {
             // accelerated part
             for (_X = 0; _X < x_max - 8;) {
 #ifdef _M_X64
-                __m128i init = _mm_set1_epi64x(*(temp_surf + _X));
+                // Infernis: the 8 surface bytes at _X (the x64 port read one byte, so the "8 occupied pixels" skip
+                // never applied and every position went through the per-pixel test)
+                __int64 eight;
+                std::memcpy(&eight, temp_surf + _X, sizeof(eight));
+                __m128i init = _mm_set1_epi64x(eight);
                 __m128i m64_cmp = _mm_cmpeq_epi8(init, _mm_setzero_si128());
                 __m128i m64_cmp_low = _mm_move_epi64(m64_cmp);
                 __m128i m64_work = _mm_sad_epu8(m64_cmp_low, _mm_setzero_si128());

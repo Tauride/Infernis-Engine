@@ -262,6 +262,7 @@ namespace
 		std::atomic<bool> Done{false};
 		bool Cancelled = false;
 		bool PreviewWas = false;
+		bool PushedState = false;	// the job put the editor in the library's state (and takes it out at the end)
 		CTimer Timer;
 
 		~LODJob()
@@ -280,13 +281,19 @@ namespace
 	public:
 		void Draw() override
 		{
+			ImGui::SetNextWindowSizeConstraints(ImVec2(460, 0), ImVec2(460, FLT_MAX)); // (the height fits the content)
 			if (!GLODJob)
 			{
+				// the job ended: the modal leaves ImGui's popup stack too (it is not enough to stop drawing it)
+				if (ImGui::BeginPopupModal("Making LODs", nullptr, ImGuiWindowFlags_AlwaysAutoResize, true))
+				{
+					ImGui::CloseCurrentPopup();
+					ImGui::EndPopup();
+				}
 				bOpen = false;
 				return;
 			}
 			LODJob& Job = *GLODJob;
-			ImGui::SetNextWindowSize(ImVec2(460, 0));
 			if (ImGui::BeginPopupModal("Making LODs", nullptr, ImGuiWindowFlags_NoResize | ImGuiWindowFlags_AlwaysAutoResize, true))
 			{
 				const u32 Count = u32(Job.Names.size());
@@ -339,7 +346,12 @@ void UIEditLibrary::StartLODs(const SharedStrVec& Objects)
 
 void UIEditLibrary::GenerateLOD(const SharedStrVec& props, bool bHighQuality)
 {
-	if (GLODJob || props.empty())
+	if (GLODJob)
+	{
+		ELog.Msg(mtError, "! Making LODs: a job is already running (%u objects not started).", u32(props.size()));
+		return;
+	}
+	if (props.empty())
 		return;
 	GLODJob = std::make_unique<LODJob>();
 	GLODJob->Names = props;
@@ -368,6 +380,7 @@ void UIEditLibrary::LODJobUpdate()
 			ELog.Msg(mtInformation, "+ LOD for object '%s' successfully created (%.1f s).", Job.Object->GetName(), Job.Build->seconds);
 			Job.Made++;
 		}
+		Job.Object->UnlockCFModels();
 		Job.Object->OnDeviceDestroy();
 		Job.Object->m_objectFlags.set(CEditableObject::eoUsingLOD, Job.UsingLOD);
 		Lib.RemoveEditObject(Job.Object);
@@ -383,6 +396,8 @@ void UIEditLibrary::LODJobUpdate()
 			ELog.Msg(mtInformation, "+ '%u' LOD's successfully created (%.0f s).", Job.Made, Job.Timer.GetElapsed_sec());
 		if (Form)
 			Form->m_Preview = Job.PreviewWas;
+		if (Job.PushedState)
+			UI->EndEState(esEditLibrary);
 		GLODJob.reset(); // (the progress window closes on its next frame)
 		return;
 	}
@@ -391,8 +406,11 @@ void UIEditLibrary::LODJobUpdate()
 	const shared_str Name = Job.Names[Job.Next++];
 	if (!Form || !Form->bOpen)
 		Show();
-	if (UI->GetEState() != esEditLibrary)
+	if (UI->GetEState() != esEditLibrary && !Job.PushedState)
+	{
 		UI->BeginEState(esEditLibrary);
+		Job.PushedState = true;
+	}
 	Form->ChangeReference(SharedStrVec{Name});
 	CEditableObject* O = Form->m_pEditObjects.size() == 1 ? Form->m_pEditObjects[0]->GetReference() : nullptr;
 	if (!O || !O->IsMUStatic())
@@ -409,6 +427,7 @@ void UIEditLibrary::LODJobUpdate()
 	Job.Build->object = Job.Object;
 	Job.Build->quality = Job.HighQuality ? 4 /*7*/ : 1;
 	ImageLib.CreateLODCapture(*Job.Build);
+	Job.Object->LockCFModels(); // (an eviction meanwhile must leave the models the worker traces)
 	Job.Done = false;
 	Job.Worker = std::thread([&Job]()
 	{

@@ -374,7 +374,8 @@ void CEditableObject::EvictObject()
 {
 	EditMeshIt m 				= m_Meshes.begin();
 	for(;m!=m_Meshes.end();m++){
-		(*m)->UnloadCForm		();
+		if (0 == m_CFModelLocks) // Infernis: not while traced (LockCFModels)
+			(*m)->UnloadCForm	();
 		(*m)->UnloadVNormals	(true);
 		(*m)->UnloadSVertices	(true);
 		(*m)->UnloadFNormals	(true);

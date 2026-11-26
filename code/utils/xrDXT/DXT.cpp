@@ -170,9 +170,9 @@ int DXTCompressImage(LPCSTR out_name, u8* raw_data, u32 w, u32 h, u32 pitch, STe
     }
 
     HRESULT hr = -1;
-    // convert to Options
+    // convert to Options, over NVIDIA's defaults: zeroed, the options scaled every input and output value by 0 and
+    // every texture came out black
     nvCompressionOptions nvOpt;
-    std::memset(&nvOpt, 0, sizeof(nvOpt));
 
     if (fmt->flags.is(STextureParams::flGenerateMipMaps))
         nvOpt.mipMapGeneration = kGenerateMipMaps;

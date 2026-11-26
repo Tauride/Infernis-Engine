@@ -14,6 +14,11 @@ bool CEditorRenderDevice::MakeScreenshot(U32Vec& pixels, u32 width, u32 height)
     // free managed resource
     Resources->Evict();
 
+    // Infernis: before the targets are taken: a pending resize resets the device, which D3D9 refuses while the
+    // screenshot's render target exists (GSC prepared the redraw after creating it; the reset then failed forever
+    // when a LOD was made before the first frame after a load).
+	UI->PrepareRedraw	();
+
     IDirect3DSurface9* 	poldZB=nullptr;
    // IDirect3DSurface9* 	pZB=0;
     IDirect3DSurface9* 	pRT=nullptr;
@@ -27,7 +32,6 @@ bool CEditorRenderDevice::MakeScreenshot(U32Vec& pixels, u32 width, u32 height)
 	CHK_DX(REDevice->CreateRenderTarget(width,height,D3DFMT_A8R8G8B8,D3DMULTISAMPLE_NONE,0,false,&pRT,nullptr));
 	CHK_DX(REDevice->SetRenderTarget(0,pRT));
 
-	UI->PrepareRedraw	();
     EDevice->Begin		();
     Tools->Render		();
     EDevice->End			();

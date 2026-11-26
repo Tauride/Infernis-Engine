@@ -21,7 +21,9 @@ public:
         thDestroyOnComplete = TRUE;
     }
     virtual ~CThread() {}
-    void Start() { std::thread worker(startup, this); }
+    // The manager waits on thCompleted, not on the thread: detached (a joinable std::thread destroyed unjoined
+    // calls std::terminate).
+    void Start() { std::thread(startup, this).detach(); }
     virtual void Execute() = 0;
 };
 

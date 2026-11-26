@@ -10,9 +10,10 @@ void CThread::startup(void* P) {
         clMsg("* THREAD #%d: Started.", T->thID);
     FPU::m64r();
     T->Execute();
-    T->thCompleted = TRUE;
+    // The manager deletes a thread once it is completed: thCompleted is the last access to T
     if (T->thMessages)
         clMsg("* THREAD #%d: Task Completed.", T->thID);
+    T->thCompleted = TRUE;
 }
 
 void CThreadManager::start(CThread* T) {

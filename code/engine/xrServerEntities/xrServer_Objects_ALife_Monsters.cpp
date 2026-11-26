@@ -1078,7 +1078,10 @@ void CSE_ALifeMonsterAbstract::STATE_Write(NET_Packet& tNetPacket) {
     tNetPacket.w_stringZ(m_out_space_restrictors);
     tNetPacket.w_stringZ(m_in_space_restrictors);
     tNetPacket.w_u16(m_smart_terrain_id);
-    tNetPacket.w(&m_task_reached, sizeof(m_task_reached));
+    if (tNetPacket.has_inistream()) // the editors' scene files: a key (GSC's SDK writes a u16)
+        tNetPacket.w_u16(m_task_reached ? 1 : 0);
+    else
+        tNetPacket.w(&m_task_reached, sizeof(m_task_reached));
     tNetPacket.w_u8(m_mutant_loot_collected ? 1 : 0);
 }
 
@@ -1094,7 +1097,10 @@ void CSE_ALifeMonsterAbstract::STATE_Read(NET_Packet& tNetPacket, u16 size) {
         tNetPacket.r_u16(m_smart_terrain_id);
 
     if (m_wVersion > 113) {
-        tNetPacket.r(&m_task_reached, sizeof(m_task_reached));
+        if (tNetPacket.has_inistream()) // the editors' scene files: a key (GSC's SDK writes a u16)
+            m_task_reached = tNetPacket.r_u16() != 0;
+        else
+            tNetPacket.r(&m_task_reached, sizeof(m_task_reached));
     }
 
     m_mutant_loot_collected = m_wVersion > 128 ? !!tNetPacket.r_u8() : false;

@@ -72,6 +72,8 @@ CALifeHumanBrain::~CALifeHumanBrain() {
 }
 
 void CALifeHumanBrain::on_state_write(NET_Packet& packet) {
+    if (packet.has_inistream()) // the editors' scene files do not keep the preferences (raw blocks), as GSC's SDK
+        return;
     save_data(m_cpEquipmentPreferences, packet);
     save_data(m_cpMainWeaponPreferences, packet);
 }
@@ -104,6 +106,8 @@ void CALifeHumanBrain::on_state_read(NET_Packet& packet) {
         load_data(temp, packet);
     }
 
+    if (packet.has_inistream()) // the editors' scene files do not keep the preferences (raw blocks), as GSC's SDK
+        return;
     load_data(m_cpEquipmentPreferences, packet);
     load_data(m_cpMainWeaponPreferences, packet);
 }

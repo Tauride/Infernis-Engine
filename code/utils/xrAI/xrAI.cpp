@@ -124,6 +124,11 @@ void Startup(LPSTR lpCmdLine) {
 
     xr_strcpy(cmd, lpCmdLine);
     strlwr(cmd);
+    // -silent (as xrLC and xrDO_Light): no closing box. Blanked out here, or the options found with strstr would take
+    // it for -s (spawn).
+    const bool Silent = strstr(cmd, "-silent") != nullptr;
+    if (char* SilentOption = strstr(cmd, "-silent"))
+        std::memset(SilentOption, ' ', xr_strlen("-silent"));
     if (strstr(cmd, "-?") || strstr(cmd, "-h")) {
         Help();
         return;
@@ -140,7 +145,7 @@ void Startup(LPSTR lpCmdLine) {
     // Give a LOG-thread a chance to startup
     InitCommonControls();
     Sleep(150);
-	std::thread log_thread(logThread);
+	std::thread(logThread).detach(); // runs until the process ends (a joinable std::thread destroyed unjoined calls std::terminate)
     while (!logWindow)
         Sleep(150);
 
@@ -152,7 +157,8 @@ void Startup(LPSTR lpCmdLine) {
     extern HWND logWindow;
     u32 dwEndTime = timeGetTime();
     xr_sprintf(stats, "Time elapsed: %s", make_time((dwEndTime - dwStartupTime) / 1000).c_str());
-    MessageBox(logWindow, stats, "Congratulation!", MB_OK | MB_ICONINFORMATION);
+    if (!Silent)
+        MessageBox(logWindow, stats, "Congratulation!", MB_OK | MB_ICONINFORMATION);
 
     bClose = TRUE;
     FlushLog();
@@ -183,9 +189,16 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     R_ASSERT2(hFactory,
               "Factory DLL raised exception during loading or there is no factory DLL at all");
 
+    // __stdcall names are decorated on x86 only
+#ifdef _WIN64
+    create_entity = (Factory_Create*)GetProcAddress(hFactory, "create_entity");
+    R_ASSERT(create_entity);
+    destroy_entity = (Factory_Destroy*)GetProcAddress(hFactory, "destroy_entity");
+#else
     create_entity = (Factory_Create*)GetProcAddress(hFactory, "_create_entity@4");
     R_ASSERT(create_entity);
     destroy_entity = (Factory_Destroy*)GetProcAddress(hFactory, "_destroy_entity@4");
+#endif
     R_ASSERT(destroy_entity);
 
     Startup(lpCmdLine);

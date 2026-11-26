@@ -1,3 +1,9 @@
+// Infernis: the editors (code/editors) and their build of xrSE_Factory use the editors' property types (IX-Ray's),
+// so that entity property pages and the editors' property grid agree on every class. The game and the compilers
+// keep GSC's below.
+#if defined(XRSE_FACTORY_EDITOR) || defined(_EDITOR)
+#include "../../editors/Public/xrEProps.h" // has the same include guard
+#else
 #ifndef xrEPropsH
 #define xrEPropsH
 
@@ -197,5 +203,5 @@ public:
 #ifdef __BORLANDC__
 extern "C" XR_EPROPS_API IListHelper& LHelper();
 #endif
-
-#endif
+#endif // xrEPropsH
+#endif // XRSE_FACTORY_EDITOR || _EDITOR

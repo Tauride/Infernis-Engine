@@ -15,6 +15,12 @@ option(BUILD_EDITORS "enable the level editor SDK (IX-Ray editors port, needs CM
 option(DEBUG_CAPS "enable debug capabilities" OFF)
 option(PNG_SCREENSHOTS "enable png format for the screenshots" OFF)
 
+if (BUILD_EDITORS)
+    # The whole editors' build (engine included) gets GSC's NET_Packet ini stream, which the Level Editor uses to keep
+    # server entities in its scene files. The game's own build (BUILD_EDITORS off) is unchanged.
+    add_compile_definitions(XR_NET_PACKET_INISTREAM)
+endif()
+
 configure_file(code/engine/xr_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/xr_config.h @ONLY)
 
 if (MSVC)
@@ -264,7 +270,16 @@ if (${BUILD_EDITORS})
     if (NOT ${BUILD_UTILS})
         add_subdirectory(code/utils/xrQSlim) # the editors' mesh simplifier
         add_subdirectory(code/utils/xrDXT)   # the editors' texture compressor (loaded by DXTUtils)
-        set_target_properties(xrQSlim xrDXT PROPERTIES FOLDER utils)
+        add_subdirectory(code/utils/ETools)  # GSC's editor tools (collision queries; the Level Editor)
+        set_target_properties(xrQSlim xrDXT ETools PROPERTIES FOLDER utils)
     endif()
     add_subdirectory(code/editors)
+    # The server entity factory as the Level Editor needs it (editor property types, linked to xrEProps); the
+    # compilers keep loading the plain xrSE_Factory.
+    set(SEF_TARGET xrSE_Factory_Editor)
+    set(SEF_FOR_EDITORS ON)
+    add_subdirectory(code/utils/xrSE_Factory ${CMAKE_BINARY_DIR}/code/editors/xrSE_Factory_Editor)
+    set_target_properties(xrSE_Factory_Editor PROPERTIES FOLDER editors)
+    unset(SEF_TARGET)
+    unset(SEF_FOR_EDITORS)
 endif()

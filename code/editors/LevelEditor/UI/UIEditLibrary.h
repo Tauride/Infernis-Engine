@@ -14,6 +14,12 @@ public:
 	// Infernis: Make LOD (high quality) for these objects (library names), with the preview on, for the unattended
 	// checks (-make_lods)
 	static void MakeLODs(const SharedStrVec& Objects);
+	// Infernis: Make LOD runs in steps across frames, with a progress window on top: the editor's main loop calls
+	// this each iteration (between frames)
+	static void LODJobUpdate();
+	static void StartLODs(const SharedStrVec& Objects); // opens the library and starts the job (high quality)
+	static bool LODJobRunning();
+	static void LODJobStop(); // cancels a running job and waits for its worker (before the editor shuts down)
 
 	ref_texture m_RealTexture;
 
@@ -36,7 +42,8 @@ private:
 	void OnPreviewClick();
 
 	void MakeLOD(bool highQuality);
-	void GenerateLOD(const SharedStrVec& props, bool bHighQuality);
+	void GenerateLOD(const SharedStrVec& props, bool bHighQuality); // starts the job (LODJobUpdate)
+	void GenerateLODNow(const SharedStrVec& props, bool bHighQuality); // on this thread, the editor waiting
 
 	void RefreshSelected();
 	void PickSurface();

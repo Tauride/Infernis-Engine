@@ -61,6 +61,18 @@ void CEditableObject::RayQuery(SPickQuery& pinf)
 		(*m)->RayQuery(pinf);
 }
 
+void CEditableObject::RayQuery(SPickQuery& pinf, CDB::COLLIDER& collider)
+{
+	for (CEditableMesh* Mesh : m_Meshes)
+		Mesh->RayQuery(pinf, collider);
+}
+
+void CEditableObject::PrepareCFModels()
+{
+	for (CEditableMesh* Mesh : m_Meshes)
+		Mesh->PrepareCFModel();
+}
+
 void CEditableObject::RayQuery(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf)
 {
 	for(EditMeshIt m = m_Meshes.begin();m!=m_Meshes.end();m++)
@@ -362,7 +374,8 @@ void CEditableObject::EvictObject()
 {
 	EditMeshIt m 				= m_Meshes.begin();
 	for(;m!=m_Meshes.end();m++){
-		(*m)->UnloadCForm		();
+		if (0 == m_CFModelLocks) // Infernis: not while traced (LockCFModels)
+			(*m)->UnloadCForm	();
 		(*m)->UnloadVNormals	(true);
 		(*m)->UnloadSVertices	(true);
 		(*m)->UnloadFNormals	(true);

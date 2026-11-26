@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <xmmintrin.h>
 
 
 #include "ImageManager.h"
@@ -10,11 +11,9 @@
 using Fvector4Vec = xr_vector<Fvector4>;
 using Fvector4It = Fvector4Vec::iterator;
 
-bool GetPointColor(SPickQuery::SResult* R, u32& alpha, u32& color)
+// The texel the ray hit on a surface that renders: false when its pixels are missing
+static bool GetPointColorOfSurface(CSurface* surf, SPickQuery::SResult* R, u32& alpha, u32& color)
 {
-    CSurface* surf			= R->e_mesh->GetSurfaceByFaceID(R->tag); VERIFY(surf);
-    Shader_xrLC* c_sh		= EDevice->ShaderXRLC.Get(surf->_ShaderXRLCName());
-    if (!c_sh->flags.bRendering) return false;
     const Fvector2*			cuv[3];
     R->e_mesh->GetFaceTC	(R->tag,cuv);
 
@@ -85,6 +84,7 @@ void CreateLODSamples(const Fbox& bbox, U32Vec& tgt_data, u32 tgt_w, u32 tgt_h)
 	U32Vec 	s_pixels,d_pixels;
     Fmatrix save_projection		= EDevice->mProject;
     Fmatrix save_view			= EDevice->mView;
+    Fmatrix save_full			= EDevice->mFullTransform; // Infernis: the captures set it (and the frustum)
 
     // save render params
     Flags32 old_flag			= psDeviceFlags;
@@ -148,196 +148,262 @@ void CreateLODSamples(const Fbox& bbox, U32Vec& tgt_data, u32 tgt_w, u32 tgt_h)
 
     RCache.set_xform_view		(save_view);
     RCache.set_xform_project	(save_projection);
+    EDevice->mFullTransform		= save_full;
+    ::Render->ViewBase.CreateFromMatrix(save_full, FRUSTUM_P_ALL);
 }
 
-void CImageManager::CreateLODTexture(CEditableObject* OBJECT, U32Vec& lod_pixels, U32Vec& nm_pixels, u32 tgt_w, u32 tgt_h, int _samples, int quality)
+// Infernis: the surface's shader renders (CreateLODCapture looked it up: ShaderXRLC.Get scans the library)
+static bool SurfaceRenders(const SLODBuild& build, const CSurface* surf)
 {
+    for (const auto& Entry : build.rendering)
+        if (Entry.first == surf)
+            return Entry.second;
+    return false;
+}
+
+static bool GetPointColor(const SLODBuild& build, SPickQuery::SResult* R, u32& alpha, u32& color)
+{
+    CSurface* surf = R->e_mesh->GetSurfaceByFaceID(R->tag); VERIFY(surf);
+    if (!SurfaceRenders(build, surf))
+        return false;
+    return GetPointColorOfSurface(surf, R, alpha, color);
+}
+
+void CImageManager::CreateLODCapture(SLODBuild& build)
+{
+    CEditableObject* OBJECT = build.object;
+    build.lod_pixels.assign(LOD_IMAGE_SIZE * LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, 0);
+    build.nm_pixels.assign(LOD_IMAGE_SIZE * LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, 0);
+    build.rows_total = LOD_SAMPLE_COUNT * LOD_IMAGE_SIZE;
+    build.rows_done = 0;
+    build.fp_modes = _mm_getcsr();
+
+    // the views (the GPU: this thread, between frames)
+    CreateLODSamples(OBJECT->GetBox(), build.lod_pixels, LOD_IMAGE_SIZE, LOD_IMAGE_SIZE);
+
+    // what the ray tracing reads, made here on one thread: the textures' pixels, the meshes' collision models, and
+    // whether each surface renders
+    build.rendering.clear();
+    for (CSurface* surf : OBJECT->Surfaces())
+    {
+        Shader_xrLC* c_sh = EDevice->ShaderXRLC.Get(surf->_ShaderXRLCName());
+        const bool renders = c_sh && c_sh->flags.bRendering;
+        build.rendering.emplace_back(surf, renders);
+        if (renders && nullptr == surf->m_ImageData)
+            surf->CreateImageData();
+    }
+    OBJECT->PrepareCFModels();
+}
+
+void CImageManager::CreateLODCompute(SLODBuild& build)
+{
+    CEditableObject* OBJECT = build.object;
+    CTimer Timer;
+    Timer.Start();
+
     // build hemi light
-    BLVec						simple_hemi;
-    // fill simple hemi
-    simple_hemi.clear();
+    BLVec simple_hemi;
     xrHemisphereBuild(1, 2.f, simple_hemi_callback, &simple_hemi);
 
     Fbox bb = OBJECT->GetBox();
-
-    // build lod normals
-    lod_pixels.resize(LOD_IMAGE_SIZE * LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, 0);
-    nm_pixels.resize(LOD_IMAGE_SIZE * LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, 0);
+    U32Vec& lod_pixels = build.lod_pixels;
+    U32Vec& nm_pixels = build.nm_pixels;
     U32Vec hemi_tmp(LOD_IMAGE_SIZE * LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, 0);
-    Fvector 					o_center, o_size;
-    Fmatrix 					M, Mi;
+    Fvector o_center, o_size;
     bb.getradius(o_size);
     bb.getcenter(o_center);
-    SPBItem* PB = UI->ProgressStart(LOD_SAMPLE_COUNT * LOD_IMAGE_SIZE, OBJECT->GetName());
-    float dW = std::max(o_size.x, o_size.z) / (LOD_IMAGE_SIZE / 2);
-    float dH = o_size.y / (LOD_IMAGE_SIZE / 2);
-    float dR = bb.getradius();
-    float d2R = dR * 2.f;
+    const float dW = std::max(o_size.x, o_size.z) / (LOD_IMAGE_SIZE / 2);
+    const float dH = o_size.y / (LOD_IMAGE_SIZE / 2);
+    const float dR = bb.getradius();
+    const float d2R = dR * 2.f;
 
-    CreateLODSamples(bb, lod_pixels, LOD_IMAGE_SIZE, LOD_IMAGE_SIZE);
+    const float LOD_CALC_SAMPLES = float(build.quality);
+    const s32 LOD_CALC_SAMPLES_LIM = build.quality / 2;
 
-    float tN = 0.f, tH = 0.f, tT = 0.f, tR = 0.f;
-
-    float 	LOD_CALC_SAMPLES = quality;
-    s32		LOD_CALC_SAMPLES_LIM = LOD_CALC_SAMPLES / 2;
-
-    // preload textures
-    for (SurfaceIt surf_it = OBJECT->Surfaces().begin(); surf_it != OBJECT->Surfaces().end(); surf_it++) {
-        CSurface* surf = *surf_it;
-        Shader_xrLC* c_sh = EDevice->ShaderXRLC.Get(surf->_ShaderXRLCName());
-        if (!c_sh->flags.bRendering) continue;
-        if (nullptr == surf->m_ImageData)surf->CreateImageData();
-    }
-
-    // calculate
-    for (u32 sample_idx = 0; sample_idx < LOD_SAMPLE_COUNT; sample_idx++)
+    // Infernis: the rows of the eight views in parallel (each pixel writes only its own texels), each worker with its
+    // own collider. IX-Ray and GSC traced them on one thread, with the editor waiting.
+    // (every row with the main thread's floating point modes, taken by the capture: the pool's threads have their
+    // own, and the rows are traced the same whichever thread takes them)
+    const unsigned int CallerCSR = build.fp_modes;
+    auto TraceRow = [&](int row)
     {
-        float angle = sample_idx * (PI_MUL_2 / LOD_SAMPLE_COUNT);
+        if (build.cancel)
+            return;
+        _mm_setcsr(CallerCSR);
+        thread_local CDB::COLLIDER Collider;
+        Collider.ray_options(CDB::OPT_CULL);
+
+        const u32 sample_idx = u32(row) / LOD_IMAGE_SIZE;
+        const s32 iH = row % LOD_IMAGE_SIZE;
+        Fmatrix M, Mi;
+        const float angle = sample_idx * (PI_MUL_2 / LOD_SAMPLE_COUNT);
         M.setXYZ(0, angle, 0);
         M.translate_over(o_center);
         Mi.invert(M);
-        for (s32 iH = 0; iH < LOD_IMAGE_SIZE; iH++)
+
+        const float Y = (iH - (LOD_IMAGE_SIZE - 1) / 2) * dH;
+        FvectorVec n_vec;
+        Fvector4Vec sample_pt_vec;
+        SPickQuery PQ;
+        for (s32 iW = 0; iW < LOD_IMAGE_SIZE; iW++)
         {
-            PB->Inc();
-            float Y = (iH - (LOD_IMAGE_SIZE - 1) / 2) * dH;
-            for (s32 iW = 0; iW < LOD_IMAGE_SIZE; iW++)
+            const float X = (iW - (LOD_IMAGE_SIZE) / 2) * dW;
+
+            const u32 pixel = (LOD_IMAGE_SIZE - iH - 1) * LOD_SAMPLE_COUNT * LOD_IMAGE_SIZE + LOD_IMAGE_SIZE * sample_idx + iW;
+            u32& tgt_c = lod_pixels[pixel];
+            u32& tgt_n = nm_pixels[pixel];
+            u32& tgt_h = hemi_tmp[pixel];
+
+            n_vec.clear();
+            sample_pt_vec.clear();
+            Fvector start;
+            for (s32 iiH = -LOD_CALC_SAMPLES_LIM; iiH <= LOD_CALC_SAMPLES_LIM; iiH++)
             {
-                float X = (iW - (LOD_IMAGE_SIZE) / 2) * dW;
-
-                u32 pixel = (LOD_IMAGE_SIZE - iH - 1) * LOD_SAMPLE_COUNT * LOD_IMAGE_SIZE + LOD_IMAGE_SIZE * sample_idx + iW;
-                u32& tgt_c = lod_pixels[pixel];
-                u32& tgt_n = nm_pixels[pixel];
-                u32& tgt_h = hemi_tmp[pixel];
-
-                FvectorVec		n_vec;
-                Fvector4Vec		sample_pt_vec;
-                Fvector			start;
-                CTimer 	TT, TT1;
-                TT.Start();
-                SPickQuery 		PQ;
-                for (s32 iiH = -LOD_CALC_SAMPLES_LIM; iiH <= LOD_CALC_SAMPLES_LIM; iiH++)
+                const float dY = iiH * (dH / LOD_CALC_SAMPLES);
+                for (s32 iiW = -LOD_CALC_SAMPLES_LIM; iiW <= LOD_CALC_SAMPLES_LIM; iiW++)
                 {
-                    float dY = iiH * (dH / LOD_CALC_SAMPLES);
-                    for (s32 iiW = -LOD_CALC_SAMPLES_LIM; iiW <= LOD_CALC_SAMPLES_LIM; iiW++) 
+                    const float dX = iiW * (dW / LOD_CALC_SAMPLES);
+                    start.set(X + dX, Y + dY, 0);
+                    M.transform_tiny(start);
+                    start.mad(M.k, -dR);
+                    PQ.prepare_rq(start, M.k, d2R, CDB::OPT_CULL);
+                    OBJECT->RayQuery(PQ, Collider);
+
+                    if (PQ.r_count())
                     {
-                        float dX = iiW * (dW / LOD_CALC_SAMPLES);
-                        start.set(X + dX, Y + dY, 0);
-                        M.transform_tiny(start);
-                        start.mad(M.k, -dR);
-                        PQ.prepare_rq(start, M.k, d2R, CDB::OPT_CULL);
-                        OBJECT->RayQuery(PQ);
+                        PQ.r_sort();
+                        Fvector N = { 0,0,0 };
 
-                        if (PQ.r_count()) 
+                        for (s32 k = PQ.r_count() - 1; k >= 0; k--)
                         {
-                            PQ.r_sort();
-                            Fvector N = { 0,0,0 };
-
-                            for (s32 k = PQ.r_count() - 1; k >= 0; k--) 
+                            SPickQuery::SResult* R = PQ.r_begin() + k;
+                            u32 uA, uC;
+                            if (!GetPointColor(build, R, uA, uC)) continue;
+                            const float fA = float(uA) / 255.f;
+                            if (uA)
                             {
-                                SPickQuery::SResult* R = PQ.r_begin() + k;
-                                u32 	uA, uC;
-                                if (!GetPointColor(R, uA, uC)) continue;
-                                float	fA = float(uA) / 255.f;
-                                if (uA) 
-                                {
-                                    Fvector  pt; 	pt.mad(PQ.m_Start, PQ.m_Direction, R->range - EPS_L);
-                                    Fvector4 ptt;	ptt.set(pt.x, pt.y, pt.z, fA);
-                                    sample_pt_vec.push_back(ptt);
-                                }
-                                // normal
-                                Fvector Nn;
-                                Nn.mknormal(R->verts[0], R->verts[1], R->verts[2]);
-                                Nn.mul(fA);
-
-                                N.mul(1.f - fA);
-                                N.add(Nn);
+                                Fvector pt; pt.mad(PQ.m_Start, PQ.m_Direction, R->range - EPS_L);
+                                Fvector4 ptt; ptt.set(pt.x, pt.y, pt.z, fA);
+                                sample_pt_vec.push_back(ptt);
                             }
+                            // normal
+                            Fvector Nn;
+                            Nn.mknormal(R->verts[0], R->verts[1], R->verts[2]);
+                            Nn.mul(fA);
 
-                            float n_mag = N.magnitude();
-                            if (!fis_zero(n_mag, EPS))
-                                n_vec.push_back(N.div(n_mag));
+                            N.mul(1.f - fA);
+                            N.add(Nn);
                         }
+
+                        const float n_mag = N.magnitude();
+                        if (!fis_zero(n_mag, EPS))
+                            n_vec.push_back(N.div(n_mag));
                     }
                 }
-                tN += TT.GetElapsed_sec();
-
-                Fvector N = { 0,0,0 };
-                if (!n_vec.empty()) 
-                {
-                    for (FvectorIt it = n_vec.begin(); it != n_vec.end(); it++) N.add(*it);
-                    N.div(n_vec.size());
-                    N.normalize_safe();
-                    Mi.transform_dir(N);
-                }
-
-                N.mul(0.5f);
-                N.add(0.5f);
-                N.mul(255.f);
-                tgt_n = color_rgba(iFloor(N.x), iFloor(N.y), iFloor(N.z), color_get_A(tgt_c));
-
-                if (0 == color_get_A(tgt_c)) 
-                    continue;
-
-                TT.Start();
-                // light points
-                float res_transp = 0.f;
-                for (Fvector4It pt_it = sample_pt_vec.begin(); pt_it != sample_pt_vec.end(); pt_it++)
-                {
-                    float avg_transp = 0.f;
-                    for (BLIt it = simple_hemi.begin(); it != simple_hemi.end(); it++) 
-                    {
-                        TT1.Start();
-                        Fvector 		start;
-                        start.mad(Fvector().set(pt_it->x, pt_it->y, pt_it->z), it->light.direction, -dR);
-                        PQ.prepare_rq(start, it->light.direction, dR, CDB::OPT_CULL);
-                        OBJECT->RayQuery(PQ);
-                        tR += TT1.GetElapsed_sec();
-                        float ray_transp = 1.f;
-
-                        if (PQ.r_count()) 
-                        {
-                            for (s32 k = 0; k < PQ.r_count(); k++)
-                            {
-                                u32 	a, uC;
-                                TT1.Start();
-                                if (!GetPointColor(PQ.r_begin() + k, a, uC)) continue;
-                                tT += TT1.GetElapsed_sec();
-                                ray_transp *= (1.f - float(a) / 255.f);
-                                if (fis_zero(ray_transp, EPS_L)) break;
-                            }
-                        }
-                        avg_transp += ray_transp;
-                    }
-                    avg_transp /= simple_hemi.size();
-                    res_transp = res_transp * (1.f - pt_it->w) + avg_transp * pt_it->w;
-                }
-                tH += TT.GetElapsed_sec();
-                u8 h = (u8)iFloor(res_transp * 255.f);
-                tgt_h = color_rgba(h, h, h, color_get_A(tgt_c));
             }
-        }
-    }
 
-    Msg("Normal: %3.2fsec, Hemi: %3.2f, PC: %3.2f, RP: %3.2f", tN, tH, tT, tR);
+            Fvector N = { 0,0,0 };
+            if (!n_vec.empty())
+            {
+                for (const Fvector& n : n_vec) N.add(n);
+                N.div(float(n_vec.size()));
+                N.normalize_safe();
+                Mi.transform_dir(N);
+            }
+
+            N.mul(0.5f);
+            N.add(0.5f);
+            N.mul(255.f);
+            tgt_n = color_rgba(iFloor(N.x), iFloor(N.y), iFloor(N.z), color_get_A(tgt_c));
+
+            if (0 == color_get_A(tgt_c))
+                continue;
+
+            // light points (far to near). Infernis: from the nearest opaque one: res_transp * (1 - 1) drops all the
+            // points behind it, so their hemisphere rays changed nothing (the same result, without them)
+            float res_transp = 0.f;
+            size_t first_pt = 0;
+            for (size_t i = sample_pt_vec.size(); i-- > 0;)
+                if (sample_pt_vec[i].w >= 1.f)
+                {
+                    first_pt = i;
+                    break;
+                }
+            for (size_t pt_idx = first_pt; pt_idx < sample_pt_vec.size(); pt_idx++)
+            {
+                const Fvector4& pt = sample_pt_vec[pt_idx];
+                float avg_transp = 0.f;
+                for (const SBuildLight& light : simple_hemi)
+                {
+                    Fvector hemi_start;
+                    hemi_start.mad(Fvector().set(pt.x, pt.y, pt.z), light.light.direction, -dR);
+                    PQ.prepare_rq(hemi_start, light.light.direction, dR, CDB::OPT_CULL);
+                    OBJECT->RayQuery(PQ, Collider);
+                    float ray_transp = 1.f;
+
+                    for (s32 k = 0; k < PQ.r_count(); k++)
+                    {
+                        u32 a, uC;
+                        if (!GetPointColor(build, PQ.r_begin() + k, a, uC)) continue;
+                        ray_transp *= (1.f - float(a) / 255.f);
+                        if (fis_zero(ray_transp, EPS_L)) break;
+                    }
+                    avg_transp += ray_transp;
+                }
+                avg_transp /= simple_hemi.size();
+                res_transp = res_transp * (1.f - pt.w) + avg_transp * pt.w;
+            }
+            const u8 h = (u8)iFloor(res_transp * 255.f);
+            tgt_h = color_rgba(h, h, h, color_get_A(tgt_c));
+        }
+        build.rows_done++;
+    };
+    concurrency::parallel_for(0, int(build.rows_total), TraceRow);
+    if (build.cancel)
+        return;
+
     ImageLib.ApplyBorders(lod_pixels, LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, LOD_IMAGE_SIZE);
     ImageLib.ApplyBorders(nm_pixels, LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, LOD_IMAGE_SIZE);
     ImageLib.ApplyBorders(hemi_tmp, LOD_IMAGE_SIZE * LOD_SAMPLE_COUNT, LOD_IMAGE_SIZE);
 
     // fill alpha to N-channel (HEMI)
-    for (int px_idx = 0; px_idx<int(nm_pixels.size()); px_idx++)
+    for (size_t px_idx = 0; px_idx < nm_pixels.size(); px_idx++)
         nm_pixels[px_idx] = subst_alpha(nm_pixels[px_idx], color_get_R(hemi_tmp[px_idx]));
 
-    UI->ProgressEnd(PB);
+    build.seconds = Timer.GetElapsed_sec();
+}
+
+void CImageManager::CreateLODTexture(CEditableObject* OBJECT, U32Vec& lod_pixels, U32Vec& nm_pixels, u32 tgt_w, u32 tgt_h, int _samples, int quality)
+{
+    SLODBuild build;
+    build.object = OBJECT;
+    build.quality = quality;
+    CreateLODCapture(build);
+    CreateLODCompute(build);
+    Msg("LOD '%s': %.1f s", OBJECT->GetName(), build.seconds);
+    lod_pixels.swap(build.lod_pixels);
+    nm_pixels.swap(build.nm_pixels);
 }
 
 //------------------------------------------------------------------------------
-// 
+//
 //------------------------------------------------------------------------------
 void CImageManager::CreateLODTexture(CEditableObject* OBJECT, const char* tex_name, u32 tgt_w, u32 tgt_h, int samples, time_t age, int quality)
 {
-    U32Vec lod_pixels, nm_pixels;
+    SLODBuild build;
+    build.object = OBJECT;
+    build.quality = quality;
+    CreateLODCapture(build);
+    CreateLODCompute(build);
+    Msg("LOD '%s': %.1f s", OBJECT->GetName(), build.seconds);
+    SaveLODTexture(build, tex_name, age);
+}
 
-    CreateLODTexture(OBJECT, lod_pixels, nm_pixels, tgt_w, tgt_h, samples, quality);
+void CImageManager::SaveLODTexture(const SLODBuild& build, const char* tex_name, time_t age)
+{
+    const u32 tgt_w = LOD_IMAGE_SIZE, tgt_h = LOD_IMAGE_SIZE, samples = LOD_SAMPLE_COUNT;
+    U32Vec& lod_pixels = const_cast<U32Vec&>(build.lod_pixels); // (MakeTGA takes them by reference; it only reads)
+    U32Vec& nm_pixels = const_cast<U32Vec&>(build.nm_pixels);
 
     string_path out_name, src_name;
     // save lod

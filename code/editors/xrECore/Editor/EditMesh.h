@@ -336,6 +336,9 @@ public:
 	bool            RayPick					(float& dist, const Fvector& start, const Fvector& dir, const Fmatrix& inv_parent, SRayPickInfo* pinf = nullptr);
 #if 1
 	void            RayQuery				(SPickQuery& pinf);
+	// Infernis: with the caller's collider and its options (the global one is not for several threads)
+	void            RayQuery				(SPickQuery& pinf, CDB::COLLIDER& collider);
+	void            PrepareCFModel			() { if (!m_CFModel) GenerateCFModel(); }
 	void            RayQuery				(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf);
 	void            BoxQuery				(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf);
 	bool 			BoxPick					(const Fbox& box, const Fmatrix& inv_parent, SBoxPickInfoVec& pinf);

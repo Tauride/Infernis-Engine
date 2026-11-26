@@ -232,6 +232,7 @@ public:
 
 	xr_string		m_LoadName;
 	int				m_RefCount;
+	int				m_CFModelLocks = 0; // Infernis: the meshes' collision models are traced (EvictObject keeps them)
 protected:
 	shared_str		AssignBoneName;
 
@@ -363,6 +364,12 @@ public:
 	void			RenameBone				(CBone* bone, const char* new_name);
 
 	void 			RayQuery				(SPickQuery& pinf);
+	// Infernis: with the caller's collider (several threads at once: call PrepareCFModels first, on one thread)
+	void 			RayQuery				(SPickQuery& pinf, CDB::COLLIDER& collider);
+	void 			PrepareCFModels			();
+	// While locked (main thread), EvictObject keeps the collision models: a worker traces them (Make LOD's job)
+	void 			LockCFModels			() { m_CFModelLocks++; }
+	void 			UnlockCFModels			() { VERIFY(m_CFModelLocks > 0); m_CFModelLocks--; }
 	void 			RayQuery				(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf);
 	void 			BoxQuery				(const Fmatrix& parent, const Fmatrix& inv_parent, SPickQuery& pinf);
 	bool 			BoxPick					(CCustomObject* obj, const Fbox& box, const Fmatrix& inv_parent, SBoxPickInfoVec& pinf);

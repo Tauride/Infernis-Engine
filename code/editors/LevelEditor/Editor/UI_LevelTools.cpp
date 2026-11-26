@@ -398,6 +398,9 @@ void CLevelTool::GetCurrentFog(u32& fog_color, float& s_fog, float& e_fog)
 	{
 		s_fog = psDeviceFlags.is(rsFog) ? (1.0f - fFogness) * 0.85f * UI->ZFar() : 0.99f * UI->ZFar();
 		e_fog = psDeviceFlags.is(rsFog) ? 0.91f * UI->ZFar() : UI->ZFar();
+		// Infernis: the preferences' fog colour, as CToolCustom's. IX-Ray's left it unset, and the fog took whatever
+		// was on the caller's stack.
+		fog_color = dwFogColor;
 	}
 }
 

@@ -33,6 +33,10 @@ float PAPI::NRand(float sigma) {
 // Stuff for the pDomain.
 pDomain::pDomain(PDomainEnum dtype, float a0, float a1, float a2, float a3, float a4, float a5,
                  float a6, float a7, float a8) {
+    // Each type sets only its own fields; the rest are zeroed, since compiled action lists store whole domains
+    // (particles.xr, written by the editors).
+    p1 = p2 = u = v = pVector(0.0f, 0.0f, 0.0f);
+    radius1 = radius2 = radius1Sqr = radius2Sqr = 0.0f;
     type = dtype;
     switch (type) {
     case PDPoint:

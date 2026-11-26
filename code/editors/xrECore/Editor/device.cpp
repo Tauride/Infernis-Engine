@@ -1,0 +1,709 @@
+﻿//---------------------------------------------------------------------------
+#include "stdafx.h"
+#include "xrEngine/Engine.h"
+
+#include "xrEngine/GameFont.h"
+#include <sal.h>
+#include "ImageManager.h"
+#include "ui_main.h"
+#include "render.h"
+#include "../Engine/GameMtlLib.h"
+#include "EditorFonts.h"
+#include "xrRenderCommon/ResourceManager.h"
+#include "xrRenderCommon/dxRenderDeviceRender.h"
+#include "UI_ToolsCustom.h"
+#include "SoundProcessor.h"
+#include "device_win_custom.h"
+CEditorRenderDevice 	*	EDevice;
+bool g_bIsEditor;
+
+void CEditorRenderDevice::AddSeqFrame(pureFrame* f, bool mt) { seqFrame.Add(f, REG_PRIORITY_LOW); }
+void CEditorRenderDevice::RemoveSeqFrame(pureFrame* f) { seqFrame.Remove(f); }
+
+extern ENGINE_API BOOL g_bRendering; // Infernis: the engine's flag (device.cpp)
+//---------------------------------------------------------------------------
+#include <luabind/luabind.hpp>
+void EditorFillPropTextureParams(STextureParams* ThisCall, const char* base_name, xr_vector<PropItem*>& items, PropValue::TOnChange OnChangeEvent);
+
+static LPVOID __cdecl luabind_allocator(
+	luabind::memory_allocation_function_parameter const,
+	void const* const pointer,
+	size_t const size
+)
+{
+	if (!size)
+	{
+		LPVOID	non_const_pointer = const_cast<LPVOID>(pointer);
+		xr_free(non_const_pointer);
+		return	(nullptr);
+	}
+
+	if (!pointer)
+	{
+		return	(Memory.mem_alloc(size));
+	}
+
+	LPVOID non_const_pointer = const_cast<LPVOID>(pointer);
+	return (Memory.mem_realloc(non_const_pointer, size));
+}
+
+void setup_luabind_allocator()
+{
+	luabind::allocator = &luabind_allocator;
+	luabind::allocator_parameter = nullptr;
+}
+
+
+CEditorRenderDevice::CEditorRenderDevice()
+{
+	RenderRadius = 400;
+	psDeviceFlags.assign(rsStatistic|rsFilterLinear|rsFog|rsDrawGrid);
+// default initialization
+    m_ScreenQuality = 1.f;
+	//dwMaximized = 0;
+    dwWidth 		= dwHeight 	= 256;
+	dwRealWidth = dwRealHeight = 256;
+	mProject.identity();
+    mFullTransform.identity();
+    mView.identity	();
+	m_WireShader	= nullptr;
+	m_SelectionShader = nullptr;
+
+    b_is_Ready 			= false;
+	b_is_Active			= false;
+
+	// Engine flow-control
+	fTimeDelta		= 0;
+	fTimeGlobal		= 0;
+	dwTimeDelta		= 0;
+	dwTimeGlobal	= 0;
+
+	dwFillMode		= D3DFILL_SOLID;
+    dwShadeMode		= D3DSHADE_GOURAUD;
+
+    m_CurrentShader	= nullptr;
+    //pSystemFont		= 0;
+
+	fASPECT 		= 1.f;
+	fFOV 			= 60.f;
+    dwPrecacheFrame = 0;
+	// Infernis: Infernis's material library (GMLib) with its editor methods (Engine/GameMtlLibEditor.cpp)
+	// instead of IX-Ray's editing subclass.
+	PGMLib = &GMLib;
+
+	DevicePtr = this;
+	g_bIsEditor = true;
+
+	setup_luabind_allocator();
+	// Infernis: STextureParams fills its own properties (no IX-Ray FillPropImpl hook)
+}
+
+CEditorRenderDevice::~CEditorRenderDevice()
+{
+	VERIFY(!b_is_Ready);
+}
+
+#include "xrAPI/xrAPI.h"
+#include "xrRenderCommon/dxRenderFactory.h"
+#include "xrRenderCommon/dxUIRender.h"
+#include "xrRenderCommon/dxDebugRender.h"
+// (IX-Ray appinfo.h: g_AppInfo is in compat/editor_compat.h)
+
+typedef void __cdecl ttapi_Done_func(void);
+
+void CEditorRenderDevice::Initialize()
+{
+    m_DefaultMat.set(1,1,1);
+
+	// Infernis: the engine object binds the CPU pipeline (xrCPU_Pipe.dll: software skinning and other PSGP
+	// routines) and the scheduler, as the game does at start. IX-Ray's engine has that pipeline built in.
+	Engine.Initialize();
+
+	RenderFactory = &RenderFactoryImpl;
+	UIRender = &UIRenderImpl;
+
+#ifdef DEBUG_DRAW
+	DRender = &DebugRenderImpl;
+#endif
+
+	// compiler shader
+    string_path fn;
+    FS.update_path(fn,_game_data_,"shaders_xrlc.xr");
+    if (FS.exist(fn)){
+    	ShaderXRLC.Load(fn);
+    }else{
+    	ELog.DlgMsg(mtInformation,"Can't find file '%s'",fn);
+    }
+	CreateWindow();
+
+
+	// Startup shaders
+	Create();
+
+    ::RImplementation.Initialize();
+	UIRenderImpl.CreateUIGeom();
+
+	Resize(EPrefs->start_w, EPrefs->start_h, EPrefs->start_maximized);
+
+	int Width = 0, Height = 0, PosX = 0, PosY = 0; // Infernis: IX-Ray keeps these in the engine
+	SDL_GetWindowSizeInPixels(g_AppInfo.Window, &Width, &Height);
+	SDL_GetWindowPosition(g_AppInfo.Window, &PosX, &PosY);
+
+	if (EPrefs->start_maximized)
+		SDL_MaximizeWindow(g_AppInfo.Window);
+	
+	SDL_ShowWindow(g_AppInfo.Window);
+	SDL_RaiseWindow(g_AppInfo.Window);
+	{
+		int PointsW = 0, PointsH = 0, PixelsW = 0, PixelsH = 0;
+		SDL_GetWindowSize(g_AppInfo.Window, &PointsW, &PointsH);
+		SDL_GetWindowSizeInPixels(g_AppInfo.Window, &PixelsW, &PixelsH);
+		Msg("* Editor window: %dx%d points, %dx%d pixels, display scale %.2f, UI scale %.2f, back buffer %ux%u",
+			PointsW, PointsH, PixelsW, PixelsH, SDL_GetWindowDisplayScale(g_AppInfo.Window), GUIManager->GetScaleDpi(),
+			dwRealWidth, dwRealHeight);
+	}
+	
+
+	if (psDeviceFlags.test(mtSound))
+	{
+		Device.seqFrameMT.Add(&SoundProcessor);
+	}
+	else
+	{
+		Device.seqFrame.Add(&SoundProcessor);
+	}
+}
+
+void CEditorRenderDevice::ShutDown()
+{
+	UIRenderImpl.DestroyUIGeom();
+	::RImplementation.ShutDown	();
+
+	ShaderXRLC.Unload	();
+
+	// destroy context
+	Destroy();
+	Engine.Destroy();
+
+	if (psDeviceFlags.test(mtSound))
+	{
+		Device.seqFrameMT.Remove(&SoundProcessor);
+	}
+	else
+	{
+		Device.seqFrame.Remove(&SoundProcessor);
+	}
+}
+
+void CEditorRenderDevice::InitTimer()
+{
+	Timer_MM_Delta = 0;
+	{
+		u32 time_mm = clock();
+		while (clock() == time_mm);			// wait for next tick
+		u32 time_system = clock();
+		u32 time_local = TimerAsync();
+		Timer_MM_Delta = time_system - time_local;
+	}
+}
+
+void CEditorRenderDevice::Clear()
+{
+	float ClearColor[4] = {};
+
+	if (EPrefs)
+	{
+		ClearColor[0] = color_get_R(EPrefs->scene_clear_color) / 255.f;
+		ClearColor[1] = color_get_G(EPrefs->scene_clear_color) / 255.f;
+		ClearColor[2] = color_get_B(EPrefs->scene_clear_color) / 255.f;
+		ClearColor[3] = color_get_A(EPrefs->scene_clear_color) / 255.f;
+	}
+
+	GRHI->ClearDepthStencil(GRHI->GetDepthStencilView(), ERHI_CLEAR_TARGET::DEPTH | ERHI_CLEAR_TARGET::STENCIL, 1, 0);
+	GRHI->ClearTarget(GRHI->GetRenderTargetView(0), ClearColor);
+}
+
+//---------------------------------------------------------------------------
+void CEditorRenderDevice::RenderNearer(float n){
+    mProject._43=m_fNearer-n;
+    RCache.set_xform_project(mProject);
+}
+void CEditorRenderDevice::ResetNearer(){
+    mProject._43=m_fNearer;
+    RCache.set_xform_project(mProject);
+}
+//---------------------------------------------------------------------------
+bool CEditorRenderDevice::Create()
+{
+	if (b_is_Ready)	return false;
+	psDeviceFlags.set(rsVSync, true);
+
+	TimerGlobal.Start();
+	//Statistic = EStatistic;
+	ELog.Msg(mtInformation,"Starting RENDER device...");
+
+
+	//HW.CreateDevice		(m_hWnd, true);
+	if (UI)
+	{
+		HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(g_AppInfo.Window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+		string_path 		ini_path;
+		string_path			ini_name;
+		xr_strcpy			(ini_name, UI->EditorName());
+		xr_strcat			(ini_name, "_imgui.ini");
+		FS.update_path(ini_path, "$app_data_root$", ini_name);
+		
+		if (!FS.exist(ini_path))
+			UI->ResetUI();
+		
+		// Infernis: the renderer's HW creates the D3D9 device on the editor window
+		// (IX-Ray: InitRenderDeviceEditor through its RHI); the editor RHI shim draws with it.
+		HW.CreateDevice(hwnd, false);
+		GRHI->SetDevice(HW.pDevice);
+		m_hWnd = hwnd; // the engine's DirectInput device binds to the device window
+		// The game fills the caps in dxRenderDeviceRender::OnDeviceCreate, which the editor does not run. Without
+		// them render targets of viewport size (not powers of two) are silently not created.
+		HW.Caps.Update();
+
+		UI->Initialize(hwnd, RDevice, ini_path);
+	}
+	
+	// after creation
+	dwFrame				= 0;
+
+	string_path 		sh;
+    FS.update_path		(sh,_game_data_,"shaders.xr");
+
+    IReader* F			= nullptr;
+	if (FS.exist(sh))
+		F				= FS.r_open(nullptr,sh);
+	Resources			= new CResourceManager	();
+
+    // if build options - load textures immediately
+    if (strstr(Core.Params,"-build")||strstr(Core.Params,"-ebuild"))
+        EDevice->Resources->DeferredLoad(false);
+
+	g_FontManager = new CFontManager();
+
+    _Create				(F);
+	FS.r_close			(F);
+
+	::Render->create();
+
+	g_FontManager->InitializeFonts();
+
+	Statistic = new CEStats();
+
+	ELog.Msg			(mtInformation, "D3D: initialized");
+
+	return true;
+}
+
+//---------------------------------------------------------------------------
+void CEditorRenderDevice::Destroy()
+{
+	if (!b_is_Ready) return;
+	ELog.Msg(mtInformation, "Destroying Direct3D...");
+
+	SearchIcon.destroy();
+	::Render->destroy();
+	// before destroy
+	_Destroy(false);
+
+	xr_delete(Resources);
+
+	UI->Destroy();
+
+	ELog.Msg(mtInformation, "D3D: device cleared");
+}
+
+//---------------------------------------------------------------------------
+void CEditorRenderDevice::_SetupStates()
+{
+	//HW.Caps.Update();
+	for (u32 i=0; i<HW.Caps.raster.dwStages; i++){
+		float fBias = -1.f;
+		CHK_DX(REDevice->SetSamplerState( i, D3DSAMP_MIPMAPLODBIAS, *((LPDWORD) (&fBias))));
+	}
+	EDevice->SetRS(D3DRS_DITHERENABLE,	true				);
+    EDevice->SetRS(D3DRS_COLORVERTEX,		true				);
+    EDevice->SetRS(D3DRS_STENCILENABLE,	false				);
+    EDevice->SetRS(D3DRS_ZENABLE,			true				);
+    EDevice->SetRS(D3DRS_SHADEMODE,		D3DSHADE_GOURAUD	);
+	EDevice->SetRS(D3DRS_CULLMODE,		D3DCULL_CCW			);
+	EDevice->SetRS(D3DRS_ALPHAFUNC,		D3DCMP_GREATER		);
+	EDevice->SetRS(D3DRS_LOCALVIEWER,		true				);
+    EDevice->SetRS(D3DRS_NORMALIZENORMALS,true				);
+
+	EDevice->SetRS(D3DRS_DIFFUSEMATERIALSOURCE, D3DMCS_MATERIAL);
+	EDevice->SetRS(D3DRS_SPECULARMATERIALSOURCE,D3DMCS_MATERIAL);
+	EDevice->SetRS(D3DRS_AMBIENTMATERIALSOURCE, D3DMCS_MATERIAL);
+	EDevice->SetRS(D3DRS_EMISSIVEMATERIALSOURCE,D3DMCS_COLOR1	);
+
+    ResetMaterial();
+}
+//---------------------------------------------------------------------------
+void CEditorRenderDevice::_Create(IReader* F)
+{
+	b_is_Ready				= true;
+	m_CreateCount++;
+
+	// General Render States
+    _SetupStates		();
+    
+    RCache.OnDeviceCreate		();
+	Resources->OnDeviceCreate	(F);
+	::RImplementation.OnDeviceCreate	();
+
+    m_WireShader.create			("editor\\wire");
+    m_SelectionShader.create	("editor\\selection");
+
+	texture_null.create("ed\\ed_nodata");
+	texture_null->Load();
+	UIChooseForm::SetNullTexture(texture_null->get_surface_noref());
+
+	// signal another objects
+    UI->OnDeviceCreate			();       
+
+	EDevice->InitWindowStyle();
+}
+
+void CEditorRenderDevice::_Destroy(bool	bKeepTextures)
+{
+	b_is_Ready 						= false;
+    m_CurrentShader				= nullptr;
+
+    UI->OnDeviceDestroy			();
+
+	m_WireShader.destroy		();
+	m_SelectionShader.destroy	();
+	texture_null.destroy		();
+
+	::RImplementation.Models->OnDeviceDestroy	();
+
+	Resources->OnDeviceDestroy	(bKeepTextures);
+
+	RCache.OnDeviceDestroy		();
+	::RImplementation.OnDeviceDestroy	();
+}
+
+//---------------------------------------------------------------------------
+void  CEditorRenderDevice::Resize(int w, int h, bool maximized)
+{
+	dwRealWidth = w;
+	dwRealHeight = h;
+
+	Reset(false);
+	UI->RedrawScene();
+}
+
+void CEditorRenderDevice::Reset(bool)
+{
+	u32 tm_start = TimerAsync();
+	SearchIcon.destroy();
+
+	Resources->reset_begin();
+	UI->ResetBegin();
+
+	Memory.mem_compact();
+	// Infernis: HW resets the D3D9 device at psCurrentVidMode (IX-Ray: ResizeBuffers through its RHI)
+	psCurrentVidMode[0] = dwRealWidth;
+	psCurrentVidMode[1] = dwRealHeight;
+	HW.Reset(GetHWND());
+	SDL_SetWindowSize(g_AppInfo.Window, dwRealWidth, dwRealHeight);
+
+	Resources->reset_end();
+	Resources->DeferredUpload();
+
+	UI->ResetEnd(RDevice);
+	_SetupStates();
+
+	R_ASSERT(texture_null->get_surface_noref(), "Null texture not found!");
+	UIChooseForm::SetNullTexture(texture_null->get_surface_noref());
+
+	SearchIcon = EDevice->Resources->_CreateTexture("ed\\content_browser_search");
+	if (SearchIcon)
+	{
+		SearchIcon->Load();
+		GUIManager->SearchIcon = SearchIcon->get_surface_noref();
+	}
+	u32 tm_end = TimerAsync();
+	Msg("*** RESET [%d ms]", tm_end - tm_start);
+}
+
+void CEditorRenderDevice::Reset(IReader* F, bool bKeepTextures)
+{
+	CTimer tm;
+	tm.Start();
+	_Destroy(bKeepTextures);
+	_Create(F);
+	Msg("*** RESET [%d ms]", tm.GetElapsed_ms());
+}
+
+void CEditorRenderDevice::MaximizedWindow()
+{
+	auto hwnd = GetHWND();
+	if (EDevice->isZoomed) {
+		ResoreWindow(false);
+		return;
+	}
+
+	EDevice->isZoomed = true;
+
+	SendMessage(hwnd, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
+}
+
+void CEditorRenderDevice::ResoreWindow(bool moving)
+{
+	SendMessageW(GetHWND(), WM_SYSCOMMAND, SC_RESTORE, 0);
+
+	WINDOWPLACEMENT wp{};
+	wp.length = sizeof(wp);
+
+	if (GetWindowPlacement(GetHWND(), &wp)) //analog EDevice->NormalWinSizeSaved
+	{
+		RECT r = wp.rcNormalPosition;
+		MoveWindow(GetHWND(), r.left, r.top, r.right - r.left, r.bottom - r.top, true);
+	}
+	
+	EDevice->isZoomed = false;
+}
+
+bool CEditorRenderDevice::Begin()
+{
+	VERIFY(b_is_Ready);
+	mFullTransform_saved = mFullTransform;
+	mProject_saved = mProject;
+	mView_saved = mView;
+	vCameraPosition_saved = vCameraPosition;
+	//HW.Validate		();
+	HRESULT	_hr = REDevice->TestCooperativeLevel();
+	if (FAILED(_hr))
+	{
+		// If the device was lost, do not render until we get it back
+		if (D3DERR_DEVICELOST == _hr) {
+			Sleep(33);
+			return	false;
+		}
+
+		// Check if the device is ready to be reset
+		if (D3DERR_DEVICENOTRESET == _hr)
+		{
+			Reset(false);
+		}
+	}
+
+	VERIFY(false == g_bRendering);
+	(REDevice->BeginScene());
+
+	Clear();
+
+	RCache.OnFrameBegin();
+	g_bRendering = true;
+	return		true;
+}
+
+//---------------------------------------------------------------------------
+void CEditorRenderDevice::End()
+{
+	VERIFY(b_is_Ready);
+	g_bRendering = 	false;
+	// end scene
+	RCache.OnFrameEnd();
+	if (m_ScreenshotPath[0])
+	{
+		IDirect3DSurface9* BackBuffer = nullptr;
+		HRESULT Result = HW.pDevice->GetBackBuffer(0, 0, D3DBACKBUFFER_TYPE_MONO, &BackBuffer);
+		if (SUCCEEDED(Result))
+		{
+			const char* Ext = strrchr(m_ScreenshotPath, '.');
+			const D3DXIMAGE_FILEFORMAT Format = (Ext && 0 == _stricmp(Ext, ".bmp")) ? D3DXIFF_BMP : D3DXIFF_PNG;
+			Result = D3DXSaveSurfaceToFileA(m_ScreenshotPath, Format, BackBuffer, nullptr, nullptr);
+			BackBuffer->Release();
+		}
+		Msg("* screenshot %s: %s", m_ScreenshotPath, SUCCEEDED(Result) ? "saved" : "FAILED");
+		m_ScreenshotPath[0] = 0;
+	}
+	GRHI->Present();
+}
+
+void CEditorRenderDevice::UpdateView()
+{
+// set camera matrix
+	if (!Tools->UpdateCamera())
+	{
+		UI->CurrentView().m_Camera.GetView(mView);
+	}
+    RCache.set_xform_view(mView);
+    mFullTransform.mul(mProject,mView);
+
+// frustum culling sets
+    ::Render->ViewBase.CreateFromMatrix(mFullTransform,FRUSTUM_P_ALL);
+}
+
+void CEditorRenderDevice::FrameMove()
+{
+	dwFrame++;
+
+	// Timer
+    float fPreviousFrameTime = Timer.GetElapsed_sec(); Timer.Start();	// previous frame
+    fTimeDelta = 0.1f * fTimeDelta + 0.9f*fPreviousFrameTime;			// smooth random system activity - worst case ~7% error
+    if (fTimeDelta>.1f) fTimeDelta=.1f;									// limit to 15fps minimum
+
+    fTimeGlobal		= TimerGlobal.GetElapsed_sec(); //float(qTime)*CPU::cycles2seconds;
+    dwTimeGlobal	= TimerGlobal.GetElapsed_ms	();	//u32((qTime*u64(1000))/CPU::cycles_per_second);
+    dwTimeDelta		= iFloor(fTimeDelta*1000.f+0.5f);
+    dwTimeContinual	= dwTimeGlobal;
+
+	if (!Tools->UpdateCamera())
+	{
+		UI->CurrentView().m_Camera.Update(fTimeDelta);
+	}
+
+    // process objects
+	seqFrame.Process(rp_Frame);
+}
+
+#if _WINDOWS
+
+SDL_HitTestResult SDLCALL HitTest(
+	SDL_Window* window,
+	const SDL_Point* pt,
+	void* data)
+{
+	bool isZoomed = *(bool*)data;
+
+	if (isZoomed)
+		return SDL_HITTEST_NORMAL;
+
+	int w, h;
+	SDL_GetWindowSize(window, &w, &h);
+
+	const int border = 6;
+
+	// TOP LEFT
+	if (pt->x < border && pt->y < border)
+		return SDL_HITTEST_RESIZE_TOPLEFT;
+
+	// TOP RIGHT
+	if (pt->x > w - border && pt->y < border)
+		return SDL_HITTEST_RESIZE_TOPRIGHT;
+
+	// BOTTOM LEFT
+	if (pt->x < border && pt->y > h - border)
+		return SDL_HITTEST_RESIZE_BOTTOMLEFT;
+
+	// BOTTOM RIGHT
+	if (pt->x > w - border && pt->y > h - border)
+		return SDL_HITTEST_RESIZE_BOTTOMRIGHT;
+
+	// TOP
+	if (pt->y < border)
+		return SDL_HITTEST_RESIZE_TOP;
+
+	// BOTTOM
+	if (pt->y > h - border)
+		return SDL_HITTEST_RESIZE_BOTTOM;
+
+	// LEFT
+	if (pt->x < border)
+		return SDL_HITTEST_RESIZE_LEFT;
+
+	// RIGHT
+	if (pt->x > w - border)
+		return SDL_HITTEST_RESIZE_RIGHT;
+
+	// title bar area
+	//if (pt->y < 32)
+	//	return SDL_HITTEST_DRAGGABLE;
+
+	return SDL_HITTEST_NORMAL;
+}
+#endif
+
+void CEditorRenderDevice::InitWindowStyle()
+{
+	UI->InitWindowIcons();
+
+#if _WINDOWS
+	SDL_SetWindowBordered(g_AppInfo.Window, false);
+
+	win_chezze_layer(GetHWND());
+	SDL_SetWindowHitTest(g_AppInfo.Window, HitTest, &EDevice->isZoomed);
+
+	SetFocus(EDevice->GetHWND());
+	SetForegroundWindow(EDevice->GetHWND());
+#else
+	SDL_SetWindowResizable(g_AppInfo.Window, SDL_TRUE);
+	SDL_SetWindowHitTest(g_AppInfo.Window, HitTestCallback, 0);
+#endif
+}
+
+void CEditorRenderDevice::DP(ERHI_PRIMITIVE_TOPOLOGY pt, ref_geom geom, u32 vBase, u32 pc)
+{
+	ref_shader S 			= m_CurrentShader?m_CurrentShader:m_WireShader;
+    u32 dwRequired			= S->E[0]->passes.size();
+    RCache.set_Geometry		(geom);
+    for (u32 dwPass = 0; dwPass<dwRequired; dwPass++){
+    	RCache.set_Shader	(S,dwPass);
+		RCache.Render		(ToD3DPrimitive(pt),vBase,pc);
+    }
+}
+
+void CEditorRenderDevice::DIP(ERHI_PRIMITIVE_TOPOLOGY pt, ref_geom geom, u32 baseV, u32 startV, u32 countV, u32 startI, u32 PC)
+{
+	ref_shader S 			= m_CurrentShader?m_CurrentShader:m_WireShader;
+    u32 dwRequired			= S->E[0]->passes.size();
+    RCache.set_Geometry		(geom);
+    for (u32 dwPass = 0; dwPass<dwRequired; dwPass++){
+    	RCache.set_Shader	(S,dwPass);
+		RCache.Render		(ToD3DPrimitive(pt),baseV,startV,countV,startI,PC);
+    }
+}
+
+void CEditorRenderDevice::ReloadTextures()
+{
+	string_path Path = {};
+
+	FS.update_path(Path, _game_textures_, "");
+	FS.rescan_path(Path, true);
+
+	Msg("* Reload textures...");
+	UI->Resize();
+}
+
+void CEditorRenderDevice::UnloadTextures()
+{
+}
+
+void CEditorRenderDevice::time_factor(float v)
+{
+	 Timer.time_factor(v);
+	 TimerGlobal.time_factor(v);
+}
+
+HWND CEditorRenderDevice::GetHWND() const
+{
+	HWND hwnd = (HWND)SDL_GetPointerProperty(SDL_GetWindowProperties(g_AppInfo.Window), SDL_PROP_WINDOW_WIN32_HWND_POINTER, nullptr);
+	return hwnd;
+}
+
+void CEditorRenderDevice::CreateWindow()
+{
+	int DisplayX = GetSystemMetrics(SM_CXFULLSCREEN);
+	int DisplayY = GetSystemMetrics(SM_CYFULLSCREEN);
+
+	// Infernis: high pixel density, so that window sizes are real pixels on a scaled display (150% and so on). Without
+	// it SDL reports scaled points, the back buffer was made that small and stretched onto the window, and the
+	// editor's own DPI scaling (XrUIManager) came on top of the stretch.
+	g_AppInfo.Window = SDL_CreateWindow("IX-Ray Editor", DisplayX, DisplayY,
+	                                    SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_HIGH_PIXEL_DENSITY);
+#if _WINDOWS
+	SetForegroundWindow(EDevice->GetHWND());
+#endif
+}
+
+void CEditorRenderDevice::DestryWindow()
+{
+	SDL_DestroyWindow(g_AppInfo.Window);
+}

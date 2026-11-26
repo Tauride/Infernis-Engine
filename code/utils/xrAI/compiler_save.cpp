@@ -151,6 +151,7 @@ void xrSaveNodes(LPCSTR N, LPCSTR out_name) {
     for (u32 i = 0; i < g_nodes.size(); ++i) {
         vertex& N = g_nodes[i];
         NodeCompressed NC;
+        std::memset(&NC, 0, sizeof(NC)); // Infernis: the bits no field sets (4 next to the links) were left from the stack
         Compress(NC, N, H);
         compressed_nodes.push_back(NC);
     }

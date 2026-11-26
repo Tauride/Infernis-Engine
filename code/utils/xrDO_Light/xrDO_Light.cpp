@@ -43,7 +43,7 @@ void Startup(LPSTR lpCmdLine) {
         bNet = true;
     // Give a LOG-thread a chance to startup
     InitCommonControls();
-	std::thread log_thread(logThread);
+	std::thread(logThread).detach(); // runs until the process ends (a joinable std::thread destroyed unjoined calls std::terminate)
     Sleep(150);
 
     // Load project
@@ -81,6 +81,7 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLi
     Debug._initialize();
     Core._initialize("xrDO");
     Startup(lpCmdLine);
+    Core._destroy(); // Infernis: as xrLC; stops the core's job workers, which terminate the process if left to exit
 
     return 0;
 }

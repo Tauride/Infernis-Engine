@@ -33,6 +33,8 @@ public:
 
     void surface_set(ID3DBaseTexture* surf);
     ID3DBaseTexture* surface_get();
+    // The surface without a reference (the editors draw textures in their UI this way).
+    ID3DBaseTexture* get_surface_noref() const { return pSurface; }
 
     [[nodiscard]] IC BOOL isUser() const { return flags.bUser; }
     [[nodiscard]] IC u32 get_Width() {
@@ -106,7 +108,7 @@ private:
 #endif
 };
 
-struct resptrcode_texture : public resptr_base<CTexture> {
+struct ECORE_API resptrcode_texture : public resptr_base<CTexture> {
     void create(LPCSTR _name);
     void destroy() { _set(nullptr); }
     shared_str bump_get() { return _get()->m_bumpmap; }

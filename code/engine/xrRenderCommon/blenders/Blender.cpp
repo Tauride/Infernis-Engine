@@ -23,7 +23,7 @@ void CBlender_DESC::Setup(LPCSTR N) {
     _time32((__time32_t*)&cTime); // Time
 #else
     _tzset();
-    time((long*)&cTime); // Time
+    _time32((__time32_t*)&cTime); // Time
 #endif
 };
 

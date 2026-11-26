@@ -7,6 +7,9 @@
 #include "quadtree.h"
 #include "cover_point.h"
 #include "object_broker.h"
+#include "compiler_embree.h"
+
+#include <atomic>
 
 Shader_xrLC_LIB* g_shaders_xrlc;
 xr_vector<b_material> g_materials;
@@ -239,8 +242,11 @@ struct RC {
     RayCache C;
 };
 
+// Infernis: IX-Ray's scheme (xrAI/Compiler/compiler_cover.cpp): one worker per hardware thread, each taking the next
+// node from a counter they share (GSC: 3 threads with fixed ranges of nodes), and with -embree the rays go to Embree
 class CoverThread : public CThread {
-    u32 Nstart, Nend;
+    std::atomic<u32>& next;
+    bool embree;
     xr_vector<RC> cache;
     CDB::COLLIDER DB;
     Query Q;
@@ -248,10 +254,7 @@ class CoverThread : public CThread {
     typedef float Cover[4];
 
 public:
-    CoverThread(u32 ID, u32 _start, u32 _end) : CThread(ID) {
-        Nstart = _start;
-        Nend = _end;
-    }
+    CoverThread(u32 ID, std::atomic<u32>& _next) : CThread(ID), next(_next), embree(ai_embree_ready()) {}
 
     void compute_cover_value(u32 const& N, vertex& BaseNode, float const& cover_height,
                              Cover& cover) {
@@ -283,7 +286,7 @@ public:
             // raytrace
             int sector = calcSphereSector(Dir);
             c_total[sector] += 1.f;
-            c_passed[sector] += rayTrace(&DB, TestPos, Dir, range, cache[ID].C); //
+            c_passed[sector] += embree ? ai_embree_trace(TestPos, Dir, range) : rayTrace(&DB, TestPos, Dir, range, cache[ID].C);
         }
         Q.Clear();
 
@@ -314,21 +317,22 @@ public:
 
     virtual void Execute() {
         DB.ray_options(CDB::OPT_CULL);
-        {
+        if (!embree) { // OPCODE: the occluder of the last ray to each node (Embree needs none)
             RC rc;
             rc.C[0].set(0, 0, 0);
             rc.C[1].set(0, 0, 0);
             rc.C[2].set(0, 0, 0);
 
-            cache.assign(g_nodes.size() * 2, rc);
+            cache.assign(g_nodes.size(), rc); // (GSC: twice the nodes; the IDs are below their count)
         }
 
         FPU::m24r();
 
         Q.Begin(g_nodes.size());
-        for (u32 N = Nstart; N < Nend; N++) {
+        const u32 count = u32(g_nodes.size());
+        for (u32 N; (N = next.fetch_add(1)) < count;) {
             // initialize process
-            thProgress = float(N - Nstart) / float(Nend - Nstart);
+            thProgress = float(N) / float(count);
             vertex& BaseNode = g_nodes[N];
 
             if (!g_cover_nodes[N]) {
@@ -551,7 +555,6 @@ void compute_non_covers() {
     }
 }
 
-#define NUM_THREADS 3
 extern void mem_Optimize();
 void xrCover(bool pure_covers) {
     Status("Calculating...");
@@ -563,16 +566,17 @@ void xrCover(bool pure_covers) {
 
     // Start threads, wait, continue --- perform all the work
     u32 start_time = timeGetTime();
+    ai_embree_build(); // with -embree
+    // OPCODE's workers each keep a ray cache of the node count (Zaton: 1.85 M nodes, 67 MB each): at most 8 of them
+    const u32 hardware_threads = std::max(1u, std::thread::hardware_concurrency());
+    const u32 threads = ai_embree_ready() ? hardware_threads : std::min(hardware_threads, 8u);
+    Msg("* Cover: %u nodes, %u threads, %s", u32(g_nodes.size()), threads, ai_embree_ready() ? "Embree" : "OPCODE");
+    std::atomic<u32> next{0};
     CThreadManager Threads;
-    u32 stride = g_nodes.size() / NUM_THREADS;
-    u32 last = g_nodes.size() - stride * (NUM_THREADS - 1);
-    for (u32 thID = 0; thID < NUM_THREADS; thID++) {
-        Threads.start(xr_new<CoverThread>(
-            thID, thID * stride, thID * stride + ((thID == (NUM_THREADS - 1)) ? last : stride)));
-        //		CoverThread(thID,thID*stride,thID*stride+((thID==(NUM_THREADS-1))?last:stride)).Execute();
-        //		Threads.wait		();
-    }
-    Threads.wait();
+    for (u32 thID = 0; thID < threads; thID++)
+        Threads.start(xr_new<CoverThread>(thID, next));
+    Threads.wait(100);
+    ai_embree_release();
     Msg("%d seconds elapsed.", (timeGetTime() - start_time) / 1000);
 
     if (!pure_covers) {

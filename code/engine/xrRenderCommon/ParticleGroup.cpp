@@ -34,6 +34,7 @@ void CPGDef::Clone(CPGDef* source) {
     m_Effects.resize(source->m_Effects.size(), nullptr);
     for (size_t i = 0; i < source->m_Effects.size(); ++i) {
         m_Effects[i] = xr_new<SEffect>(*source->m_Effects[i]);
+        m_Effects[i]->parent = this;
     }
 }
 #endif
@@ -60,11 +61,20 @@ BOOL CPGDef::Load(IReader& F) {
     else
         m_fTimeLimit = 0.0f;
 
+#ifdef _EDITOR
+    // The editors keep the stored value, so that saving gives it back: 0 means "the longest effect", which the game
+    // works out below when it loads the group.
+    const bool dont_calc_timelimit = true;
+#else
     bool dont_calc_timelimit = m_fTimeLimit > 0.0f;
+#endif
     if (F.find_chunk(PGD_CHUNK_EFFECTS)) {
         m_Effects.resize(F.r_u32());
         for (auto& effect : m_Effects) {
             effect = xr_new<SEffect>();
+#ifdef _EDITOR
+            effect->parent = this;
+#endif
             F.r_stringZ(effect->m_EffectName);
             F.r_stringZ(effect->m_OnPlayChildName);
             F.r_stringZ(effect->m_OnBirthChildName);
@@ -88,6 +98,9 @@ BOOL CPGDef::Load2(CInifile& ini) {
     string256 buff;
     for (auto& effect : m_Effects) {
         effect = xr_new<SEffect>();
+#ifdef _EDITOR
+        effect->parent = this;
+#endif
 
         xr_sprintf(buff, sizeof(buff), "effect_%04d", counter);
 
@@ -449,7 +462,14 @@ void CParticleGroup::OnFrame(u32 u_dt) {
         }
         
         m_CurrentTime += f_dt;
-        if ((m_CurrentTime > m_Def->m_fTimeLimit) && (m_Def->m_fTimeLimit > 0.0f))
+        float TimeLimit = m_Def->m_fTimeLimit;
+#ifdef _EDITOR
+        // The editors keep a stored 0 ("the longest effect", see CPGDef::Load); the preview plays it as the game does.
+        if (TimeLimit <= 0.0f)
+            for (const auto* effect : m_Def->m_Effects)
+                TimeLimit = std::max(TimeLimit, effect->m_Time1);
+#endif
+        if ((m_CurrentTime > TimeLimit) && (TimeLimit > 0.0f))
             if (!m_RT_Flags.is(flRT_DefferedStop))
                 Stop(TRUE);
 

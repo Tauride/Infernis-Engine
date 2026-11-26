@@ -11,8 +11,15 @@ endif()
 option(BUILD_UTILS "enable utils projects build" OFF)
 option(REL_DEVELOP "switch RelWithDebInfo configuration into development mode" OFF)
 option(BUILD_TESTS "enable tests projects build" OFF)
+option(BUILD_EDITORS "enable the level editor SDK (IX-Ray editors port, needs CMake 3.24+)" OFF)
 option(DEBUG_CAPS "enable debug capabilities" OFF)
 option(PNG_SCREENSHOTS "enable png format for the screenshots" OFF)
+
+if (BUILD_EDITORS)
+    # The whole editors' build (engine included) gets GSC's NET_Packet ini stream, which the Level Editor uses to keep
+    # server entities in its scene files. The game's own build (BUILD_EDITORS off) is unchanged.
+    add_compile_definitions(XR_NET_PACKET_INISTREAM)
+endif()
 
 configure_file(code/engine/xr_config.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/xr_config.h @ONLY)
 
@@ -102,8 +109,9 @@ else()
     set(ARCH_SUFFIX x64)
 endif()
 
-set(BIN_OUT_PATH "${CMAKE_SOURCE_DIR}/bin/${ARCH_SUFFIX}")
-set(PDB_OUT_PATH "${CMAKE_SOURCE_DIR}/pdb/${ARCH_SUFFIX}")
+set(OUTPUT_ROOT "${CMAKE_SOURCE_DIR}" CACHE PATH "folder that receives bin/ and pdb/ (the repository root by default)")
+set(BIN_OUT_PATH "${OUTPUT_ROOT}/bin/${ARCH_SUFFIX}")
+set(PDB_OUT_PATH "${OUTPUT_ROOT}/pdb/${ARCH_SUFFIX}")
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${BIN_OUT_PATH}")
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${BIN_OUT_PATH}")
@@ -256,4 +264,22 @@ if (${BUILD_UTILS})
     set_target_properties(xrLC_LightStab PROPERTIES FOLDER utils)
     set_target_properties(xrDO_Light PROPERTIES FOLDER utils)
     set_target_properties(xrLC PROPERTIES FOLDER utils)
+endif()
+
+if (${BUILD_EDITORS})
+    if (NOT ${BUILD_UTILS})
+        add_subdirectory(code/utils/xrQSlim) # the editors' mesh simplifier
+        add_subdirectory(code/utils/xrDXT)   # the editors' texture compressor (loaded by DXTUtils)
+        add_subdirectory(code/utils/ETools)  # GSC's editor tools (collision queries; the Level Editor)
+        set_target_properties(xrQSlim xrDXT ETools PROPERTIES FOLDER utils)
+    endif()
+    add_subdirectory(code/editors)
+    # The server entity factory as the Level Editor needs it (editor property types, linked to xrEProps); the
+    # compilers keep loading the plain xrSE_Factory.
+    set(SEF_TARGET xrSE_Factory_Editor)
+    set(SEF_FOR_EDITORS ON)
+    add_subdirectory(code/utils/xrSE_Factory ${CMAKE_BINARY_DIR}/code/editors/xrSE_Factory_Editor)
+    set_target_properties(xrSE_Factory_Editor PROPERTIES FOLDER editors)
+    unset(SEF_TARGET)
+    unset(SEF_FOR_EDITORS)
 endif()

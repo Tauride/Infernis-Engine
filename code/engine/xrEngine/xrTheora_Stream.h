@@ -15,11 +15,7 @@ class ENGINE_API CTheoraStream {
     theora_comment t_comment;
     theora_state t_state;
 
-#ifdef _EDITOR
-    IReader* source;
-#else
-    CStreamReader* source;
-#endif
+    CStreamReader* source; // Same layout with and without _EDITOR: the editors share this class with xrEngineCore.dll
     yuv_buffer t_yuv_buffer;
 
     ogg_int64_t d_frame;

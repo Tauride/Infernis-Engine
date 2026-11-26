@@ -56,7 +56,10 @@ var _x	= var(x);
 
 //-----------------------------------------------------------------------
 void xrMU_Model::calc_lighting(xr_vector<base_color>& dest, const Fmatrix& xform, CDB::MODEL* MDL,
-                               base_lighting& lights, u32 flags) {
+                               base_lighting& shared_lights, u32 flags) {
+    // Infernis: the lights' own copy: the ray tracing caches each light's last occluder in it, and models and
+    // references are lit by several workers at once
+    base_lighting lights = shared_lights;
     // trans-map
     typedef xr_multimap<float, v_vertices> mapVert;
     typedef mapVert::iterator mapVertIt;

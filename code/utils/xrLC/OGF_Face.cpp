@@ -272,7 +272,8 @@ void OGF::Optimize() {
 }
 
 // Make Progressive
-std::recursive_mutex progressive_cs;
+// ETools' simplifier keeps its state per thread (IX-Ray: a VIMP_Processor per thread): OGFs are simplified in
+// parallel, without GSC's lock around the whole function.
 void OGF::MakeProgressive(float metric_limit) {
     // test
     // there is no-sense to simplify small models
@@ -284,8 +285,6 @@ void OGF::MakeProgressive(float metric_limit) {
     //. AlexMX added for draft build mode
     if (g_params().m_quality == ebqDraft)
         return;
-
-    std::lock_guard<decltype(progressive_cs)> lock(progressive_cs);
 
     //////////////////////////////////////////////////////////////////////////
     // NORMAL

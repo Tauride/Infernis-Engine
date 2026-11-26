@@ -83,7 +83,9 @@ set(LIGHT_XRDEFLECTOR execute_statistics.h
                       xrDeflectoL_Direct.cpp
                       xrDeflector.cpp
                       xrDeflectorLight.cpp
-                      xrImage_Resampler.cpp)
+                      xrImage_Resampler.cpp
+                      xrEmbreeTrace.h
+                      xrEmbreeTrace.cpp)
 
 set(LIGHT_MESH base_basis.h
                base_face.h
@@ -247,3 +249,26 @@ add_library(xrLC_Light SHARED ${ROOT_SPECIAL_CONV}
                               ${LIGHT_NET})
 set_target_properties(xrLC_Light PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
 target_link_libraries(xrLC_Light xrCore xrDXT xrCDB zlib FreeImage)
+
+# Intel Embree for the light rays (xrLC -embree; xrEmbreeTrace.cpp), optional: the runtime packages IX-Ray uses
+# (NuGet ImeSense.Packages.Embree.Runtimes.win-x64 4.3.3 and the oneTBB it needs,
+# ImeSense.Packages.OneTbb.Runtimes.win7-x64 2021.11.0; both Apache 2.0). Without them xrLC traces with OPCODE only.
+set(XRLC_EMBREE_DIR "$ENV{USERPROFILE}/.nuget/packages/imesense.packages.embree.runtimes.win-x64/4.3.3"
+    CACHE PATH "Embree 4 runtime package for xrLC (build/native/include, runtimes/win-x64/native/Release)")
+set(XRLC_TBB_DIR "$ENV{USERPROFILE}/.nuget/packages/imesense.packages.onetbb.runtimes.win7-x64/2021.11.0"
+    CACHE PATH "oneTBB runtime package for Embree (runtimes/win7-x64/native/Release/tbb12.dll)")
+if (EXISTS "${XRLC_EMBREE_DIR}/build/native/include/embree4/rtcore.h"
+    AND EXISTS "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.lib"
+    AND EXISTS "${XRLC_TBB_DIR}/runtimes/win7-x64/native/Release/tbb12.dll")
+    message(STATUS "xrLC: Embree from ${XRLC_EMBREE_DIR}")
+    target_compile_definitions(xrLC_Light PRIVATE XRLC_EMBREE)
+    target_include_directories(xrLC_Light PRIVATE "${XRLC_EMBREE_DIR}/build/native/include")
+    target_link_libraries(xrLC_Light "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.lib")
+    add_custom_command(TARGET xrLC_Light POST_BUILD
+                       COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                               "${XRLC_EMBREE_DIR}/runtimes/win-x64/native/Release/embree4.dll"
+                               "${XRLC_TBB_DIR}/runtimes/win7-x64/native/Release/tbb12.dll"
+                               $<TARGET_FILE_DIR:xrLC_Light>)
+else()
+    message(STATUS "xrLC: no Embree (XRLC_EMBREE_DIR, XRLC_TBB_DIR), OPCODE only")
+endif()

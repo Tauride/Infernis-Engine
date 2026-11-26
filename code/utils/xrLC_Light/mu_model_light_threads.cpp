@@ -16,7 +16,6 @@
 
 CThreadManager mu_base;
 CThreadManager mu_secondary;
-#define MU_THREADS 4
 // mu-light
 bool mu_models_local_calc_lightening = false;
 std::recursive_mutex mu_models_local_calc_lightening_wait_lock;
@@ -35,31 +34,6 @@ void SetMuModelsLocalCalcLighteningCompleted() {
     std::lock_guard<std::recursive_mutex> lock(mu_models_local_calc_lightening_wait_lock);
     mu_models_local_calc_lightening = true;
 }
-class CMULight : public CThread {
-    u32 low;
-    u32 high;
-
-public:
-    CMULight(u32 ID, u32 _low, u32 _high) : CThread(ID) {
-        thMessages = FALSE;
-        low = _low;
-        high = _high;
-    }
-
-    virtual void Execute() {
-        // Priority
-        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
-        Sleep(0);
-
-        // Light references
-        for (u32 m = low; m < high; m++) {
-
-            inlc_global_data()->mu_refs()[m]->calc_lighting();
-            thProgress = (float(m - low) / float(high - low));
-        }
-    }
-};
-
 // void LC_WaitRefModelsNet();
 class CMUThread : public CThread {
 public:
@@ -79,24 +53,32 @@ public:
             // lc_net::WaitRefModelsNet();
         }
 
-        for (u32 m = 0; m < inlc_global_data()->mu_models().size(); m++) {
-            inlc_global_data()->mu_models()[m]->calc_materials();
-            inlc_global_data()->mu_models()[m]->calc_lighting();
+        // One worker per hardware thread each time, taking models, then references, from a counter (IX-Ray's
+        // scheme; GSC lit the models on this thread alone and split the references into fixed ranges)
+        {
+            const u32 count = u32(inlc_global_data()->mu_models().size());
+            std::atomic<u32> next{0};
+            lc_run_workers([&](u32) {
+                // below normal, as GSC's MU thread: the MU models fill the time the main phases leave
+                SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+                for (u32 m; lc_take(next, count, m);) {
+                    inlc_global_data()->mu_models()[m]->calc_materials();
+                    inlc_global_data()->mu_models()[m]->calc_lighting();
+                }
+            });
         }
 
         SetMuModelsLocalCalcLighteningCompleted();
 
-        // Light references
-        u32 stride = inlc_global_data()->mu_refs().size() / MU_THREADS;
-        u32 last = inlc_global_data()->mu_refs().size() - stride * (MU_THREADS - 1);
-        u32 threads = MU_THREADS;
-        get_intervals(MU_THREADS, inlc_global_data()->mu_refs().size(), threads, stride, last);
-
-        for (u32 thID = 0; thID < threads; thID++)
-            mu_secondary.start(xr_new<CMULight>(thID, thID * stride, thID * stride + stride));
-        if (last > 0)
-            mu_secondary.start(
-                xr_new<CMULight>(threads, threads * stride, threads * stride + last));
+        {
+            const u32 count = u32(inlc_global_data()->mu_refs().size());
+            std::atomic<u32> next{0};
+            lc_run_workers([&](u32) {
+                SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL);
+                for (u32 r; lc_take(next, count, r);)
+                    inlc_global_data()->mu_refs()[r]->calc_lighting();
+            });
+        }
     }
 };
 

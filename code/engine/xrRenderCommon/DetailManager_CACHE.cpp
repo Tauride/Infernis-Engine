@@ -2,16 +2,48 @@
 #include "DetailManager.h"
 #include <algorithm> // Для std::copy, std::move
 
+void CDetailManager::cache_Resize() {
+    // The slots' items go back to the pool, and the visibility lists that point at them are emptied
+    for (Slot& S : cache_pool)
+        for (SlotPart& part : S.G) {
+            for (SlotItem* item : part.items)
+                poolSI.destroy(item);
+            part.items.clear();
+            for (SlotItemVec& r : part.r_items)
+                r.clear();
+        }
+    for (vis_list& list : m_visibles)
+        for (xr_vector<SlotItemVec*>& vis : list)
+            vis.clear();
+
+    dm_size = dm_requested_size;
+    dm_cache1_line = dm_size * 2 / dm_cache1_count;
+    dm_cache_line = dm_size + 1 + dm_size;
+    dm_cache_size = dm_cache_line * dm_cache_line;
+    dm_fade = static_cast<float>(2 * dm_size) - 0.5f;
+
+    cache_task.clear();
+    cache_task.reserve(dm_cache_size);
+    cache_pool.clear();
+    cache_pool.resize(dm_cache_size);
+    cache.assign(dm_cache_size, nullptr);
+    cache_level1.clear();
+    cache_level1.resize(dm_cache1_line * dm_cache1_line);
+}
+
 void CDetailManager::cache_Initialize() {
+    if (cache_pool.size() != size_t(dm_cache_size) || dm_size != dm_requested_size)
+        cache_Resize();
+
     // Centroid
     cache_cx = 0;
     cache_cz = 0;
 
     // Initialize cache-grid
-    Slot* slt = cache_pool;
-    for (u32 i = 0; i < dm_cache_line; ++i) {
-        for (u32 j = 0; j < dm_cache_line; ++j, ++slt) {
-            cache[i][j] = slt;
+    Slot* slt = cache_pool.data();
+    for (int i = 0; i < dm_cache_line; ++i) {
+        for (int j = 0; j < dm_cache_line; ++j, ++slt) {
+            cache_at(i, j) = slt;
             cache_Task(j, i, slt);
         }
     }
@@ -19,11 +51,11 @@ void CDetailManager::cache_Initialize() {
 
     for (int _mz1 = 0; _mz1 < dm_cache1_line; ++_mz1) {
         for (int _mx1 = 0; _mx1 < dm_cache1_line; ++_mx1) {
-            CacheSlot1& MS = cache_level1[_mz1][_mx1];
+            CacheSlot1& MS = cache_level1_at(_mz1, _mx1);
             for (int _z = 0; _z < dm_cache1_count; ++_z) {
                 for (int _x = 0; _x < dm_cache1_count; ++_x) {
                     MS.slots[_z * dm_cache1_count + _x] =
-                        &cache[_mz1 * dm_cache1_count + _z][_mx1 * dm_cache1_count + _x];
+                        &cache_at(_mz1 * dm_cache1_count + _z, _mx1 * dm_cache1_count + _x);
                 }
             }
         }
@@ -37,7 +69,7 @@ CDetailManager::Slot* CDetailManager::cache_Query(int r_x, int r_z) {
     const int gz = w2cg_Z(r_z + cache_cz);
     VERIFY(gz >= 0 && gz < dm_cache_line);
     
-    return cache[gz][gx];
+    return cache_at(gz, gx);
 }
 
 void CDetailManager::cache_Task(int gx, int gz, Slot* D) {
@@ -79,7 +111,7 @@ BOOL CDetailManager::cache_Validate() {
         for (int x = 0; x < dm_cache_line; ++x) {
             const int w_x = cg2w_X(x);
             const int w_z = cg2w_Z(z);
-            const Slot* D = cache[z][x];
+            const Slot* D = cache_at(z, x);
 
             if (D->sx != w_x || D->sz != w_z)
                 return FALSE;
@@ -92,64 +124,45 @@ void CDetailManager::cache_Update(int v_x, int v_z, Fvector& view, int limit) {
     const bool bNeedMegaUpdate = (cache_cx != v_x) || (cache_cz != v_z);
     
     // ***** Cache shift (Data-Oriented Optimizations)
+    // The grid is one vector of rows (z) of dm_cache_line slots (x); the values move, the cells stay where they are
+    // (cache_level1 points at them)
+    const auto row = [this](int z) { return cache.begin() + z * dm_cache_line; };
     while (cache_cx != v_x) {
         if (v_x > cache_cx) {
             // Shift matrix to left (x)
             cache_cx++;
             for (int z = 0; z < dm_cache_line; ++z) {
-                Slot* S = cache[z][0];
-                std::move(&cache[z][1], &cache[z][dm_cache_line], &cache[z][0]);
-                cache[z][dm_cache_line - 1] = S;
-                cache_Task(dm_cache_line - 1, z, S);
+                std::rotate(row(z), row(z) + 1, row(z) + dm_cache_line);
+                cache_Task(dm_cache_line - 1, z, cache_at(z, dm_cache_line - 1));
             }
         } else {
             // Shift matrix to right (x)
             cache_cx--;
             for (int z = 0; z < dm_cache_line; ++z) {
-                Slot* S = cache[z][dm_cache_line - 1];
-                std::move_backward(&cache[z][0], &cache[z][dm_cache_line - 1], &cache[z][dm_cache_line]);
-                cache[z][0] = S;
-                cache_Task(0, z, S);
-            }
-        }
-    }
-    
-    while (cache_cz != v_z) {
-        if (v_z > cache_cz) {
-            // Shift matrix down (z) - МАКСИМАЛЬНА ОПТИМІЗАЦІЯ: Зсув цілими рядками
-            cache_cz++;
-            Slot* temp_row[dm_cache_line];
-            std::copy(std::begin(cache[dm_cache_line - 1]), std::end(cache[dm_cache_line - 1]), std::begin(temp_row));
-            
-            for (int z = dm_cache_line - 1; z > 0; --z) {
-                std::copy(std::begin(cache[z - 1]), std::end(cache[z - 1]), std::begin(cache[z]));
-            }
-            
-            std::copy(std::begin(temp_row), std::end(temp_row), std::begin(cache[0]));
-            
-            for (int x = 0; x < dm_cache_line; ++x) {
-                cache_Task(x, 0, cache[0][x]);
-            }
-        } else {
-            // Shift matrix up (z) - МАКСИМАЛЬНА ОПТИМІЗАЦІЯ: Зсув цілими рядками
-            cache_cz--;
-            Slot* temp_row[dm_cache_line];
-            std::copy(std::begin(cache[0]), std::end(cache[0]), std::begin(temp_row));
-            
-            for (int z = 1; z < dm_cache_line; ++z) {
-                std::copy(std::begin(cache[z]), std::end(cache[z]), std::begin(cache[z - 1]));
-            }
-            
-            std::copy(std::begin(temp_row), std::end(temp_row), std::begin(cache[dm_cache_line - 1]));
-            
-            for (int x = 0; x < dm_cache_line; ++x) {
-                cache_Task(x, dm_cache_line - 1, cache[dm_cache_line - 1][x]);
+                std::rotate(row(z), row(z) + dm_cache_line - 1, row(z) + dm_cache_line);
+                cache_Task(0, z, cache_at(z, 0));
             }
         }
     }
 
+    while (cache_cz != v_z) {
+        if (v_z > cache_cz) {
+            // Shift matrix down (z): the last row comes first
+            cache_cz++;
+            std::rotate(cache.begin(), row(dm_cache_line - 1), cache.end());
+            for (int x = 0; x < dm_cache_line; ++x)
+                cache_Task(x, 0, cache_at(0, x));
+        } else {
+            // Shift matrix up (z): the first row goes last
+            cache_cz--;
+            std::rotate(cache.begin(), row(1), cache.end());
+            for (int x = 0; x < dm_cache_line; ++x)
+                cache_Task(x, dm_cache_line - 1, cache_at(dm_cache_line - 1, x));
+        }
+    }
+
     // Task performer
-    const bool bFullUnpack = (cache_task.size() == dm_cache_size);
+    const bool bFullUnpack = (cache_task.size() == size_t(dm_cache_size));
     if (bFullUnpack) limit = dm_cache_size;
 
     for (int iteration = 0; !cache_task.empty() && (iteration < limit); ++iteration) {
@@ -180,7 +193,7 @@ void CDetailManager::cache_Update(int v_x, int v_z, Fvector& view, int limit) {
     if (bNeedMegaUpdate) {
         for (int _mz1 = 0; _mz1 < dm_cache1_line; ++_mz1) {
             for (int _mx1 = 0; _mx1 < dm_cache1_line; ++_mx1) {
-                CacheSlot1& MS = cache_level1[_mz1][_mx1];
+                CacheSlot1& MS = cache_level1_at(_mz1, _mx1);
                 MS.empty = TRUE;
                 MS.vis.clear();
                 

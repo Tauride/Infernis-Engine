@@ -6,6 +6,7 @@
 #include "IGame_Level.h"
 #include "x_ray.h"
 #include "xr_input.h"
+#include "Stats.h"
 
 #include <dbghelp.h>
 #include <psapi.h>
@@ -165,6 +166,15 @@ namespace
 		u32			frames;
 		double		seconds;
 		double		avg_ms, p50_ms, p95_ms, p99_ms, max_ms;
+		// The grass's share (CStats' DT timers, averaged over the frames), when the statistics are gathered
+		// (rs_stats on); stat_frames 0 otherwise
+		u32			stat_frames;
+		double		dt_vis_ms, dt_render_ms, dt_cache_ms, dt_count;
+	};
+	struct SPerfStat
+	{
+		float		dt_vis, dt_render, dt_cache;	// ms
+		u32			dt_count;
 	};
 
 	const u32	max_error_samples	= 30;
@@ -239,6 +249,7 @@ namespace
 		double						perf_t0;
 		double						last_frame_t;
 		std::vector<float>			perf_ms;
+		std::vector<SPerfStat>		perf_stats;
 		std::vector<SPerf>			perf;
 
 		// log
@@ -323,9 +334,15 @@ namespace
 				const SPerf& P = perf[i];
 				out	+= i ? ",\n    {" : "\n    {";
 				out	+= "\"label\": ";	json_str(out,P.label);
-				xr_sprintf(b,", \"frames\": %u, \"seconds\": %.2f, \"avg_fps\": %.1f, \"avg_ms\": %.2f, \"p50_ms\": %.2f, \"p95_ms\": %.2f, \"p99_ms\": %.2f, \"max_ms\": %.2f}",
+				xr_sprintf(b,", \"frames\": %u, \"seconds\": %.2f, \"avg_fps\": %.1f, \"avg_ms\": %.2f, \"p50_ms\": %.2f, \"p95_ms\": %.2f, \"p99_ms\": %.2f, \"max_ms\": %.2f",
 					P.frames,P.seconds,P.seconds>0 ? P.frames/P.seconds : 0.0,P.avg_ms,P.p50_ms,P.p95_ms,P.p99_ms,P.max_ms);
 				out	+= b;
+				if (P.stat_frames) {
+					xr_sprintf(b,", \"details\": {\"frames\": %u, \"vis_ms\": %.3f, \"render_ms\": %.3f, \"cache_ms\": %.3f, \"items\": %.0f}",
+						P.stat_frames,P.dt_vis_ms,P.dt_render_ms,P.dt_cache_ms,P.dt_count);
+					out	+= b;
+				}
+				out	+= "}";
 			}
 			out		+= perf.empty() ? "]" : "\n  ]";
 
@@ -809,11 +826,29 @@ namespace
 				P.p99_ms	= v[size_t(0.99*(v.size()-1))];
 				P.max_ms	= v.back();
 			}
+			P.stat_frames	= u32(perf_stats.size());
+			P.dt_vis_ms = P.dt_render_ms = P.dt_cache_ms = P.dt_count = 0;
+			for (const SPerfStat& S : perf_stats) {
+				P.dt_vis_ms		+= S.dt_vis;
+				P.dt_render_ms	+= S.dt_render;
+				P.dt_cache_ms	+= S.dt_cache;
+				P.dt_count		+= S.dt_count;
+			}
+			if (P.stat_frames) {
+				P.dt_vis_ms		/= P.stat_frames;
+				P.dt_render_ms	/= P.stat_frames;
+				P.dt_cache_ms	/= P.stat_frames;
+				P.dt_count		/= P.stat_frames;
+			}
 			perf.push_back	(P);
 			perf_on			= false;
 			perf_ms.clear	();
+			perf_stats.clear();
 			Msg				("* [autotest] perf '%s': %u frames, avg %.2f ms, p95 %.2f ms, p99 %.2f ms, max %.2f ms",
 				P.label.c_str(),P.frames,P.avg_ms,P.p95_ms,P.p99_ms,P.max_ms);
+			if (P.stat_frames)
+				Msg			("* [autotest] perf '%s' details: vis %.3f ms, render %.3f ms, cache %.3f ms, %.0f items (%u frames)",
+					P.label.c_str(),P.dt_vis_ms,P.dt_render_ms,P.dt_cache_ms,P.dt_count,P.stat_frames);
 		}
 
 		void	next_step		()
@@ -900,6 +935,7 @@ namespace
 				perf_label	= S.arg;
 				perf_t0		= now_s();
 				perf_ms.clear();
+				perf_stats.clear();
 				return true;
 			}
 			if (S.cmd=="perf_end") {
@@ -1015,7 +1051,15 @@ namespace
 		virtual void	OnFrame		()
 		{
 			double	t	= now_s();
-			if (perf_on && last_frame_t>0)	perf_ms.push_back(float((t-last_frame_t)*1000.0));
+			if (perf_on && last_frame_t>0) {
+				perf_ms.push_back(float((t-last_frame_t)*1000.0));
+				// the frame that just ended, as CStats::Show measured it (only with rs_stats on)
+				if (g_bEnableStatGather && Device.Statistic) {
+					const CStats& S	= *Device.Statistic;
+					perf_stats.push_back({S.RenderDUMP_DT_VIS.last*1000.f, S.RenderDUMP_DT_Render.last*1000.f,
+						S.RenderDUMP_DT_Cache.last*1000.f, S.RenderDUMP_DT_Count});
+				}
+			}
 			last_frame_t	= t;
 			++frames;
 

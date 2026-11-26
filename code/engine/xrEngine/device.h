@@ -308,13 +308,16 @@ private:
 #endif // #ifdef INGAME_EDITOR
 };
 
-extern ENGINE_API CRenderDevice Device;
-
-#ifndef _EDITOR
-#define RDEVICE Device
+#ifdef ENGINE_DEVICE_PTR
+// Level editor SDK build (xrEngineCore.dll and code/editors): Device goes through a pointer, so that an editor can
+// install its own device class (xrECore's CEditorRenderDevice), as in IX-Ray. The game build keeps the object.
+extern ENGINE_API CRenderDevice* DevicePtr;
+#define Device (*DevicePtr)
 #else
-#define RDEVICE EDevice
+extern ENGINE_API CRenderDevice Device;
 #endif
+
+#define RDEVICE Device // the editors install their device behind Device (ENGINE_DEVICE_PTR)
 
 extern ENGINE_API bool g_bBenchmark;
 

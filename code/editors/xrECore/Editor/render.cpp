@@ -327,7 +327,8 @@ void CRender::Calculate()
 	//	r_ssaLOD_A						=	(ssaLOD_A*ssaLOD_A)/g_fSCREEN;
 	//	r_ssaLOD_B						=	(ssaLOD_B*ssaLOD_B)/g_fSCREEN;
 	lstRenderables.clear();
-	ViewBase.CreateFromMatrix(EDevice->mFullTransform, FRUSTUM_P_LRTB | FRUSTUM_P_FAR);
+	// Infernis: all planes, as the device's UpdateView (one frustum since CRender no longer hides the interface's)
+	ViewBase.CreateFromMatrix(EDevice->mFullTransform, FRUSTUM_P_ALL);
 	Target->reset_light_marker();
 	{
 		//Lights Delete queue

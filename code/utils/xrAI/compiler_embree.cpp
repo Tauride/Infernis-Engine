@@ -138,6 +138,12 @@ void ai_embree_build() {
     // out; without alpha or without texels: blocking; the rest: by their texels
     Shader_xrLCVec& library = g_shaders_xrlc->Library();
     for (int i = 0; i < Level.get_tris_count(); i++) {
+        if (g_rc_faces[i].dwMaterial >= g_materials.size()) {
+            Msg("! Embree: face %d has material %u of %u: blocking", i, u32(g_rc_faces[i].dwMaterial),
+                u32(g_materials.size()));
+            g_opaque_tris.push_back(u32(i));
+            continue;
+        }
         const b_material& M = g_materials[g_rc_faces[i].dwMaterial];
         if (M.shader_xrlc < library.size() && !library[M.shader_xrlc].flags.bLIGHT_CastShadow)
             continue;

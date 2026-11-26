@@ -25,7 +25,7 @@ constexpr int dm_max_decompress = 7;
 // Infernis (after IX-Ray): the grass radius is set at run time (r__detail_radius, metres); dm_size is in slots (2 m)
 // around the camera, GSC's 24. The cache follows it on the next frame (CDetailManager::cache_Resize).
 inline int dm_size = 24;
-inline int dm_requested_size = 24; // r__detail_radius
+inline std::atomic<int> dm_requested_size{24}; // r__detail_radius (the console's thread; read by MT_CALC)
 constexpr int dm_cache1_count = 4;
 inline int dm_cache1_line = 24 * 2 / dm_cache1_count;
 constexpr int dm_max_objects = 64;

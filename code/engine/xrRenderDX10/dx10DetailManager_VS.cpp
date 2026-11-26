@@ -163,6 +163,8 @@ void CDetailManager::hw_Instances_Release() {
     _RELEASE(hw_InstancesView);
     _RELEASE(hw_Instances);
     hw_InstancesSize = 0;
+    hw_InstancesFrame = u32(-1);
+    hw_InstancesCount = 0;
 }
 
 u32 CDetailManager::hw_Instances_Fill() {

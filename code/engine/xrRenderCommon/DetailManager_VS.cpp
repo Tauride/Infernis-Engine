@@ -275,7 +275,7 @@ void CDetailManager::hw_Render_dump(ref_constant x_array, u32 var_id, u32 lod_id
                 RCache.Render(D3DPT_TRIANGLELIST, vOffset, 0, dwCNT_verts, iOffset, dwCNT_prims);
                 RCache.stat.r.s_details.add(dwCNT_verts);
             }
-            vis.clear();
+            // (the lists stay for the sun's cascades; UpdateVisibleM empties them for the next frame)
         }
         vOffset += hw_BatchSize * Object.number_vertices;
         iOffset += hw_BatchSize * Object.number_indices;

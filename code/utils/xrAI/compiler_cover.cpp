@@ -323,7 +323,7 @@ public:
             rc.C[1].set(0, 0, 0);
             rc.C[2].set(0, 0, 0);
 
-            cache.assign(g_nodes.size() * 2, rc);
+            cache.assign(g_nodes.size(), rc); // (GSC: twice the nodes; the IDs are below their count)
         }
 
         FPU::m24r();
@@ -567,7 +567,9 @@ void xrCover(bool pure_covers) {
     // Start threads, wait, continue --- perform all the work
     u32 start_time = timeGetTime();
     ai_embree_build(); // with -embree
-    const u32 threads = std::max(1u, std::thread::hardware_concurrency());
+    // OPCODE's workers each keep a ray cache of the node count (Zaton: 1.85 M nodes, 67 MB each): at most 8 of them
+    const u32 hardware_threads = std::max(1u, std::thread::hardware_concurrency());
+    const u32 threads = ai_embree_ready() ? hardware_threads : std::min(hardware_threads, 8u);
     Msg("* Cover: %u nodes, %u threads, %s", u32(g_nodes.size()), threads, ai_embree_ready() ? "Embree" : "OPCODE");
     std::atomic<u32> next{0};
     CThreadManager Threads;

@@ -188,6 +188,12 @@ struct CONTRIB {
     float weight;
 };
 
+// The contributions one pixel can have for a filter of this half width: the integers in [center - width,
+// center + width], plus one for the rounding of those bounds. GSC allocated int(width * 2 + 1) contributions but cleared
+// (width * 2 + 1) * sizeof(CONTRIB) bytes, which is more whenever the width is fractional: a heap overrun (xrLC's
+// lightmap compression ended in heap corruption on x64).
+static size_t contrib_capacity(float width) { return size_t(width * 2 + 1) + 1; }
+
 struct CLIST {
     int n;      /* number of contributors */
     CONTRIB* p; /* pointer to _list_ of contributions */
@@ -289,8 +295,8 @@ void imf_Process(u32* dstI, u32 dstW, u32 dstH, u32* srcI, u32 srcW, u32 srcH, E
             fscale = 1.0f / xscale;
             for (i = 0; i < dst.xsize; ++i) {
                 contrib[i].n = 0;
-                contrib[i].p = (CONTRIB*)xr_malloc((int)(width * 2 + 1) * sizeof(CONTRIB));
-                std::memset(contrib[i].p, 0, (width * 2 + 1) * sizeof(CONTRIB));
+                contrib[i].p = (CONTRIB*)xr_malloc(contrib_capacity(width) * sizeof(CONTRIB));
+                std::memset(contrib[i].p, 0, contrib_capacity(width) * sizeof(CONTRIB));
                 center = float(i) / xscale;
                 left = ceil(center - width);
                 right = floor(center + width);
@@ -316,8 +322,8 @@ void imf_Process(u32* dstI, u32 dstW, u32 dstH, u32* srcI, u32 srcW, u32 srcH, E
         try {
             for (i = 0; i < dst.xsize; ++i) {
                 contrib[i].n = 0;
-                contrib[i].p = (CONTRIB*)xr_malloc((int)(fwidth * 2 + 1) * sizeof(CONTRIB));
-                std::memset(contrib[i].p, 0, (fwidth * 2 + 1) * sizeof(CONTRIB));
+                contrib[i].p = (CONTRIB*)xr_malloc(contrib_capacity(fwidth) * sizeof(CONTRIB));
+                std::memset(contrib[i].p, 0, contrib_capacity(fwidth) * sizeof(CONTRIB));
                 center = float(i) / xscale;
                 left = ceil(center - fwidth);
                 right = floor(center + fwidth);
@@ -392,8 +398,8 @@ void imf_Process(u32* dstI, u32 dstW, u32 dstH, u32* srcI, u32 srcW, u32 srcH, E
             fscale = 1.0f / yscale;
             for (i = 0; i < dst.ysize; ++i) {
                 contrib[i].n = 0;
-                contrib[i].p = (CONTRIB*)xr_malloc((int)(width * 2 + 1) * sizeof(CONTRIB));
-                std::memset(contrib[i].p, 0, (width * 2 + 1) * sizeof(CONTRIB));
+                contrib[i].p = (CONTRIB*)xr_malloc(contrib_capacity(width) * sizeof(CONTRIB));
+                std::memset(contrib[i].p, 0, contrib_capacity(width) * sizeof(CONTRIB));
                 center = (float)i / yscale;
                 left = ceil(center - width);
                 right = floor(center + width);
@@ -419,8 +425,8 @@ void imf_Process(u32* dstI, u32 dstW, u32 dstH, u32* srcI, u32 srcW, u32 srcH, E
         try {
             for (i = 0; i < dst.ysize; ++i) {
                 contrib[i].n = 0;
-                contrib[i].p = (CONTRIB*)xr_malloc((int)(fwidth * 2 + 1) * sizeof(CONTRIB));
-                std::memset(contrib[i].p, 0, (fwidth * 2 + 1) * sizeof(CONTRIB));
+                contrib[i].p = (CONTRIB*)xr_malloc(contrib_capacity(fwidth) * sizeof(CONTRIB));
+                std::memset(contrib[i].p, 0, contrib_capacity(fwidth) * sizeof(CONTRIB));
                 center = (float)i / yscale;
                 left = ceil(center - fwidth);
                 right = floor(center + fwidth);

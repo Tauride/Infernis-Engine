@@ -16,7 +16,7 @@
 
 CThreadManager mu_base;
 CThreadManager mu_secondary;
-#define MU_THREADS 4
+#define MU_THREADS lc_worker_threads()
 // mu-light
 bool mu_models_local_calc_lightening = false;
 std::recursive_mutex mu_models_local_calc_lightening_wait_lock;

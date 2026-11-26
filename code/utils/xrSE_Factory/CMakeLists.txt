@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.8)
 
 project(xrSE_Factory)
 
+# The editors (code/editors, BUILD_EDITORS) build these sources a second time as xrSE_Factory_Editor, with
+# SEF_FOR_EDITORS: against the editors' property types and their xrEProps (see xrServerEntities/xrEProps.h).
+if (NOT SEF_TARGET)
+    set(SEF_TARGET xrSE_Factory)
+endif()
+
 set(COMMON_OBJECTFACTORY ../../engine/xrServerEntities/clsid_game.h
                          ../../engine/xrServerEntities/object_factory.h
                          ../../engine/xrServerEntities/object_factory_impl.h
@@ -342,7 +348,7 @@ set_source_files_properties(../../engine/xrServerEntities/script_stack_tracker.c
 set_source_files_properties(../../engine/xrServerEntities/script_storage.cpp PROPERTIES COMPILE_FLAGS "/Yupch_script.h /Fp\"${SCRIPT_PCH}\"")
 set_source_files_properties(../../engine/xrServerEntities/script_sound_type_script.cpp PROPERTIES COMPILE_FLAGS "/Yupch_script.h /Fp\"${SCRIPT_PCH}\"")
 
-add_library(xrSE_Factory SHARED ${COMMON_ACOMPONENTS_SPACERESTRICTIONMANAGER}
+add_library(${SEF_TARGET} SHARED ${COMMON_ACOMPONENTS_SPACERESTRICTIONMANAGER}
                                 ${COMMON_OBJECTFACTORY_OBJECT_ITEM_ABSTRACT}
                                 ${SCRIPTS_SCRIPTCLASSES_SCRIPTFLAGS}
                                 ${COMMON_OBJECTFACTORY_OBJECT_ITEM_SINGLE}
@@ -393,5 +399,14 @@ add_library(xrSE_Factory SHARED ${COMMON_ACOMPONENTS_SPACERESTRICTIONMANAGER}
                                 ${SERVERSTUFF_SERVERENTITIES_EDITOR_PROPERTIES}
                                 ${SERVERSTUFF_COMMON_ALIFESTUFF_ARTEFACT_ORDER}
                                 ${SCRIPTS_SCRIPTCLASSES_SCRIPTNETPACKET})
-set_target_properties(xrSE_Factory PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
-target_link_libraries(xrSE_Factory xrCore luabind xrXMLParser shlwapi)
+set_target_properties(${SEF_TARGET} PROPERTIES LINK_FLAGS "/SUBSYSTEM:WINDOWS")
+target_link_libraries(${SEF_TARGET} xrCore luabind xrXMLParser shlwapi)
+if (SEF_FOR_EDITORS)
+    target_compile_definitions(${SEF_TARGET} PRIVATE XRSE_FACTORY_EDITOR _HAS_DEPRECATED_ALLOCATOR_MEMBERS=1
+                                                     _SILENCE_ALL_CXX17_DEPRECATION_WARNINGS
+                                                     _SILENCE_ALL_CXX20_DEPRECATION_WARNINGS)
+    # The editors' headers are C++23 (as in code/editors/CMakeLists.txt); the later /std wins over the directory's.
+    target_compile_options(${SEF_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/std:c++latest>
+                                                 $<$<COMPILE_LANGUAGE:CXX>:/permissive> /wd9025)
+    target_link_libraries(${SEF_TARGET} xrEProps)
+endif()

@@ -1,4 +1,6 @@
 #include "stdafx.h"
+#include <atomic>
+#include <mutex>
 
 #include "xrLC_GlobalData.h"
 #include "xrface.h"
@@ -153,9 +155,41 @@ void xrLC_GlobalData ::initialize() {
 
 //*((u32*)&F)
 
-base_Face* convert_nax(u32 dummy) { return (base_Face*)(*((void**)&dummy)); }
+// The faces that collision models refer to (convert_nax). Lighting threads look faces up for every ray hit, so
+// reads take no lock: the table grows in fixed chunks that never move, and an index is only handed out (and so only
+// read) after its entry and chunk are published. Writers are serialized.
+namespace {
+constexpr u32 nax_chunk_bits = 16;
+constexpr u32 nax_chunk_size = 1u << nax_chunk_bits;
+constexpr u32 nax_chunk_count = 1u << 12; // up to 2^28 faces
+std::atomic<base_Face**> g_nax_chunks[nax_chunk_count];
+std::atomic<u32> g_nax_count{1}; // index 0: no face
+std::mutex g_nax_lock;
+} // namespace
 
-u32 convert_nax(base_Face* F) { return *((u32*)&F); }
+XRLC_LIGHT_API base_Face* convert_nax(u32 dummy) {
+    if (!dummy)
+        return nullptr;
+    VERIFY(dummy < g_nax_count.load(std::memory_order_acquire));
+    base_Face** chunk = g_nax_chunks[dummy >> nax_chunk_bits].load(std::memory_order_acquire);
+    return chunk[dummy & (nax_chunk_size - 1)];
+}
+
+XRLC_LIGHT_API u32 convert_nax(base_Face* F) {
+    if (!F)
+        return 0;
+    std::lock_guard<std::mutex> Lock(g_nax_lock);
+    const u32 id = g_nax_count.load(std::memory_order_relaxed);
+    R_ASSERT2(id < nax_chunk_size * nax_chunk_count, "too many faces in collision models");
+    base_Face** chunk = g_nax_chunks[id >> nax_chunk_bits].load(std::memory_order_relaxed);
+    if (!chunk) {
+        chunk = new base_Face*[nax_chunk_size]();
+        g_nax_chunks[id >> nax_chunk_bits].store(chunk, std::memory_order_release);
+    }
+    chunk[id & (nax_chunk_size - 1)] = F;
+    g_nax_count.store(id + 1, std::memory_order_release);
+    return id;
+}
 
 void write(IWriter& w, const CDB::TRI& tri) {
     w.w_u32(tri.verts[0]);

@@ -3,7 +3,7 @@
 #pragma once
 
 //////////////////////////////////////////////////////////////////////////
-class CRT : public xr_resource_named {
+class ECORE_API CRT : public xr_resource_named {
 public:
     CRT();
     ~CRT();

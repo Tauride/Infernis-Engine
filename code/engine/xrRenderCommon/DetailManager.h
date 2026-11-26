@@ -32,7 +32,9 @@ constexpr int dm_cache_size = dm_cache_line * dm_cache_line;
 constexpr float dm_fade = static_cast<float>(2 * dm_size) - 0.5f;
 constexpr float dm_slot_size = DETAIL_SLOT_SIZE;
 
-class ECORE_API CDetailManager {
+// (no export macro: the Level Editor compiles the detail manager itself, its editor part uses the editor's scene;
+// ECORE_API is empty in the game's build)
+class CDetailManager {
 public:
     struct SlotItem { 
         float scale;

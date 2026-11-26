@@ -71,10 +71,10 @@ void CBuild::LMapsLocal() {
     task_pool.push_back(16);
 #endif
 
-    // Main process (4 threads)
+    // Main process (one thread per hardware thread)
     Status("Lighting...");
     CThreadManager threads;
-    const u32 thNUM = 6;
+    const u32 thNUM = lc_worker_threads();
     CTimer start_time;
     start_time.Start();
     for (int L = 0; L < thNUM; L++)

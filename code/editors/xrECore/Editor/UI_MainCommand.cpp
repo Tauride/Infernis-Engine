@@ -129,7 +129,7 @@ void	RegisterCommand (u32 cmd, SECommand* cmd_impl)
 		ECommands.resize(cmd+1,nullptr);
 	SECommand*&	CMD = ECommands[cmd];
 	if (CMD){
-		Msg			("RegisterCommand: command '%s' overridden by command '%s'.",*CMD->desc,*cmd_impl->desc);
+		Msg			("RegisterCommand: command '%s' overridden by command '%s'.", CMD->name, cmd_impl->name); // Infernis: name and desc are C strings
 		xr_delete	(CMD);
 	}
 	CMD	   			= cmd_impl;

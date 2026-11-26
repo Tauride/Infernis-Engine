@@ -240,7 +240,7 @@ BOOL CSE_Abstract::Spawn_Read(NET_Packet& tNetPacket) {
     tNetPacket.r_stringZ(s_name);
 
     string256 temp;
-    tNetPacket.r_stringZ(temp);
+    tNetPacket.r_stringZ_s(temp); // bounded: the editors' scene files give the name as an ini value of any length
     set_name_replace(temp);
     u8 temp_gt;
     tNetPacket.r_u8(temp_gt /*s_gameid*/);
@@ -317,7 +317,7 @@ BOOL CSE_Abstract::Spawn_Read(NET_Packet& tNetPacket) {
     u16 size;
     tNetPacket.r_u16(size); // size
     bool b1 = (m_tClassID == CLSID_SPECTATOR);
-    bool b2 = size > sizeof(size);
+    bool b2 = size > sizeof(size) || tNetPacket.has_inistream(); // an ini stream has no state size (written as 0)
     R_ASSERT3((b1 || b2), "cannot read object, which is not successfully saved :(", name_replace());
     STATE_Read(tNetPacket, size);
     return TRUE;

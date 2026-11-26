@@ -17,6 +17,11 @@ using namespace luabind;
 
 struct CChooseType {};
 
+#ifdef XRSE_FACTORY_EDITOR
+// Infernis editors: xrEProps (linked) exports PHelper(); GSC's factory loaded the Borland xrEPropsB.dll by name.
+CScriptPropertiesListHelper* g_property_list_helper = 0;
+void load_prop_helper() { g_property_list_helper = xr_new<CScriptPropertiesListHelper>(); }
+#else
 typedef IPropHelper&(__stdcall* TPHelper)();
 
 TPHelper _PHelper = 0;
@@ -50,8 +55,13 @@ IPropHelper& PHelper() {
               prop_helper_library);
     return (_PHelper());
 }
+#endif // XRSE_FACTORY_EDITOR
 
 CScriptPropertiesListHelper* properties_helper() {
+#ifdef XRSE_FACTORY_EDITOR
+    if (!g_property_list_helper) // the editors are running: PHelper() is always there
+        load_prop_helper();
+#endif
     if (!g_property_list_helper)
         ai().script_engine().script_log(
             ScriptStorage::eLuaMessageTypeError,

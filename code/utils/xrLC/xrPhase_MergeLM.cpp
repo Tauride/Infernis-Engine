@@ -113,7 +113,8 @@ public:
 } // namespace
 
 // IX-Ray's MergeLmap_Compact: every deflector of the layer, by all workers; after 256 failures (of deflectors under
-// 128 pixels) only the smallest are still tried, after 1024 the page is closed.
+// 128 pixels) only the smallest are still tried, after 1024 the page is closed. Where each deflector lands depends on
+// the workers' timing, so two compiles give different pages; -lm_gsc is the packer with a reproducible layout.
 static u32 MergeCompact(vecDefl& Layer, CLightmap* lmap) {
     CompactPlacer placer;
     std::mutex capture_lock;

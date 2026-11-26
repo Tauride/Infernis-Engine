@@ -10,6 +10,7 @@ void RunImplicitMultithread(ImplicitDeflector& defl) {
     const u32 run = 8;
     std::atomic<u32> next{0};
     lc_run_workers([&](u32) {
+        SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_BELOW_NORMAL); // as GSC's implicit threads
         for (u32 first; lc_take(next, rows, first, run);) {
             ImplicitExecute execute(first, std::min(first + run, rows));
             execute.Execute(0);

@@ -403,7 +403,7 @@ bool NvStripInfo::Unique(NvFaceInfoVec& faceVec, NvFaceInfo* face) {
 void NvStripInfo::Build(NvEdgeInfoVec& edgeInfos, NvFaceInfoVec& faceInfos) {
 
     // used in building the strips forward and backward
-    static WordVec scratchIndices;
+    static thread_local WordVec scratchIndices; // (per thread: xrLC stripifies several OGFs at once)
     scratchIndices.resize(0);
 
     // build forward... start with the initial face

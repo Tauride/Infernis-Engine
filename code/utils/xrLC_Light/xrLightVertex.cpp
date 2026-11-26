@@ -56,28 +56,6 @@ void g_trans_register(Vertex* V) {
 }
 
 //////////////////////////////////////////////////////////////////////////
-const u32 VLT_END = u32(-1);
-class CVertexLightTasker {
-    std::recursive_mutex cs;
-    volatile u32 index;
-
-public:
-    CVertexLightTasker() : index(0){};
-
-    void init() { index = 0; }
-
-    u32 get() {
-        std::lock_guard<decltype(cs)> lock(cs);
-        u32 _res = index;
-        if (_res >= lc_global_data()->g_vertices().size())
-            _res = VLT_END;
-        else
-            index += 1;
-        return _res;
-    }
-};
-CVertexLightTasker VLT;
-
 bool GetTranslucency(const Vertex* V, float& v_trans) {
     // Get transluency factor
 
@@ -93,60 +71,51 @@ bool GetTranslucency(const Vertex* V, float& v_trans) {
     return bVertexLight;
 }
 
-class CVertexLightThread : public CThread {
-public:
-    CVertexLightThread(u32 ID) : CThread(ID) { thMessages = FALSE; }
-    virtual void Execute() {
-        u32 counter = 0;
-        for (;; counter++) {
-            u32 id = VLT.get();
-            if (id == VLT_END)
-                break;
+// The vertices [first, end) that are lit per vertex, with the worker's own collider
+static void LightVertices(CDB::COLLIDER& DB, u32 first, u32 end) {
+    for (u32 id = first; id < end; id++) {
+        Vertex* V = lc_global_data()->g_vertices()[id];
+        R_ASSERT(V);
 
-            Vertex* V = lc_global_data()->g_vertices()[id];
+        float v_trans = 0.f;
+        if (GetTranslucency(V, v_trans)) {
+            base_color_c vC, old;
+            V->C._get(old);
 
-            R_ASSERT(V);
+            LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, lc_global_data()->L_static(),
+                       (lc_global_data()->b_nosun() ? LP_dont_sun : 0) | LP_dont_hemi, 0);
+            vC._tmp_ = v_trans;
+            vC.mul(.5f);
+            vC.hemi = old.hemi; // preserve pre-calculated hemisphere
+            V->C._set(vC);
 
-            float v_trans = 0.f;
-
-            if (GetTranslucency(V, v_trans)) {
-                base_color_c vC, old;
-                V->C._get(old);
-
-                CDB::COLLIDER DB;
-                DB.ray_options(0);
-                LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N,
-                           lc_global_data()->L_static(),
-                           (lc_global_data()->b_nosun() ? LP_dont_sun : 0) | LP_dont_hemi, 0);
-                vC._tmp_ = v_trans;
-                vC.mul(.5f);
-                vC.hemi = old.hemi; // preserve pre-calculated hemisphere
-                V->C._set(vC);
-
-                g_trans_register(V);
-            }
-
-            thProgress = float(counter) / float(lc_global_data()->g_vertices().size());
+            g_trans_register(V);
         }
     }
-};
+}
 namespace lc_net {
 void RunLightVertexNet();
 }
-#define NUM_THREADS 4
 void LightVertex(bool net) {
     g_trans = xr_new<mapVert>();
 
-    // Start threads, wait, continue --- perform all the work
+    // One worker per hardware thread, taking runs of vertices (IX-Ray's scheme; GSC: 4 threads)
     Status("Calculating...");
     if (!net) {
-        CThreadManager Threads;
-        VLT.init();
         CTimer start_time;
         start_time.Start();
-        for (u32 thID = 0; thID < NUM_THREADS; thID++)
-            Threads.start(xr_new<CVertexLightThread>(thID));
-        Threads.wait();
+        const u32 count = u32(lc_global_data()->g_vertices().size());
+        const u32 run = 64;
+        std::atomic<u32> next{0};
+        lc_run_workers([&](u32 thread) {
+            CDB::COLLIDER DB;
+            DB.ray_options(0);
+            for (u32 first; lc_take(next, count, first, run);) {
+                LightVertices(DB, first, std::min(first + run, count));
+                if (thread == 0)
+                    Progress(float(first) / float(count));
+            }
+        });
         clMsg("%f seconds", start_time.GetElapsed_sec());
     } else {
         lc_net::RunLightVertexNet();

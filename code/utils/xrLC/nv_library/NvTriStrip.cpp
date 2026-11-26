@@ -6,10 +6,11 @@
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // private data
-static unsigned int cacheSize = CACHESIZE_GEFORCE1_2;
-static bool bStitchStrips = true;
-static unsigned int minStripSize = 0;
-static bool bListsOnly = false;
+// Per thread: xrLC stripifies several OGFs at once (Infernis)
+static thread_local unsigned int cacheSize = CACHESIZE_GEFORCE1_2;
+static thread_local bool bStitchStrips = true;
+static thread_local unsigned int minStripSize = 0;
+static thread_local bool bListsOnly = false;
 
 ////////////////////////////////////////////////////////////////////////////////////////
 // SetListsOnly()

@@ -6,9 +6,175 @@
 #include "../xrlc_light/xrdeflector.h"
 #include "../xrlc_light/xrlc_globaldata.h"
 #include "../xrlc_light/lightmap.h"
+#include "../xrLC_Light/xrThread.h"
+#include <mutex>
+
 // Surface access
 extern void _InitSurface();
 extern BOOL _rect_place(L_rect& r, lm_layer* D);
+
+// The lightmap packer (xrLC command line): -lm_compact and -lm_fast are IX-Ray's (its xrLevelBuilder,
+// xrPhase_MergeLM.cpp), -lm_gsc is GSC's; all on Infernis's page size (c_LMAP_size) and border.
+enum class ELightmapPacker { GSC, IXRayCompact, IXRayFast };
+
+static ELightmapPacker SelectedPacker() {
+    if (strstr(Core.Params, "-lm_gsc"))
+        return ELightmapPacker::GSC;
+    if (strstr(Core.Params, "-lm_fast"))
+        return ELightmapPacker::IXRayFast;
+    return ELightmapPacker::IXRayCompact;
+}
+
+static const char* PackerName(ELightmapPacker Packer) {
+    switch (Packer) {
+    case ELightmapPacker::IXRayCompact:
+        return "IX-Ray compact";
+    case ELightmapPacker::IXRayFast:
+        return "IX-Ray fast";
+    default:
+        return "GSC";
+    }
+}
+
+namespace {
+// IX-Ray's per-pixel placer (SurfacePlacePerpixel): GSC's per-pixel test, but positions step by the deflector's width
+// along a row, rows more than 89% full are skipped, there is no rotation, and the deflectors are placed by all
+// workers at once, each registration testing its place again under a lock. Reads outside the lock see the page
+// through atomics.
+class CompactPlacer {
+    static constexpr u32 size = c_LMAP_size;
+    const u32 alpha_ref = 254 - BORDER;
+    std::unique_ptr<std::atomic<u8>[]> surface{new std::atomic<u8>[size * size]};
+    std::unique_ptr<std::atomic<u32>[]> occupied_y{new std::atomic<u32>[size]};
+    std::mutex lock;
+
+    bool fits(int ax, int ay, lm_layer* D) const {
+        const u8* lm = &*(D->marker.begin());
+        const u32 s_x = D->width + 2 * BORDER;
+        const u32 s_y = D->height + 2 * BORDER;
+        for (u32 y = 0; y < s_y; y++) {
+            const std::atomic<u8>* P = surface.get() + (y + ay) * size + ax;
+            const u8* S = lm + y * s_x;
+            for (u32 x = 0; x < s_x; x++, P++, S++)
+                if (P->load(std::memory_order_relaxed) && (*S >= alpha_ref))
+                    return false;
+        }
+        return true;
+    }
+
+    bool register_at(int ax, int ay, lm_layer* D) {
+        std::lock_guard<std::mutex> guard(lock);
+        if (!fits(ax, ay, D))
+            return false;
+        const u8* lm = &*(D->marker.begin());
+        const u32 s_x = D->width + 2 * BORDER;
+        const u32 s_y = D->height + 2 * BORDER;
+        for (u32 y = 0; y < s_y; y++) {
+            std::atomic<u8>* P = surface.get() + (y + ay) * size + ax;
+            const u8* S = lm + y * s_x;
+            for (u32 x = 0; x < s_x; x++, P++, S++)
+                if (*S >= alpha_ref) {
+                    P->store(255, std::memory_order_relaxed);
+                    occupied_y[y + ay].fetch_add(1, std::memory_order_relaxed);
+                }
+        }
+        return true;
+    }
+
+public:
+    CompactPlacer() {
+        for (u32 i = 0; i < size * size; i++)
+            surface[i].store(0, std::memory_order_relaxed);
+        for (u32 i = 0; i < size; i++)
+            occupied_y[i].store(0, std::memory_order_relaxed);
+    }
+
+    // rect_place_full: the first row (from the top) and step that fit
+    bool place(lm_layer* D, int& out_x, int& out_y) {
+        const int SizeX = D->width + 2 * BORDER;
+        const int SizeY = D->height + 2 * BORDER;
+        const int x_max = int(size) - SizeX;
+        const int y_max = int(size) - SizeY;
+        const u32 y_max_line = u32(float(size) * 0.89f);
+        for (int _Y = 0; _Y < y_max; _Y++) {
+            const u32 occupied = occupied_y[_Y].load(std::memory_order_relaxed);
+            if (occupied > y_max_line || occupied > size - SizeX)
+                continue;
+            for (int _X = 0; _X < x_max; _X += std::max(1, SizeX))
+                if (fits(_X, _Y, D) && register_at(_X, _Y, D)) {
+                    out_x = _X;
+                    out_y = _Y;
+                    return true;
+                }
+        }
+        return false;
+    }
+};
+} // namespace
+
+// IX-Ray's MergeLmap_Compact: every deflector of the layer, by all workers; after 256 failures (of deflectors under
+// 128 pixels) only the smallest are still tried, after 1024 the page is closed.
+static u32 MergeCompact(vecDefl& Layer, CLightmap* lmap) {
+    CompactPlacer placer;
+    std::mutex capture_lock;
+    std::atomic<u32> next{0}, failures{0}, merged{0};
+    const u32 count = u32(Layer.size());
+    lc_run_workers([&](u32 thread) {
+        for (u32 it; lc_take(next, count, it);) {
+            CDeflector* D = Layer[it];
+            lm_layer& L = D->layer;
+            if (failures > 256 && L.Area() > 4)
+                continue;
+            if (failures > 1024)
+                break;
+            int x, y;
+            if (placer.place(&L, x, y)) {
+                std::lock_guard<std::mutex> guard(capture_lock);
+                lmap->Capture(D, x, y, L.width + 2 * BORDER, L.height + 2 * BORDER, FALSE);
+                D->bMerged = TRUE;
+                merged++;
+            } else if (L.Area() < 128)
+                failures++;
+            if (thread == 0)
+                Progress(float(it) / float(count));
+        }
+    });
+    return merged;
+}
+
+// IX-Ray's MergeLmapFast: rows of bounding rectangles, deflectors sorted by height, 2 pixels apart, a 32 pixel
+// margin on the right and at the bottom.
+static u32 MergeFast(vecDefl& Layer, CLightmap* lmap) {
+    std::stable_sort(Layer.begin(), Layer.end(),
+                     [](CDeflector* a, CDeflector* b) { return a->layer.height < b->layer.height; });
+    const u32 OFFSET_SHIFT = 2;
+    const u32 OFFSET_START = (2 * BORDER) + OFFSET_SHIFT;
+    const u32 LMSIZE = c_LMAP_size;
+    u32 _X = OFFSET_START, _Y = OFFSET_START, _Max_y = 0, merged = 0;
+    for (u32 it = 0; it < Layer.size(); it++) {
+        if (Layer[it]->bMerged)
+            continue;
+        if (_Y > LMSIZE - 32)
+            break;
+        lm_layer& L = Layer[it]->layer;
+        const u32 WIDTH = L.width + (2 * BORDER);
+        const u32 HEIGHT = L.height + (2 * BORDER);
+        if (_Max_y < HEIGHT)
+            _Max_y = HEIGHT;
+        if (_X + WIDTH > LMSIZE - 32) {
+            _X = OFFSET_START;
+            _Y += _Max_y + OFFSET_SHIFT;
+            _Max_y = 0;
+        }
+        if (_Y + HEIGHT < LMSIZE && _X + WIDTH <= LMSIZE) {
+            lmap->Capture(Layer[it], _X, _Y, WIDTH, HEIGHT, FALSE);
+            Layer[it]->bMerged = TRUE;
+            merged++;
+        }
+        _X += WIDTH + OFFSET_SHIFT;
+    }
+    return merged;
+}
 
 IC int compare_defl(CDeflector* D1, CDeflector* D2) {
     // First  - by material
@@ -104,6 +270,9 @@ void CBuild::xrPhase_MergeLM() {
         Layer.push_back(D);
     }
 
+    const ELightmapPacker packer = SelectedPacker();
+    clMsg("Lightmap packer: %s", PackerName(packer));
+
     // Merge this layer (which left unmerged)
     while (Layer.size()) {
         VERIFY(lc_global_data());
@@ -144,6 +313,14 @@ void CBuild::xrPhase_MergeLM() {
         lc_global_data()->lightmaps().push_back(lmap);
 
         // Process
+        CTimer page_timer;
+        page_timer.Start();
+        u32 merged = 0;
+        if (packer == ELightmapPacker::IXRayCompact)
+            merged = MergeCompact(Layer, lmap);
+        else if (packer == ELightmapPacker::IXRayFast)
+            merged = MergeFast(Layer, lmap);
+        else
         for (u32 it = 0; it < merge_count; it++) {
             if (0 == (it % 1024))
                 Status("Process [%d/%d]...", it, merge_count);
@@ -165,10 +342,19 @@ void CBuild::xrPhase_MergeLM() {
                 }
                 lmap->Capture(Layer[it], rT.a.x, rT.a.y, rT.SizeX(), rT.SizeY(), bRotated);
                 Layer[it]->bMerged = TRUE;
+                merged++;
             }
             Progress(std::sqrt(float(it) / float(merge_count)));
         }
         Progress(1.f);
+        u32 used = 0;
+        for (u8 marker : lmap->lm.marker)
+            if (marker >= 254 - BORDER)
+                used++;
+        clMsg("Lightmap %d: %u of %u deflectors, %.1f%% of the page used, %.1f s",
+              int(lc_global_data()->lightmaps().size()) - 1, merged, u32(Layer.size()),
+              100.f * float(used) / float(c_LMAP_size * c_LMAP_size), page_timer.GetElapsed_sec());
+        R_ASSERT2(merged, "a lightmap page with no deflector: one does not fit an empty page");
 
         // Remove merged lightmaps
         Status("Cleanup...");

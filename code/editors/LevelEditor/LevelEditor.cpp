@@ -168,14 +168,15 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 				break;
 
 			case SDL_EVENT_KEY_DOWN:
-				if (UI)
+				// (not during Make LOD's job: shortcuts could build, load or reload what its worker traces)
+				if (UI && !UIEditLibrary::LODJobRunning())
 				{
 					UI->KeyDown(Event.key.scancode, UI->GetShiftState());
 					UI->ApplyShortCutInput(Event.key.scancode);
 				}
 				break;
 			case SDL_EVENT_KEY_UP:
-				if (UI)
+				if (UI) // (always: a key held down when a job started is released)
 					UI->KeyUp(Event.key.scancode, UI->GetShiftState());
 				break;
 
@@ -193,13 +194,18 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 
 		// (on the check run's last frame at the latest: a -frames limit below 5 must not skip them)
 		const bool LastCheckFrame = CheckRun.FrameLimit > 0 && CheckRun.FrameCount + 1 >= CheckRun.FrameLimit;
-		if ((PendingMakeLods || PendingBuild) && (--FramesBeforeActions == 0 || LastCheckFrame))
+		if ((PendingMakeLods || PendingBuild) &&
+			(FramesBeforeActions == 0 || --FramesBeforeActions == 0 || LastCheckFrame))
 		{
 			if (PendingMakeLods)
 				MakeSceneLODs(AsyncMakeLods);
-			if (PendingBuild)
+			PendingMakeLods = false;
+			// (after -make_lods_async's job: it makes the LOD textures the build takes)
+			if (PendingBuild && !UIEditLibrary::LODJobRunning())
+			{
 				BuildScene();
-			PendingMakeLods = PendingBuild = false;
+				PendingBuild = false;
+			}
 		}
 
 		if (CheckRun.AfterFrame())

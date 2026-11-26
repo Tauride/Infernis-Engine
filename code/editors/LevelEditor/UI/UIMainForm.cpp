@@ -199,7 +199,8 @@ UIMainForm::~UIMainForm()
 	TransformLocalOrWorld.destroy();
 	TransformLocalOrWorld2.destroy();
 
-	Console->Execute("cfg_save");
+	// Infernis: no cfg_save, as in the other editors: the engine's console here has no renderer list, which saving
+	// the config needs (IX-Ray: Console->Execute("cfg_save"))
 	ExecCommand(COMMAND_DESTROY, (u32)0, (u32)0);
 }
 

@@ -58,7 +58,7 @@ void Startup(LPSTR lpCmdLine) {
     // Give a LOG-thread a chance to startup
     //_set_sbh_threshold(1920);
     InitCommonControls();
-	std::thread log_thread(logThread);
+	std::thread(logThread).detach(); // runs until the process ends (a joinable std::thread destroyed unjoined calls std::terminate)
     Sleep(150);
 
     // Faster FPU

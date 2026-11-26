@@ -148,6 +148,11 @@ extern "C" XRLC_LIGHT_API xrLC_GlobalData* lc_global_data();
 extern "C" XRLC_LIGHT_API void create_global_data();
 extern "C" XRLC_LIGHT_API void destroy_global_data();
 extern "C" XRLC_LIGHT_API u32 InvalideFaces();
+
+// A face in a collision model's triangle (CDB::TRI::dummy, 32 bits). GSC stored the face's address there, which x64
+// cuts in half; it is an index into a table of faces instead (0: no face), as in IX-Ray's xrLC.
+XRLC_LIGHT_API u32 convert_nax(base_Face* F);
+XRLC_LIGHT_API base_Face* convert_nax(u32 dummy);
 XRLC_LIGHT_API void ImplicitLighting(BOOL net);
 
 extern xrLC_GlobalData* data;

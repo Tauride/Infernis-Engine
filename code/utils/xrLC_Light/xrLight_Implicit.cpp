@@ -143,6 +143,7 @@ void ImplicitLighting(BOOL b_net) {
     }
 	std::thread worker(ImplicitLightingTreadNetExec);
     set_thread_name("worker-thread", worker);
+    worker.detach(); // runs on its own (a joinable std::thread destroyed unjoined calls std::terminate)
 }
 std::recursive_mutex implicit_net_lock;
 void XRLC_LIGHT_API ImplicitNetWait() {

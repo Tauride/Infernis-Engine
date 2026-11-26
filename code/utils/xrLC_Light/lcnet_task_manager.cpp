@@ -77,6 +77,7 @@ void task_manager::startup() {
     // create_user( );
 	std::thread release_user(task_manager::user_thread_proc, this);
     set_thread_name("release-user", release_user);
+    release_user.detach(); // runs on its own (a joinable std::thread destroyed unjoined calls std::terminate)
     for (;;) {
         Sleep(1);
         bool user_inited = false;

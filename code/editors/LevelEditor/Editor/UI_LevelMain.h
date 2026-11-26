@@ -86,6 +86,8 @@ class CLevelMain:
     virtual void 	RealUpdateScene			();
     virtual void 	RealQuit				();
 
+    virtual void	BuildDefaultLayout		(unsigned int DockSpaceId) override; // Infernis
+
 public:
     C3DCursor*   	m_Cursor;
     xr_task_group LoaderEvent;

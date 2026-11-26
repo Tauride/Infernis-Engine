@@ -62,6 +62,15 @@ public:
 #ifdef XR_NET_PACKET_INISTREAM
     IIniFileStream* inistream = nullptr;
 #endif
+    // The editors' scene files (.part, LTX) carry spawn data as ini keys: raw blocks (r/w) and the state size do not
+    // go through the ini stream. Always false outside the editors' build.
+    bool has_inistream() const {
+#ifdef XR_NET_PACKET_INISTREAM
+        return inistream != nullptr;
+#else
+        return false;
+#endif
+    }
     NET_Buffer B;
     u32 r_pos;
     u32 timeReceive;

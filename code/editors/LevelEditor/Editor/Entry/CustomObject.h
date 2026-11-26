@@ -177,6 +177,9 @@ public:
 						FPosition.set			(0,0,0);
 						FTransform.identity		();
 						FTransformRP.identity	();
+						FTransformS.identity	(); // Infernis: these three were left unset until the first frame
+						FTransformR.identity	();
+						FTransformP.identity	();
 						FITransform.identity	();
 						FITransformRP.identity	();
 					}

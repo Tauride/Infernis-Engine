@@ -161,6 +161,16 @@ void UIEditLibrary::Show()
 	}
 }
 
+void UIEditLibrary::MakeLODs(const SharedStrVec& Objects)
+{
+	Show();
+	const bool Preview = Form->m_Preview;
+	Form->m_Preview = true; // the LOD is rendered from the library's preview of the object
+	Form->GenerateLOD(Objects, true);
+	Form->m_Preview = Preview;
+	Close();
+}
+
 void UIEditLibrary::Close()
 {
 	UI->EndEState(esEditLibrary);

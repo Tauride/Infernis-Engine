@@ -43,7 +43,7 @@ void Startup(LPSTR lpCmdLine) {
         bNet = true;
     // Give a LOG-thread a chance to startup
     InitCommonControls();
-	std::thread log_thread(logThread);
+	std::thread(logThread).detach(); // runs until the process ends (a joinable std::thread destroyed unjoined calls std::terminate)
     Sleep(150);
 
     // Load project

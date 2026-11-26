@@ -407,8 +407,8 @@ void Object::compute_face_quadric(MeshTri* tri, MxQuadric& Q) {
 
 float Object::FindCollapseError(MeshPt* pptBinned, MeshEdge* pedgeCollapse,
                                 long bTryToCacheResult /*= FALSE*/) {
-    static MeshPt* pptLast;
-    static MxQuadric qLast(QUAD_SIZE);
+    static thread_local MeshPt* pptLast; // (per thread: meshes are simplified in parallel)
+    static thread_local MxQuadric qLast(QUAD_SIZE);
     if (pptBinned == NULL) {
         pptLast = 0;
         return 0.0f;

@@ -127,7 +127,7 @@ Flags32 ps_r2_ls_flags = { R2FLAG_SUN
                            R2FLAG_VOLUMETRIC_LIGHTS }; // r2-only
 
 Flags32 ps_r2_ls_flags_ext = {
-    /*R2FLAGEXT_SSAO_OPT_DATA |*/ R2FLAGEXT_SSAO_HALF_DATA | R2FLAGEXT_ENABLE_TESSELLATION
+    /*R2FLAGEXT_SSAO_OPT_DATA |*/ R2FLAGEXT_SSAO_HALF_DATA | R2FLAGEXT_ENABLE_TESSELLATION | R4FLAGEXT_DETAIL_INSTANCING
 };
 
 float ps_r2_df_parallax_h = 0.02f;
@@ -205,8 +205,21 @@ float ps_r2_gloss_factor = 4.0f;
 #if defined(USE_DX10) || defined(USE_DX11)
 #include "../xrRenderDX10/StateManager/dx10SamplerStateCache.h"
 #endif //	USE_DX10
+#include "DetailManager.h"
 
 //-----------------------------------------------------------------------
+// The grass radius in metres (after IX-Ray's CCC_DetailRadius): the detail manager rebuilds its cache for it on its
+// next update. 48 is GSC's 24 slots.
+int ps_r__detail_radius = 48;
+class CCC_DetailRadius : public CCC_Integer {
+public:
+    CCC_DetailRadius(LPCSTR N, int* V, int _min, int _max) : CCC_Integer(N, V, _min, _max) {}
+    void Execute(LPCSTR args) override {
+        CCC_Integer::Execute(args);
+        dm_requested_size = dm_size_for_radius(ps_r__detail_radius);
+    }
+};
+
 class CCC_tf_Aniso : public CCC_Integer {
 public:
     void apply() {
@@ -635,6 +648,7 @@ void xrRender_initconsole() {
     //.	CMD4(CCC_Float,		"r__detail_density",	&ps_r__Detail_density,		.05f,	0.99f
     //);
     CMD4(CCC_Float, "r__detail_density", &ps_r__Detail_density, .2f, 0.6f);
+    CMD4(CCC_DetailRadius, "r__detail_radius", &ps_r__detail_radius, 48, 500);
 	
 	CMD4(CCC_Float, "r__d_tree_w_amp", &ps_r__Tree_w_amp, .001f, 1.f);
     CMD4(CCC_Float, "r__d_tree_w_rot", &ps_r__Tree_w_rot, .01f, 100.f);
@@ -757,6 +771,8 @@ void xrRender_initconsole() {
     CMD3(CCC_Mask, "r2_shadow_cascede_old", &ps_r2_ls_flags_ext, R2FLAGEXT_SUN_OLD);
 
 #endif // DEBUG
+    // R4: grass drawn instanced; read when the renderer starts (dx10DetailManager_VS.cpp)
+    CMD3(CCC_Mask, "r4_detail_instancing", &ps_r2_ls_flags_ext, R4FLAGEXT_DETAIL_INSTANCING);
 
     CMD4(CCC_Float, "r2_ls_depth_scale", &ps_r2_ls_depth_scale, 0.5, 1.5);
     CMD4(CCC_Float, "r2_ls_depth_bias", &ps_r2_ls_depth_bias, -0.5, +0.5);

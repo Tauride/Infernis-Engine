@@ -7,9 +7,7 @@
 #include "xrRender/ThunderboltDescRender.h"
 #include "xrRender/ThunderboltRender.h"
 
-#ifndef _EDITOR
 #include "render.h"
-#endif
 
 #ifdef INGAME_EDITOR
 #define INGAME_EDITOR_VIRTUAL virtual
@@ -95,9 +93,7 @@ private:
         float phase{0.f};
         float life_time{0.f};
         float current_time{0.f};
-#ifndef _EDITOR
-        ref_light light;
-#endif
+        ref_light light; // Same layout with and without _EDITOR: the editors share this class with xrEngineCore.dll
         bool using_light{false};
     };
 

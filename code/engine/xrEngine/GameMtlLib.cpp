@@ -7,9 +7,7 @@
 
 CGameMtlLibrary GMLib;
 // CSound_manager_interface*	Sound = NULL;
-#ifdef _EDITOR
-CGameMtlLibrary* PGMLib = NULL;
-#endif
+// PGMLib is defined in xrAPI for the game and the editors alike (xrAPI.h).
 CGameMtlLibrary::CGameMtlLibrary() {
     material_index = 0;
     material_pair_index = 0;

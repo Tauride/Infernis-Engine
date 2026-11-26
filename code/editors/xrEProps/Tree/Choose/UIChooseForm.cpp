@@ -128,7 +128,7 @@ void UIChooseForm::Draw()
 				{
 					if (m_Texture)
 					{
-						ImGui::Image((ImTextureID)(intptr_t)m_Texture, ImVec2(192, 192));
+						ImGui::Image(m_Texture->GetImTextureID(), ImVec2(192, 192)); // Infernis: D3D9 texture (compat/editor_rhi.h)
 					}
 					else
 					{

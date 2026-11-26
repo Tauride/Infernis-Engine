@@ -795,7 +795,6 @@ CApplication::~CApplication() {
     Engine.Event.Handler_Detach(eStartMPDemo, this);
 }
 
-extern CRenderDevice Device;
 
 void CApplication::OnEvent(EVENT E, u64 P1, u64 P2) {
     if (E == eQuit) {

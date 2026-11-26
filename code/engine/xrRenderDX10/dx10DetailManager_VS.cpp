@@ -67,6 +67,31 @@ void CDetailManager::hw_Render() {
     dir1.set(std::sin(tm_rot1), 0, std::cos(tm_rot1), 0).normalize().mul(swing_current.amp1);
     dir2.set(std::sin(tm_rot2), 0, std::cos(tm_rot2), 0).normalize().mul(swing_current.amp2);
 
+    // Infernis (after IX-Ray's grass shadows): in the sun's shadow map (r2_sun_details) the waving grass is drawn with
+    // its shadow element (depth only, alpha-tested); the still grass casts no shadow
+    const bool shadow = RImplementation.phase == CRender::PHASE_SMAP;
+    const u32 lod_wave = shadow ? SE_R2_SHADOW : 0;
+
+#ifdef USE_DX11
+    // Every visible item of this frame into the instance buffer, once for the three variants and every pass
+    const bool instanced = RImplementation.o.detail_instancing;
+    if (instanced) {
+        Device.Statistic->RenderDUMP_DT_Count = hw_Instances_Fill();
+        if (!Device.Statistic->RenderDUMP_DT_Count)
+            return;
+    }
+    const auto dump = [&](const Fvector4& c, const Fvector4& w, const Fvector4& d, u32 var_id, u32 lod_id) {
+        if (instanced)
+            hw_Render_instanced(c, w, d, var_id, lod_id);
+        else
+            hw_Render_dump(c, w, d, var_id, lod_id);
+    };
+#else
+    const auto dump = [&](const Fvector4& c, const Fvector4& w, const Fvector4& d, u32 var_id, u32 lod_id) {
+        hw_Render_dump(c, w, d, var_id, lod_id);
+    };
+#endif
+
     // Setup geometry and DMA
     RCache.set_Geometry(hw_Geom);
 
@@ -82,7 +107,7 @@ void CDetailManager::hw_Render() {
     // // consts  RCache.set_c			(&*hwc_wave,	wave.div(PI_MUL_2));	// wave
     // RCache.set_c			(&*hwc_wind,	dir1);																					//
     // wind-dir  hw_Render_dump			(&*hwc_array,	1, 0, c_hdr );
-    hw_Render_dump(consts, wave.div(PI_MUL_2), dir1, 1, 0);
+    dump(consts, wave.div(PI_MUL_2), dir1, 1, lod_wave);
 
     // Wave1
     // wave.set				(1.f/3.f,		1.f/7.f,	1.f/5.f,
@@ -91,15 +116,140 @@ void CDetailManager::hw_Render() {
     // RCache.set_c			(&*hwc_wave,	wave.div(PI_MUL_2));	// wave
     // RCache.set_c			(&*hwc_wind,	dir2);																					//
     // wind-dir  hw_Render_dump			(&*hwc_array,	2, 0, c_hdr );
-    hw_Render_dump(consts, wave.div(PI_MUL_2), dir2, 2, 0);
+    dump(consts, wave.div(PI_MUL_2), dir2, 2, lod_wave);
 
     // Still
     consts.set(scale, scale, scale, 1.f);
     // RCache.set_c			(&*hwc_s_consts,scale,		scale,		scale,
     // 1.f);  RCache.set_c			(&*hwc_s_xform,	Device.mFullTransform);
     // hw_Render_dump			(&*hwc_s_array,	0, 1, c_hdr );
-    hw_Render_dump(consts, wave.div(PI_MUL_2), dir2, 0, 1);
+    if (!shadow)
+        dump(consts, wave.div(PI_MUL_2), dir2, 0, 1);
+
+#ifdef USE_DX11
+    if (instanced)
+        SRVSManager.SetVSResource(0, nullptr); // the next shaders' slot, and the buffer may be recreated
+#endif
 }
+
+#ifdef USE_DX11
+void CDetailManager::hw_Instances_Reserve(u32 count) {
+    if (count <= hw_InstancesSize)
+        return;
+    hw_Instances_Release();
+    u32 size = 4096;
+    while (size < count)
+        size *= 2;
+
+    D3D11_BUFFER_DESC desc{};
+    desc.ByteWidth = size * sizeof(HWInstance);
+    desc.Usage = D3D11_USAGE_DYNAMIC;
+    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    R_CHK(HW.pDevice->CreateBuffer(&desc, nullptr, &hw_Instances));
+
+    // A typed buffer of float4 (two per instance): vertex shaders read it on any D3D11 feature level
+    D3D11_SHADER_RESOURCE_VIEW_DESC view{};
+    view.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    view.ViewDimension = D3D11_SRV_DIMENSION_BUFFER;
+    view.Buffer.FirstElement = 0;
+    view.Buffer.NumElements = size * (sizeof(HWInstance) / sizeof(Fvector4));
+    R_CHK(HW.pDevice->CreateShaderResourceView(hw_Instances, &view, &hw_InstancesView));
+    hw_InstancesSize = size;
+}
+
+void CDetailManager::hw_Instances_Release() {
+    SRVSManager.SetVSResource(0, nullptr);
+    _RELEASE(hw_InstancesView);
+    _RELEASE(hw_Instances);
+    hw_InstancesSize = 0;
+    hw_InstancesFrame = u32(-1);
+    hw_InstancesCount = 0;
+}
+
+u32 CDetailManager::hw_Instances_Fill() {
+    static_assert(sizeof(HWInstance) == 2 * sizeof(Fvector4));
+    // The main view, the scope lens and the sun's cascades draw the same items in a frame
+    if (hw_InstancesFrame == Device.dwFrame)
+        return hw_InstancesCount;
+    hw_InstancesFrame = Device.dwFrame;
+    hw_InstancesCount = 0;
+    u32 total = 0;
+    for (u32 var_id = 0; var_id < 3; var_id++) {
+        hw_Ranges[var_id].assign(objects.size(), HWRange{0, 0});
+        for (const xr_vector<SlotItemVec*>& vis : m_visibles[var_id])
+            for (const SlotItemVec* items : vis)
+                total += u32(items->size());
+    }
+    if (!total)
+        return 0;
+
+    hw_Instances_Reserve(total);
+    D3D11_MAPPED_SUBRESOURCE map;
+    R_CHK(HW.pContext->Map(hw_Instances, 0, D3D11_MAP_WRITE_DISCARD, 0, &map));
+    HWInstance* dest = static_cast<HWInstance*>(map.pData);
+    u32 count = 0;
+    for (u32 var_id = 0; var_id < 3; var_id++) {
+        vis_list& list = m_visibles[var_id];
+        for (u32 O = 0; O < objects.size() && O < list.size(); O++) {
+            HWRange& range = hw_Ranges[var_id][O];
+            range.first = count;
+            for (const SlotItemVec* items : list[O]) {
+                for (const SlotItem* Instance : *items) {
+                    // The item's matrix is a rotation about Y and a position (cache_Decompress)
+                    const Fmatrix& M = Instance->mRotY;
+                    const float scale = Instance->scale_calculated;
+                    dest[count++] = {M._41, M._42, M._43, scale, M._11 * scale, M._31 * scale, Instance->c_hemi,
+                                     Instance->c_sun};
+                }
+            }
+            range.count = count - range.first;
+        }
+    }
+    HW.pContext->Unmap(hw_Instances, 0);
+    hw_InstancesCount = count;
+    return count;
+}
+
+void CDetailManager::hw_Render_instanced(const Fvector4& consts, const Fvector4& wave, const Fvector4& wind,
+                                         u32 var_id, u32 lod_id) {
+    static shared_str strConsts("consts");
+    static shared_str strWave("wave");
+    static shared_str strDir2D("dir2D");
+    static shared_str strXForm("xform");
+    static shared_str strInstanceBase("instance_base");
+
+    // Each model's first copy in the geometry (vertices and indices of one item)
+    u32 vOffset = 0;
+    u32 iOffset = 0;
+    for (u32 O = 0; O < objects.size(); O++) {
+        CDetail& Object = *objects[O];
+        const HWRange& range = hw_Ranges[var_id][O];
+        if (range.count && Object.shader->E[lod_id]) {
+            for (u32 iPass = 0; iPass < Object.shader->E[lod_id]->passes.size(); ++iPass) {
+                RCache.set_Element(Object.shader->E[lod_id], iPass);
+                if (RImplementation.phase != CRender::PHASE_SMAP)
+                    RImplementation.apply_lmaterial();
+
+                RCache.set_c(strConsts, consts);
+                RCache.set_c(strWave, wave);
+                RCache.set_c(strDir2D, wind);
+                RCache.set_c(strXForm, Device.mFullTransform);
+                RCache.set_c(strInstanceBase, Fvector4().set(float(range.first), 0.f, 0.f, 0.f));
+                SRVSManager.SetVSResource(0, hw_InstancesView);
+
+                RCache.RenderInstanced(vOffset, Object.number_vertices, iOffset, Object.number_indices / 3,
+                                       range.count);
+                RCache.stat.r.s_details.add(range.count * Object.number_vertices);
+            }
+        }
+        vOffset += hw_BatchSize * Object.number_vertices;
+        iOffset += hw_BatchSize * Object.number_indices;
+    }
+}
+#endif // USE_DX11
+
+// GSC's batches (R3, and R4 with r4_detail_instancing off): up to hw_BatchSize items per draw, in the constant array
 
 void CDetailManager::hw_Render_dump(const Fvector4& consts, const Fvector4& wave,
                                     const Fvector4& wind, u32 var_id, u32 lod_id) {
@@ -128,12 +278,13 @@ void CDetailManager::hw_Render_dump(const Fvector4& consts, const Fvector4& wave
     for (u32 O = 0; O < objects.size(); O++) {
         CDetail& Object = *objects[O];
         xr_vector<SlotItemVec*>& vis = list[O];
-        if (!vis.empty()) {
+        if (!vis.empty() && Object.shader->E[lod_id]) {
             for (u32 iPass = 0; iPass < Object.shader->E[lod_id]->passes.size(); ++iPass) {
                 // Setup matrices + colors (and flush it as necessary)
                 // RCache.set_Element				(Object.shader->E[lod_id]);
                 RCache.set_Element(Object.shader->E[lod_id], iPass);
-                RImplementation.apply_lmaterial();
+                if (RImplementation.phase != CRender::PHASE_SMAP)
+                    RImplementation.apply_lmaterial();
 
                 //	This could be cached in the corresponding consatant buffer
                 //	as it is done for DX9
@@ -151,12 +302,21 @@ void CDetailManager::hw_Render_dump(const Fvector4& consts, const Fvector4& wave
                 Fvector4* c_storage = 0;
                 //	Map constants to memory directly
                 {
-                    void* pVData;
+                    void* pVData = nullptr;
                     RCache.get_ConstantDirect(strArray, hw_BatchSize * sizeof(Fvector4) * 4,
                                               &pVData, 0, 0);
                     c_storage = (Fvector4*)pVData;
                 }
-                VERIFY(c_storage);
+                // Infernis: a grass shader without the constant array (one built for instancing, or a stale copy)
+                // leaves nothing to write the items to: no grass instead of a crash
+                if (!c_storage) {
+                    static bool reported = false;
+                    if (!reported) {
+                        Msg("! [DETAILS] the grass shader has no 'array' constant: grass is not drawn");
+                        reported = true;
+                    }
+                    continue;
+                }
 
                 u32 dwBatch = 0;
 
@@ -229,10 +389,7 @@ void CDetailManager::hw_Render_dump(const Fvector4& consts, const Fvector4& wave
                     RCache.stat.r.s_details.add(dwCNT_verts);
                 }
             }
-            // The lens and main view render the same visibility result in this frame.
-            // The main pass consumes it after the scope pass finishes.
-            if (!Device.scopeLensPass)
-                vis.clear();
+            // (the lists stay for the scope lens and the sun's cascades; UpdateVisibleM empties them for the next frame)
         }
         vOffset += hw_BatchSize * Object.number_vertices;
         iOffset += hw_BatchSize * Object.number_indices;

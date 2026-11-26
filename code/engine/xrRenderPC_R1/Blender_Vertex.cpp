@@ -22,7 +22,7 @@ CBlender_Vertex::~CBlender_Vertex() {}
 
 void CBlender_Vertex::Save(IWriter& fs) {
     IBlender::Save(fs);
-    xrP_TOKEN::Item I;
+    xrP_TOKEN::Item I{}; // zeroed: the whole 64-byte name is written
     xrPWRITE_PROP(fs, "Tessellation", xrPID_TOKEN, oTessellation);
     I.ID = 0;
     xr_strcpy(I.str, "NO_TESS");

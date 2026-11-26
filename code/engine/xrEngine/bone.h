@@ -293,6 +293,7 @@ class CBone;
 using BoneVec = xr_vector<CBone*>;
 
 class ECORE_API CBone : public CBoneInstance, public IBoneData {
+public: // the editors work on the rest and motion transforms directly (as in IX-Ray)
     std::string name;
     std::string parent_name;
     std::string wmap;

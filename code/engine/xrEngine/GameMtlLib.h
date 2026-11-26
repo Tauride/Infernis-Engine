@@ -51,7 +51,7 @@
 
 #ifndef MTL_EXPORT_API
 #ifdef _EDITOR
-#include "ElTree.hpp"
+// (GSC's Borland editors included ElTree.hpp here)
 #define MTL_EXPORT_API ECORE_API
 #else
 #define MTL_EXPORT_API ENGINE_API
@@ -187,16 +187,20 @@ public:
     FactoryPtr<IWallMarkArray> m_pCollideMarks;
 #endif //	GM_NON_GAME
 #ifdef _EDITOR
-    PropValue* propBreakingSounds;
-    PropValue* propStepSounds;
-    PropValue* propCollideSounds;
-    PropValue* propCollideParticles;
-    PropValue* propCollideMarks;
-    void __stdcall OnFlagChange(PropValue* sender);
-    void __stdcall OnParentClick(ButtonValue* sender, bool& bModif, bool& bSafe);
-    void __stdcall OnCommandClick(ButtonValue* sender, bool& bModif, bool& bSafe);
-    void __stdcall FillChooseMtl(ChooseItemVec& items, void* param);
+    // Editor only (editors/xrECore/Engine/GameMtlLibEditor.cpp); the game never defines _EDITOR.
+    PropValue* propBreakingSounds = nullptr;
+    PropValue* propStepSounds = nullptr;
+    PropValue* propCollideSounds = nullptr;
+    PropValue* propCollideParticles = nullptr;
+    PropValue* propCollideMarks = nullptr;
+    bool m_EditParent = false;  // the parent chooser is open
+    bool m_EditCommand = false; // the "set as parent to" chooser is open
+    void OnFlagChange(PropValue* sender);
+    void OnParentClick(ButtonValue* sender, bool& bModif, bool& bSafe);
+    void OnCommandClick(ButtonValue* sender, bool& bModif, bool& bSafe);
+    void FillChooseMtl(ChooseItemVec& items, void* param);
     void CopyFrom(SGameMtlPair* parent);
+    void OnDrawUI();
 #endif
 public:
     SGameMtlPair(CGameMtlLibrary* owner) {

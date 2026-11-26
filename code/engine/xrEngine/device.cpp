@@ -25,7 +25,12 @@
 
 #include "igame_persistent.h"
 
+#ifdef ENGINE_DEVICE_PTR
+static CRenderDevice EngineDevice; // used until an editor installs its own device
+ENGINE_API CRenderDevice* DevicePtr = &EngineDevice;
+#else
 ENGINE_API CRenderDevice Device;
+#endif
 ENGINE_API CLoadScreenRenderer load_screen_renderer;
 
 ENGINE_API float IE_VIEWPORT_NEAR; // 0.05f - для юзу сучасних збройових паків, 0.2f - для ванільних

@@ -25,7 +25,9 @@
 extern CSE_Abstract* F_entity_Create(LPCSTR section);
 
 extern CScriptPropertiesListHelper* g_property_list_helper;
+#ifndef XRSE_FACTORY_EDITOR
 extern HMODULE prop_helper_module;
+#endif
 
 extern "C" {
 FACTORY_API ISE_Abstract* __stdcall create_entity(LPCSTR section) {
@@ -41,45 +43,68 @@ FACTORY_API void __stdcall destroy_entity(ISE_Abstract*& abstract) {
 
 void setup_luabind_allocator();
 
-BOOL APIENTRY DllMain(HANDLE module_handle, DWORD call_reason, LPVOID reserved) {
-    switch (call_reason) {
-    case DLL_PROCESS_ATTACH: {
-        //			g_temporary_stuff			=
-        //&trivial_encryptor::decode;
+// Infernis: start-up and shut-down split out of DllMain. GSC's factory initialises its own xrCore (fsfactory.ltx) when it
+// is loaded; the editors' build (XRSE_FACTORY_EDITOR) runs inside an editor that already did, and is started and
+// stopped by the editor (SEFactoryEntry, SEFactoryDestroy, as IX-Ray's factory is).
+static bool s_own_settings = false;
 
+static void factory_startup(bool own_core) {
+    if (own_core) {
         Debug._initialize();
         Core._initialize("xrSE_Factory", NULL, TRUE, "fsfactory.ltx");
+    }
+    if (own_core || !pSettings) { // GSC's factory always loads its own; the editors' reuses the editor's
         string_path SYSTEM_LTX;
         FS.update_path(SYSTEM_LTX, "$game_config$", "system.ltx");
         pSettings = xr_new<CInifile>(SYSTEM_LTX);
-
-        setup_luabind_allocator();
-
-        CCharacterInfo::InitInternal();
-        CSpecificCharacter::InitInternal();
-
-        break;
+        s_own_settings = true;
     }
-    case DLL_PROCESS_DETACH: {
-        CCharacterInfo::DeleteSharedData();
-        CCharacterInfo::DeleteIdToIndexData();
-        CSpecificCharacter::DeleteSharedData();
-        CSpecificCharacter::DeleteIdToIndexData();
 
-        xr_delete(g_object_factory);
+    setup_luabind_allocator();
+
+    CCharacterInfo::InitInternal();
+    CSpecificCharacter::InitInternal();
+}
+
+static void factory_shutdown(bool own_core) {
+    CCharacterInfo::DeleteSharedData();
+    CCharacterInfo::DeleteIdToIndexData();
+    CSpecificCharacter::DeleteSharedData();
+    CSpecificCharacter::DeleteIdToIndexData();
+
+    xr_delete(g_object_factory);
+    if (s_own_settings) {
         CInifile** s = (CInifile**)(&pSettings);
         xr_delete(*s);
-        xr_delete(g_property_list_helper);
-        xr_delete(g_ai_space);
-        xr_delete(g_object_factory);
-        if (prop_helper_module)
-            FreeLibrary(prop_helper_module);
-        Core._destroy();
-        break;
+        s_own_settings = false;
     }
+    xr_delete(g_property_list_helper);
+    xr_delete(g_ai_space);
+    xr_delete(g_object_factory);
+#ifndef XRSE_FACTORY_EDITOR
+    if (prop_helper_module)
+        FreeLibrary(prop_helper_module);
+#endif
+    if (own_core)
+        Core._destroy();
+}
+
+#ifdef XRSE_FACTORY_EDITOR
+FACTORY_API void SEFactoryEntry() { factory_startup(false); }
+FACTORY_API void SEFactoryDestroy() { factory_shutdown(false); }
+#else
+BOOL APIENTRY DllMain(HANDLE module_handle, DWORD call_reason, LPVOID reserved) {
+    switch (call_reason) {
+    case DLL_PROCESS_ATTACH:
+        factory_startup(true);
+        break;
+    case DLL_PROCESS_DETACH:
+        factory_shutdown(true);
+        break;
     }
     return (TRUE);
 }
+#endif
 
 void _destroy_item_data_vector_cont(T_VECTOR* vec) {
     T_VECTOR::iterator it = vec->begin();

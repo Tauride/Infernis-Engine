@@ -118,39 +118,20 @@ void GSaveAsSMF					(LPCSTR fname)
         FS.w_close	(W);
 }
 */
-class CPrecalcBaseHemiThread : public CThread {
-    u32 _from, _to;
-    CDB::COLLIDER DB;
-
-public:
-    CPrecalcBaseHemiThread(u32 ID, u32 from, u32 to) : CThread(ID), _from(from), _to(to) {
-        R_ASSERT(from != u32(-1));
-        R_ASSERT(to != u32(-1));
-        R_ASSERT(from < to);
-        R_ASSERT(from >= 0);
-        R_ASSERT(to > 0);
+// The base hemisphere of vertices [first, end), with the worker's own collider
+static void PrecalcBaseHemi(CDB::COLLIDER& DB, base_lighting& lights, u32 first, u32 end) {
+    vecVertex& verts = lc_global_data()->g_vertices();
+    for (u32 vit = first; vit < end; vit++) {
+        base_color_c vC;
+        Vertex* V = verts[vit];
+        R_ASSERT(V);
+        V->normalFromAdj();
+        LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, lights,
+                   LP_dont_rgb + LP_dont_sun, 0);
+        vC.mul(0.5f);
+        V->C._set(vC);
     }
-    virtual void Execute() {
-        DB.ray_options(0);
-        for (u32 vit = _from; vit < _to; vit++) {
-            base_color_c vC;
-            R_ASSERT(vit != u32(-1));
-            vecVertex& verts = lc_global_data()->g_vertices();
-            R_ASSERT(vit >= 0);
-            R_ASSERT(vit < verts.size());
-            Vertex* V = verts[vit];
-
-            R_ASSERT(V);
-            V->normalFromAdj();
-            LightPoint(&DB, lc_global_data()->RCAST_Model(), vC, V->P, V->N, pBuild->L_static(),
-                       LP_dont_rgb + LP_dont_sun, 0);
-            vC.mul(0.5f);
-            V->C._set(vC);
-        }
-    }
-};
-
-CThreadManager precalc_base_hemi;
+}
 
 void CBuild::xrPhase_AdaptiveHT() {
     CDB::COLLIDER DB;
@@ -193,18 +174,17 @@ void CBuild::xrPhase_AdaptiveHT() {
         //(0.5f); 	V->C._set			(vC);
         //}
 
-        u32 stride = u32(-1);
-
-        u32 threads = u32(-1);
-        u32 rest = u32(-1);
-        get_intervals(8, lc_global_data()->g_vertices().size(), threads, stride, rest);
-        for (u32 thID = 0; thID < threads; thID++)
-            precalc_base_hemi.start(
-                xr_new<CPrecalcBaseHemiThread>(thID, thID * stride, thID * stride + stride));
-        if (rest > 0)
-            precalc_base_hemi.start(
-                xr_new<CPrecalcBaseHemiThread>(threads, threads * stride, threads * stride + rest));
-        precalc_base_hemi.wait();
+        // One worker per hardware thread, taking runs of vertices (IX-Ray's scheme)
+        const u32 count = u32(lc_global_data()->g_vertices().size());
+        const u32 run = 64;
+        std::atomic<u32> next{0};
+        lc_run_workers([&](u32) {
+            CDB::COLLIDER DB;
+            DB.ray_options(0);
+            base_lighting lights = pBuild->L_static(); // own copy: the lights cache their last occluder
+            for (u32 first; lc_take(next, count, first, run);)
+                PrecalcBaseHemi(DB, lights, first, std::min(first + run, count));
+        });
         // precalc_base_hemi
     }
 

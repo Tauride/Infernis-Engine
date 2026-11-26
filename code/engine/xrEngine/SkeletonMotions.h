@@ -104,7 +104,7 @@ public:
     shared_str name;
     void Load(IReader*);
 
-#ifdef _EDITOR
+#if defined(_EDITOR) || defined(ENGINE_EDITOR_SUPPORT) // also in xrEngineCore.dll for the editors
     void Save(IWriter*);
 #endif
     bool is_empty() const { return intervals.empty(); }

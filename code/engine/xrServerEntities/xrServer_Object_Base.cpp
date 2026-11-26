@@ -240,7 +240,7 @@ BOOL CSE_Abstract::Spawn_Read(NET_Packet& tNetPacket) {
     tNetPacket.r_stringZ(s_name);
 
     string256 temp;
-    tNetPacket.r_stringZ(temp);
+    tNetPacket.r_stringZ_s(temp); // bounded: the editors' scene files give the name as an ini value of any length
     set_name_replace(temp);
     u8 temp_gt;
     tNetPacket.r_u8(temp_gt /*s_gameid*/);

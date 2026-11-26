@@ -181,7 +181,9 @@ int APIENTRY WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, char* pCmdLin
 		CheckRun.BeforeFrame();
 		MainForm->Frame();
 
-		if ((PendingMakeLods || PendingBuild) && FramesBeforeActions && --FramesBeforeActions == 0)
+		// (on the check run's last frame at the latest: a -frames limit below 5 must not skip them)
+		const bool LastCheckFrame = CheckRun.FrameLimit > 0 && CheckRun.FrameCount + 1 >= CheckRun.FrameLimit;
+		if ((PendingMakeLods || PendingBuild) && (--FramesBeforeActions == 0 || LastCheckFrame))
 		{
 			if (PendingMakeLods)
 				MakeSceneLODs();
